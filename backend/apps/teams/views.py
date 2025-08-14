@@ -14,5 +14,23 @@ class TeamViewSet(viewsets.ModelViewSet):
         for the currently authenticated user.
         """
         user = self.request.user
-        # Filter teams where the user is listed in the 'coaches' or 'players' ManyToManyField
-        return Team.objects.filter(Q(coaches=user) | Q(players=user)).distinct()
+
+        # --- START DEBUGGING PRINTS ---
+        print("\n--- Inside TeamViewSet.get_queryset ---")
+        print(f"Authenticated user: {user.username} (ID: {user.id})")
+        print(f"User role: {user.role}")
+
+        # Let's see what the database thinks
+        coaching_teams = Team.objects.filter(coaches__id=user.id)
+        print(f"Teams this user is coaching (by ID): {list(coaching_teams)}")
+
+        playing_teams = Team.objects.filter(players__id=user.id)
+        print(f"Teams this user is playing for (by ID): {list(playing_teams)}")
+
+        # The final combined query
+        queryset = Team.objects.filter(Q(coaches=user) | Q(players=user)).distinct()
+        print(f"Final combined queryset result: {list(queryset)}")
+        print("--- End Debugging ---\n")
+        # --- END DEBUGGING PRINTS ---
+
+        return queryset

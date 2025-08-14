@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -144,4 +145,48 @@ CORS_ALLOWED_ORIGINS = [
     # For production, you MUST restrict this to your actual domain.
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True # <-- EASIEST FOR DEVELOPMENT
+CORS_ALLOW_ALL_ORIGINS = True #
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "x-requested-with",
+    "x-csrftoken",
+]
+
+REST_FRAMEWORK = {
+    # Use Django's standard permissions by default.
+    # We can override this on a per-view basis.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    # This is the most critical part.
+    # It tells every DRF view to first try and authenticate using JWT.
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60), # Set a longer lifetime for easier debugging
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    
+    # This ensures Django's SECRET_KEY is used to sign the tokens.
+    # A mismatch here would cause authentication to fail.
+    "SIGNING_KEY": SECRET_KEY, 
+    
+    # Defines the header type. 'Bearer' is the standard.
+    "AUTH_HEADER_TYPES": ("Bearer",), 
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+
+    "JTI_CLAIM": "jti",
+}

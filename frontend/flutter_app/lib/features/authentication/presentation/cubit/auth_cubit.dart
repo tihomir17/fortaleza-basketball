@@ -11,21 +11,21 @@ class AuthCubit extends Cubit<AuthState> {
       : _authRepository = authRepository,
         super(const AuthState.unknown());
 
-  // This method can be called at app start-up to check for a saved session
+  // checkAuthentication can be improved later with secure storage
   void checkAuthentication() {
     if (_authRepository.isLoggedIn()) {
-      emit(const AuthState.authenticated());
+      emit(AuthState.authenticated(token: _authRepository.authToken!));
     } else {
       emit(const AuthState.unauthenticated());
     }
   }
 
   Future<void> login(String username, String password) async {
-    final success = await _authRepository.login(username, password);
-    if (success) {
-      emit(const AuthState.authenticated());
+    final token = await _authRepository.login(username, password);
+    if (token != null) {
+      // On success, emit the authenticated state WITH the token
+      emit(AuthState.authenticated(token: token));
     } else {
-      // We can emit a failure state here if we want to show an error message
       emit(const AuthState.unauthenticated());
     }
   }

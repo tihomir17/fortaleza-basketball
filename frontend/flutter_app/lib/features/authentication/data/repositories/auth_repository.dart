@@ -11,7 +11,8 @@ class AuthRepository {
   // For now, we'll just hold it in memory.
   String? authToken;
 
-  Future<bool> login(String username, String password) async {
+  // This method now returns the token on success and null on failure.
+  Future<String?> login(String username, String password) async {
     final url = Uri.parse('${ApiClient.baseUrl}/auth/login/');
 
     try {
@@ -26,20 +27,16 @@ class AuthRepository {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // The token pair from djangorestframework-simplejwt is 'access' and 'refresh'
         authToken = data['access'];
-        // In a real app, you would securely save this token to device storage.
-        print('Login successful. Token: $authToken');
-        return true;
+        print('Login successful. Token acquired.');
+        return authToken; // <-- Return the token string
       } else {
-        // Handle login failure (e.g., wrong credentials)
         print('Login failed: ${response.body}');
-        return false;
+        return null; // <-- Return null on failure
       }
     } catch (e) {
-      // Handle network errors or other exceptions
       print('An error occurred during login: $e');
-      return false;
+      return null; // <-- Return null on error
     }
   }
 
