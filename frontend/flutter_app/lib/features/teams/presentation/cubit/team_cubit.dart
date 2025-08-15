@@ -7,14 +7,16 @@ import 'team_state.dart';
 class TeamCubit extends Cubit<TeamState> {
   final TeamRepository _teamRepository;
 
+  // The cubit now ONLY depends on the TeamRepository
   TeamCubit({required TeamRepository teamRepository})
       : _teamRepository = teamRepository,
         super(const TeamState());
 
-  Future<void> fetchTeams() async {
+  // fetchTeams now requires a token argument
+  Future<void> fetchTeams({required String token}) async {
     emit(state.copyWith(status: TeamStatus.loading));
     try {
-      final teams = await _teamRepository.getMyTeams();
+      final teams = await _teamRepository.getMyTeams(token: token);
       emit(state.copyWith(status: TeamStatus.success, teams: teams));
     } catch (e) {
       emit(state.copyWith(status: TeamStatus.failure, errorMessage: e.toString()));
