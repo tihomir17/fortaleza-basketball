@@ -1,6 +1,8 @@
 // lib/features/authentication/presentation/cubit/auth_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../main.dart'; // <-- IMPORT GetIt INSTANCE
+import '../../../teams/presentation/cubit/team_cubit.dart'; // <-- IMPORT TeamCubit
 import '../../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
 
@@ -30,8 +32,16 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> _resetApp() async {
+    // Unregister and re-register the feature cubits to ensure a clean state
+    await sl.resetLazySingleton<TeamCubit>();
+
+    // If you add more feature cubits, reset them here too
+    // await sl.resetLazySingleton<PlaysCubit>();
+  }
   void logout() {
     _authRepository.logout();
+    _resetApp();
     emit(const AuthState.unauthenticated());
   }
 }

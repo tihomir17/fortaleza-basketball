@@ -10,6 +10,8 @@ import 'features/home/presentation/screens/home_screen.dart';
 
 import 'features/teams/data/repositories/team_repository.dart';
 import 'features/teams/presentation/cubit/team_cubit.dart';
+import 'features/teams/presentation/cubit/team_detail_cubit.dart';
+
 
 // Create a global instance of GetIt for service location
 final sl = GetIt.instance;
@@ -17,15 +19,13 @@ final sl = GetIt.instance;
 void setupServiceLocator() {
   // Auth
   sl.registerSingleton<AuthRepository>(AuthRepository());
-  sl.registerLazySingleton<AuthCubit>(
-    () => AuthCubit(authRepository: sl<AuthRepository>()),
-  );
+  sl.registerLazySingleton<AuthCubit>(() => AuthCubit(authRepository: sl<AuthRepository>()));
+
   // Teams
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
-  // TeamCubit's constructor is now simpler
-  sl.registerLazySingleton<TeamCubit>(
-    () => TeamCubit(teamRepository: sl<TeamRepository>()),
-  );
+  // Use lazySingleton and we will reset it from the AuthCubit
+  sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerFactory<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
 }
 
 void main() {

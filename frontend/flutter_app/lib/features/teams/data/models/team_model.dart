@@ -16,21 +16,22 @@ class Team {
   });
 
   factory Team.fromJson(Map<String, dynamic> json) {
-    // Safely parse the list of players
-    var playerList = (json['players'] as List? ?? [])
+    // This is a safer way to parse lists that might be null or absent
+    final playersData = json['players'] as List<dynamic>? ?? [];
+    final players = playersData
         .map((playerJson) => User.fromJson(playerJson))
         .toList();
 
-    // Safely parse the list of coaches
-    var coachList = (json['coaches'] as List? ?? [])
+    final coachesData = json['coaches'] as List<dynamic>? ?? [];
+    final coaches = coachesData
         .map((coachJson) => User.fromJson(coachJson))
         .toList();
 
     return Team(
       id: json['id'],
       name: json['name'],
-      players: playerList,
-      coaches: coachList,
+      players: players,
+      coaches: coaches,
     );
   }
 }

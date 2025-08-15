@@ -19,16 +19,23 @@ class User {
     this.coachType,
   });
 
+  String get displayName {
+    final fullName = '$firstName $lastName'.trim();
+    // If the full name is empty, fall back to the username.
+    return fullName.isNotEmpty ? fullName : username;
+  }
+
   // A factory constructor for creating a new User instance from a map.
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
       username: json['username'],
       email: json['email'],
-      firstName: json['first_name'] ?? '', // Handle potential nulls from API
-      lastName: json['last_name'] ?? '', // Handle potential nulls from API
+      firstName: json['first_name'] ?? '',
+      lastName: json['last_name'] ?? '',
       role: json['role'],
-      coachType: json['coach_type'],
+      // Ensure coach_type is handled correctly if it's null or missing
+      coachType: json['coach_type'] == 'NONE' ? null : json['coach_type'],
     );
   }
 }
