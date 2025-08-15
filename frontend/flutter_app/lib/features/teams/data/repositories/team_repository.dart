@@ -41,4 +41,39 @@ class TeamRepository {
       throw Exception('Error fetching teams: $e');
     }
   }
+
+  Future<Team> getTeamDetails({
+    required String token,
+    required int teamId,
+  }) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/teams/$teamId/',
+    ); // <-- Note the teamId in the URL
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // The response body is a single JSON object, not a list
+        Map<String, dynamic> body = json.decode(response.body);
+        // We parse it directly into a Team object
+        return Team.fromJson(body);
+      } else {
+        print(
+          'Failed to load team details. Status code: ${response.statusCode}',
+        );
+        print('Response body: ${response.body}');
+        throw Exception('Failed to load team details from API');
+      }
+    } catch (e) {
+      print('Error fetching team details: $e');
+      throw Exception('Error fetching team details: $e');
+    }
+  }
 }
