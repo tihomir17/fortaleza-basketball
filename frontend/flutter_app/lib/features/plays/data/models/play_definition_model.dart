@@ -8,6 +8,7 @@ class PlayDefinition {
   final int teamId;
   final String? diagramUrl;
   final String? videoUrl;
+  final int? parentId;
 
   PlayDefinition({
     required this.id,
@@ -17,6 +18,7 @@ class PlayDefinition {
     required this.teamId,
     this.diagramUrl,
     this.videoUrl,
+    this.parentId,
   });
 
   factory PlayDefinition.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,7 @@ class PlayDefinition {
       teamId: json['team'], // Assuming the API returns the team ID directly
       diagramUrl: json['diagram_url'],
       videoUrl: json['video_url'],
+      parentId: json['parent'],
     );
   }
 }
