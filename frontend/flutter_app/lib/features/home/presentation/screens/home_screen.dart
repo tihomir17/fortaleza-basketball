@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart'; // Import the go_router package
-import '../../../authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
+
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
 
@@ -64,6 +66,28 @@ class HomeScreen extends StatelessWidget {
             },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Navigate to the create screen and wait for a result.
+          // We use MaterialPageRoute here because this isn't part of our main GoRouter flow.
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => const CreateTeamScreen(),
+              fullscreenDialog: true, // Presents the screen as a modal popup
+            ),
+          );
+
+          // If the result is true, a new team was created, so refresh the list.
+          if (result == true && context.mounted) {
+            final token = context.read<AuthCubit>().state.token;
+            if (token != null) {
+              context.read<TeamCubit>().fetchTeams(token: token);
+            }
+          }
+        },
+        tooltip: 'Create Team',
+        child: const Icon(Icons.add),
       ),
     );
   }
