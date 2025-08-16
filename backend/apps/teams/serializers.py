@@ -3,10 +3,17 @@ from rest_framework import serializers
 from .models import Team
 from apps.users.serializers import UserSerializer
 
-class TeamSerializer(serializers.ModelSerializer):
-    # We still declare the fields here so DRF knows what to expect.
+class TeamWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = ['name'] # The user only provides the name.
+
+class TeamReadSerializer(serializers.ModelSerializer):
+    # We declare these so DRF knows about them, but they will be
+    # populated by our custom to_representation method.
     players = UserSerializer(many=True, read_only=True)
     coaches = UserSerializer(many=True, read_only=True)
+    created_by = UserSerializer(read_only=True) # Also serialize the creator
 
     class Meta:
         model = Team

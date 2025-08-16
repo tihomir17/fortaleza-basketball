@@ -108,4 +108,31 @@ class TeamRepository {
       throw Exception('An error occurred while updating the team: $e');
     }
   }
+
+  Future<Team> createTeam({required String token, required String name}) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/teams/');
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'name': name}),
+      );
+
+      if (response.statusCode == 201) {
+        // 201 Created is the success code
+        final Map<String, dynamic> body = json.decode(response.body);
+        return Team.fromJson(body);
+      } else {
+        throw Exception(
+          'Failed to create team. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while creating the team: $e');
+    }
+  }
 }
