@@ -14,6 +14,7 @@ import 'features/teams/presentation/cubit/team_detail_cubit.dart';
 
 import 'features/plays/data/repositories/play_repository.dart';
 import 'features/plays/presentation/cubit/playbook_cubit.dart'; 
+import 'features/plays/presentation/cubit/create_play_cubit.dart';
 
 // Create a global instance of GetIt for service location
 final sl = GetIt.instance;
@@ -31,6 +32,7 @@ void setupServiceLocator() {
 
   sl.registerLazySingleton<PlayRepository>(() => PlayRepository());
   sl.registerFactory<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
+  sl.registerFactory<CreatePlayCubit>(() => CreatePlayCubit(playRepository: sl<PlayRepository>()));
 }
 
 void main() {
