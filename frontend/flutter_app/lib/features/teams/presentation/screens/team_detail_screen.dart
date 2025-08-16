@@ -27,11 +27,11 @@ class TeamDetailScreen extends StatelessWidget {
         .map((word) => word[0].toUpperCase() + word.substring(1))
         .join(' ');
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthCubit>().state;
-    
+
     return Scaffold(
       appBar: AppBar(
         // We'll set the title dynamically based on the state
@@ -98,19 +98,21 @@ class TeamDetailScreen extends StatelessWidget {
             return FloatingActionButton.extended(
               onPressed: () {
                 // Ensure we're authenticated before navigating
-                if (authState.status == AuthStatus.authenticated && authState.token != null) {
+                if (authState.status == AuthStatus.authenticated &&
+                    authState.token != null) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => BlocProvider(
-                        // Create a fresh PlaybookCubit instance using our service locator
                         create: (_) => sl<PlaybookCubit>()
-                          // Immediately call fetchPlays with the required token and teamId
                           ..fetchPlays(
                             token: authState.token!,
                             teamId: state.team!.id,
                           ),
-                        // Pass the loaded team object to the PlaybookScreen
-                        child: PlaybookScreen(team: state.team!),
+                        // Pass both teamName and teamId
+                        child: PlaybookScreen(
+                          teamName: state.team!.name,
+                          teamId: state.team!.id,
+                        ),
                       ),
                     ),
                   );

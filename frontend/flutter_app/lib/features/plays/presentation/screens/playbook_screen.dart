@@ -2,28 +2,26 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
-import 'package:flutter_app/features/plays/presentation/cubit/create_play_cubit.dart';
 import 'package:flutter_app/features/plays/presentation/screens/create_play_screen.dart';
-import '../../../../features/teams/data/models/team_model.dart';
+import '../../data/models/play_definition_model.dart';
 import '../cubit/playbook_cubit.dart';
 import '../cubit/playbook_state.dart';
 
 class PlaybookScreen extends StatelessWidget {
-  // We pass the team in so we can display its name in the AppBar
-  final Team team;
-  const PlaybookScreen({super.key, required this.team});
+  final String teamName;
+  final int teamId;
+
+  const PlaybookScreen({
+    super.key,
+    required this.teamName,
+    required this.teamId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Get the auth state to access the token
-    final authState = context.watch<AuthCubit>().state;
-    // Get the current user to check their role
-    final user = authState.user;
     return Scaffold(
-      appBar: AppBar(title: Text('${team.name} Playbook')),
+      appBar: AppBar(title: Text('$teamName Playbook')),
       body: BlocBuilder<PlaybookCubit, PlaybookState>(
         builder: (context, state) {
           if (state.status == PlaybookStatus.loading ||
@@ -34,69 +32,75 @@ class PlaybookScreen extends StatelessWidget {
             return Center(child: Text('Error: ${state.errorMessage}'));
           }
           if (state.status == PlaybookStatus.success && state.plays.isEmpty) {
-            return const Center(
-              child: Text('This team has no plays in its playbook.'),
-            );
+            return const Center(child: Text('This team has no plays yet.'));
           }
-          if (state.status == PlaybookStatus.success) {
-            return ListView.builder(
-              itemCount: state.plays.length,
-              itemBuilder: (context, index) {
-                final play = state.plays[index];
-                return ListTile(
-                  // Use an icon to quickly identify the play type
-                  leading: Icon(
-                    play.playType == 'OFFENSIVE'
-                        ? Icons.sports_basketball
-                        : Icons.shield,
-                    color: play.playType == 'OFFENSIVE'
-                        ? Colors.orange
-                        : Colors.blue,
-                  ),
-                  title: Text(play.name),
-                  subtitle: Text(play.description ?? 'No description.'),
-                );
-              },
-            );
-          }
-          // Fallback case
-          return const SizedBox.shrink();
+
+          final offensivePlays = state.plays
+              .where((p) => p.playType == 'OFFENSIVE')
+              .toList();
+          final defensivePlays = state.plays
+              .where((p) => p.playType == 'DEFENSIVE')
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              if (offensivePlays.isNotEmpty)
+                _PlayCategory(title: 'Offensive Plays', plays: offensivePlays),
+
+              if (offensivePlays.isNotEmpty && defensivePlays.isNotEmpty)
+                const SizedBox(height: 24),
+
+              if (defensivePlays.isNotEmpty)
+                _PlayCategory(title: 'Defensive Plays', plays: defensivePlays),
+            ],
+          );
         },
       ),
-      // ADD THIS FLOATING ACTION BUTTON
-      floatingActionButton:
-          user?.role ==
-              'COACH' // Only show the button if the user is a coach
-          ? FloatingActionButton(
-              onPressed: () async {
-                if (authState.status == AuthStatus.authenticated) {
-                  // Navigate to the create screen and wait for a result
-                  final result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => MultiBlocProvider(
-                        providers: [
-                          BlocProvider(create: (_) => sl<CreatePlayCubit>()),
-                          // Pass down the existing AuthCubit instance
-                          BlocProvider.value(value: context.read<AuthCubit>()),
-                        ],
-                        child: CreatePlayScreen(team: team),
-                      ),
-                    ),
-                  );
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final token = context.read<AuthCubit>().state.token;
 
-                  // If the result is true, it means a play was created successfully
-                  if (result == true && context.mounted) {
-                    // Refresh the playbook to show the new play
-                    context.read<PlaybookCubit>().fetchPlays(
-                      token: authState.token!,
-                      teamId: team.id,
-                    );
-                  }
-                }
-              },
-              child: const Icon(Icons.add),
-            )
-          : null, // Don't show the button if not a coach
+          // This call now matches the constructor defined in Step 1
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => CreatePlayScreen(teamId: teamId)),
+          );
+
+          if (result == true && context.mounted && token != null) {
+            context.read<PlaybookCubit>().fetchPlays(
+              token: token,
+              teamId: teamId,
+            );
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _PlayCategory extends StatelessWidget {
+  final String title;
+  final List<PlayDefinition> plays;
+
+  const _PlayCategory({required this.title, required this.plays});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.headlineSmall),
+        const Divider(),
+        ...plays.map(
+          (play) => ListTile(
+            title: Text(play.name),
+            subtitle: Text(play.description ?? 'No description.'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {},
+          ),
+        ),
+      ],
     );
   }
 }
