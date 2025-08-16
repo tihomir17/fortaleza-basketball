@@ -31,8 +31,10 @@ void setupServiceLocator() {
 
   // Cubits that hold user-specific data MUST be lazy singletons
   sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
-  sl.registerLazySingleton<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
-  sl.registerLazySingleton<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
+  sl.registerFactory<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
+
+  // sl.registerLazySingleton<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerFactory<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
   sl.registerFactory<CreatePlayCubit>(() => CreatePlayCubit(playRepository: sl<PlayRepository>()));
 }
 

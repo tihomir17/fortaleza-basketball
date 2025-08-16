@@ -5,8 +5,10 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response # Make sure this is imported
 from .models import Team
-from .serializers import TeamReadSerializer, TeamWriteSerializer
+from .serializers import TeamReadSerializer, TeamWriteSerializer, UserSerializer
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from apps.plays.serializers import PlayDefinitionSerializer
 
 User = get_user_model() # A shortcut to the active User model
 
@@ -113,3 +115,59 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({'status': f'Coach {user_to_remove.username} removed from {team.name}'}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid role specified.'}, status=status.HTTP_400_BAD_REQUEST)        
+
+    @action(detail=True, methods=['post'])
+    def create_and_add_player(self, request, pk=None):
+        """
+        Creates a new user with role 'PLAYER' and adds them directly to this team.
+        This is for coaches to manually build their roster.
+        """
+        team = self.get_object()
+        email = request.data.get('email')
+        username = request.data.get('username')
+        first_name = request.data.get('first_name', '') # Optional first name
+        last_name = request.data.get('last_name', '')   # Optional last name
+
+        if not username or not email:
+            return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(Q(email=email) | Q(username=username)).exists():
+            return Response({'error': 'A user with this email or username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Create a full user account, but they can't log in.
+            new_player = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                password=User.objects.make_random_password(),
+                role=User.Role.PLAYER,
+                is_active=False # is_active=False means they cannot log in.
+            )
+            team.players.add(new_player)
+            serializer = UserSerializer(new_player)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=True, methods=['get'])
+    def plays(self, request, pk=None):
+        """
+        Custom action to retrieve the playbook for a single team.
+        This handles: GET /api/teams/{id}/plays/
+        """
+        user = request.user
+        
+        # Step 1: Get the queryset of all teams this user is allowed to see.
+        allowed_teams = self.get_queryset()
+        
+        # Step 2: From that allowed list, get the specific team requested by its pk.
+        # If the team is not in the allowed list, this will correctly raise a 404 Not Found error.
+        team = get_object_or_404(allowed_teams, pk=pk)
+        
+        # Step 3: Get and serialize the plays for the confirmed-accessible team.
+        plays_queryset = team.plays.all().order_by('name')
+        serializer = PlayDefinitionSerializer(plays_queryset, many=True)
+        
+        return Response(serializer.data)        

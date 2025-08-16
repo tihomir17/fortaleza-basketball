@@ -9,6 +9,7 @@ import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
 import '../cubit/team_detail_cubit.dart';
+import 'add_player_screen.dart';
 
 class ManageRosterScreen extends StatefulWidget {
   final Team team;
@@ -84,13 +85,30 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   }
 
   void _navigateToAddMember() async {
-    // Navigate to the search screen and wait for a result (the selected User)
-    final selectedUser = await Navigator.of(
-      context,
-    ).push<User>(MaterialPageRoute(builder: (_) => const UserSearchScreen()));
+    final selectedUser = await Navigator.of(context).push<User>(
+      MaterialPageRoute(
+        // We no longer pass the teamId, as the backend handles filtering
+        builder: (_) => const UserSearchScreen(),
+      ),
+    );
 
     if (selectedUser != null) {
+      // The addMember logic will check the user's role and add them correctly.
       _addMember(selectedUser);
+    }
+  }
+
+  void _navigateToAddPlayer() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AddPlayerScreen(teamId: widget.team.id),
+      ),
+    );
+
+    // If the form returns true, we need to refresh the main detail screen
+    // So we pop the roster screen as well to trigger the refresh there.
+    if (result == true && mounted) {
+      Navigator.of(context).pop(true);
     }
   }
 
@@ -104,6 +122,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
             icon: const Icon(Icons.person_add),
             tooltip: 'Add Member',
             onPressed: _navigateToAddMember,
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            tooltip: 'Add New Player',
+            onPressed: _navigateToAddPlayer, // Call the updated method
           ),
         ],
       ),

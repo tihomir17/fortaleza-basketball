@@ -1,6 +1,7 @@
 // lib/features/teams/data/repositories/team_repository.dart
 
 import 'dart:convert';
+import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/team_model.dart';
@@ -185,6 +186,43 @@ class TeamRepository {
       }
     } catch (e) {
       throw Exception('An error occurred while removing a member: $e');
+    }
+  }
+
+  Future<User> createAndAddPlayer({
+    required String token,
+    required int teamId,
+    required String email,
+    required String username,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/teams/$teamId/create_and_add_player/',
+    );
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'email': email,
+          'username': username,
+          'first_name': firstName,
+          'last_name': lastName,
+        }),
+      );
+      if (response.statusCode == 201) {
+        return User.fromJson(json.decode(response.body));
+      } else {
+        throw Exception(
+          'Failed to add player. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while adding a player: $e');
     }
   }
 }

@@ -61,11 +61,7 @@ class AuthCubit extends Cubit<AuthState> {
     await _authRepository.logout();
 
     // Next, reset all lazy singletons that hold user-specific data.
-    // This destroys their old instances. The next time they are requested,
-    // GetIt will create brand new, clean instances.
     await sl.resetLazySingleton<TeamCubit>();
-    await sl.resetLazySingleton<TeamDetailCubit>();
-    await sl.resetLazySingleton<PlaybookCubit>();
     
     // Finally, emit the unauthenticated state to trigger navigation
     emit(const AuthState.unauthenticated());
