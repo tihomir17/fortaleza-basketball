@@ -4,9 +4,12 @@ from django.db.models import Q
 from rest_framework import viewsets, permissions
 from .models import Team
 from .serializers import TeamSerializer
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.db import connection
+from apps.plays.serializers import PlayDefinitionSerializer
+
 
 class TeamViewSet(viewsets.ModelViewSet):
     """
@@ -35,47 +38,20 @@ class TeamViewSet(viewsets.ModelViewSet):
             Q(coaches=user) | Q(players=user)
         ).distinct()
 
-    # def list(self, request, *args, **kwargs):
-    #     """
-    #     A simplified and foolproof method to list teams for the current user.
-    #     """
-    #     user = request.user
+    @action(detail=True, methods=['get'])
+    def plays(self, request, pk=None):
+        """
+        Custom action to retrieve the playbook for a single team.
+        This creates the endpoint: GET /api/teams/{id}/plays/
+        """
+        # self.get_object() re-uses the logic from get_queryset() to find the
+        # team by its 'pk' and automatically ensures the user has permission to see it.
+        team = self.get_object()
         
-    #     print("\n--- INSIDE SIMPLIFIED list METHOD ---")
-    #     print(f"User: '{user.username}'")
-
-    #     # Step 1: Get the IDs of teams the user coaches.
-    #     coached_team_ids = user.teams_as_coach.values_list('id', flat=True)
-    #     print(f"User coaches teams with IDs: {list(coached_team_ids)}")
-
-    #     # Step 2: Get the IDs of teams the user plays for.
-    #     player_team_ids = user.teams_as_player.values_list('id', flat=True)
-    #     print(f"User plays for teams with IDs: {list(player_team_ids)}")
+        # Get the related plays for this specific team instance
+        plays_queryset = team.plays.all().order_by('name')
         
-    #     # Step 3: Combine the ID lists and remove duplicates.
-    #     all_team_ids = set(coached_team_ids) | set(player_team_ids)
-    #     print(f"Total unique team IDs: {list(all_team_ids)}")
+        # We use the PlayDefinitionSerializer to convert the data to JSON
+        serializer = PlayDefinitionSerializer(plays_queryset, many=True)
         
-    #     # Step 4: Perform a single, clean query to get the team objects.
-    #     final_queryset = Team.objects.filter(id__in=all_team_ids)
-    #     print(f"Final QuerySet result: {list(final_queryset)}")
-    #     print("--- END OF SIMPLIFIED list METHOD ---\n")
-        
-    #     serializer = self.get_serializer(final_queryset, many=True)
-    #     return Response(serializer.data)
-
-    # def retrieve(self, request, pk=None, *args, **kwargs):
-    #     """
-    #     This corrected retrieve method works with our simplified logic.
-    #     """
-    #     user = request.user
-    #     team_instance = self.get_object()
-
-    #     is_coach = user.teams_as_coach.filter(pk=team_instance.pk).exists()
-    #     is_player = user.teams_as_player.filter(pk=team_instance.pk).exists()
-
-    #     if not (is_coach or is_player):
-    #         raise PermissionDenied("You do not have permission to view this team.")
-
-    #     serializer = self.get_serializer(team_instance)
-    #     return Response(serializer.data)
+        return Response(serializer.data)
