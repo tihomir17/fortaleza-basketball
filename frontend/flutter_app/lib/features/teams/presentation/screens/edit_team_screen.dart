@@ -6,6 +6,7 @@ import 'package:flutter_app/main.dart'; // For Service Locator (sl)
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
+import 'manage_roster_screen.dart';
 
 class EditTeamScreen extends StatefulWidget {
   final Team team;
@@ -88,6 +89,25 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
               validator: (value) => (value == null || value.isEmpty)
                   ? 'Please enter a name'
                   : null,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text('Manage Roster'),
+              onPressed: () async {
+                // Navigate to the roster screen and wait for it to pop
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ManageRosterScreen(team: widget.team),
+                  ),
+                );
+                // When we return, we pop this screen with 'true' to signal that
+                // the main detail screen should refresh its data.
+                if (mounted) Navigator.of(context).pop(true);
+              },
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
             const SizedBox(height: 32),
             ElevatedButton(

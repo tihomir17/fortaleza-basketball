@@ -16,7 +16,7 @@ class AuthRepository {
   // The source of truth is SharedPreferences.
   String? authToken;
 
-  // MODIFIED: Now saves the token to persistent storage
+  // Now saves the token to persistent storage
   Future<String?> login(String username, String password) async {
     final url = Uri.parse('${ApiClient.baseUrl}/auth/login/');
     try {
@@ -42,14 +42,14 @@ class AuthRepository {
     }
   }
 
-  // MODIFIED: Now removes the token from persistent storage
+  // Now removes the token from persistent storage
   Future<void> logout() async {
     authToken = null; // Clear the in-memory cache
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey); // Remove from persistent storage
   }
 
-  // NEW: A method to read the token from storage on app startup
+  // A method to read the token from storage on app startup
   Future<String?> tryToLoadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);

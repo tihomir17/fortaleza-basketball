@@ -12,6 +12,8 @@ import 'features/plays/data/repositories/play_repository.dart';
 import 'features/plays/presentation/cubit/playbook_cubit.dart';
 import 'features/plays/presentation/cubit/create_play_cubit.dart';
 
+import 'features/authentication/data/repositories/user_repository.dart';
+
 import 'core/navigation/app_router.dart';
 
 // Create a global instance of GetIt for service location
@@ -21,6 +23,7 @@ void setupServiceLocator() {
   // Auth
   sl.registerSingleton<AuthRepository>(AuthRepository());
   sl.registerLazySingleton<AuthCubit>(() => AuthCubit(authRepository: sl<AuthRepository>()));
+  sl.registerLazySingleton<UserRepository>(() => UserRepository()); // <-- ADD THIS
 
   // Repositories (can be singletons as they are stateless)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
