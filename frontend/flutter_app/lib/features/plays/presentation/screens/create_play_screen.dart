@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../cubit/create_play_cubit.dart';
 import '../cubit/create_play_state.dart';
 
@@ -32,24 +33,29 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
   void _submitForm(BuildContext context) {
     // Validate the form before submitting
     if (_formKey.currentState!.validate()) {
-      // Access the cubit from the context and call the submit method
-      context.read<CreatePlayCubit>().submitPlay(
-            // We'll get the token from the AuthCubit in the final step
-            token: '', // Placeholder for now
-            name: _nameController.text,
-            description: _descriptionController.text,
-            playType: _selectedPlayType,
-            teamId: widget.team.id,
-          );
+      // Get the auth token from the AuthCubit, which we provided
+      final token = context.read<AuthCubit>().state.token;
+      if (token != null) {
+        context.read<CreatePlayCubit>().submitPlay(
+          token: token,
+          name: _nameController.text,
+          description: _descriptionController.text,
+          playType: _selectedPlayType,
+          teamId: widget.team.id,
+        );
+      } else {
+        // Optional: Show an error if the token is somehow null
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Not authenticated.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('New Play for ${widget.team.name}'),
-      ),
+      appBar: AppBar(title: Text('New Play for ${widget.team.name}')),
       body: BlocListener<CreatePlayCubit, CreatePlayState>(
         listener: (context, state) {
           if (state.status == CreatePlayStatus.success) {
@@ -60,13 +66,17 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                 backgroundColor: Colors.green,
               ),
             );
-            Navigator.of(context).pop(true); // Pop with a 'true' result to indicate success
+            Navigator.of(
+              context,
+            ).pop(true); // Pop with a 'true' result to indicate success
           }
           if (state.status == CreatePlayStatus.failure) {
             // Show an error message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.errorMessage ?? 'An unknown error occurred.'),
+                content: Text(
+                  state.errorMessage ?? 'An unknown error occurred.',
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -94,7 +104,9 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                 // Description
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description (Optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Description (Optional)',
+                  ),
                   maxLines: 3,
                 ),
                 const SizedBox(height: 16),
@@ -103,8 +115,14 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                   value: _selectedPlayType,
                   decoration: const InputDecoration(labelText: 'Play Type'),
                   items: const [
-                    DropdownMenuItem(value: 'OFFENSIVE', child: Text('Offensive')),
-                    DropdownMenuItem(value: 'DEFENSIVE', child: Text('Defensive')),
+                    DropdownMenuItem(
+                      value: 'OFFENSIVE',
+                      child: Text('Offensive'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'DEFENSIVE',
+                      child: Text('Defensive'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -122,7 +140,9 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                     builder: (context, state) {
                       // Show a loading indicator on the button when submitting
                       if (state.status == CreatePlayStatus.loading) {
-                        return const CircularProgressIndicator(color: Colors.white);
+                        return const CircularProgressIndicator(
+                          color: Colors.white,
+                        );
                       }
                       return const Text('Create Play');
                     },

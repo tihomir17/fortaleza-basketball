@@ -13,11 +13,23 @@ class AuthCubit extends Cubit<AuthState> {
       : _authRepository = authRepository,
         super(const AuthState.unknown());
 
-  // checkAuthentication can be improved later with secure storage
-  void checkAuthentication() {
-    if (_authRepository.isLoggedIn()) {
-      emit(AuthState.authenticated(token: _authRepository.authToken!));
+  // This method is called at app start-up.
+  Future<void> checkAuthentication() async {
+    // Check if the repository's in-memory token exists from a previous session.
+    final token = _authRepository.authToken;
+    if (token != null) {
+      // If a token exists, we MUST also fetch the user profile to have a complete state.
+      final user = await _authRepository.getMyProfile(token);
+      if (user != null) {
+        // If we successfully get the user, the session is valid.
+        emit(AuthState.authenticated(token: token, user: user));
+      } else {
+        // If we have a token but can't get a user (e.g., token expired),
+        // then the session is invalid.
+        emit(const AuthState.unauthenticated());
+      }
     } else {
+      // If no token exists, we are unauthenticated.
       emit(const AuthState.unauthenticated());
     }
   }
@@ -25,8 +37,15 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> login(String username, String password) async {
     final token = await _authRepository.login(username, password);
     if (token != null) {
-      // On success, emit the authenticated state WITH the token
-      emit(AuthState.authenticated(token: token));
+      // After getting the token, get the user profile
+      final user = await _authRepository.getMyProfile(token);
+      if (user != null) {
+        // On success, emit the authenticated state WITH the token AND user
+        emit(AuthState.authenticated(token: token, user: user));
+      } else {
+        // If profile fetch fails, treat it as a login failure
+        emit(const AuthState.unauthenticated());
+      }
     } else {
       emit(const AuthState.unauthenticated());
     }
