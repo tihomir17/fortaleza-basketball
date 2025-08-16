@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from .views import RegisterView, CurrentUserView
+from .views import RegisterView, CurrentUserView, UserSearchView 
 
 urlpatterns = [
     # POST /api/auth/register/
@@ -16,4 +16,5 @@ urlpatterns = [
     path('login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     # GET /api/auth/me/
     path('me/', CurrentUserView.as_view(), name='current_user'),
+    path('search/', UserSearchView.as_view(), name='user_search'),
 ]

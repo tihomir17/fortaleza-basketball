@@ -1,10 +1,17 @@
 # apps/teams/views.py
 
 from django.db.models import Q
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.response import Response # Make sure this is imported
 from .models import Team
-from .serializers import TeamReadSerializer, TeamWriteSerializer
+from .serializers import TeamReadSerializer, TeamWriteSerializer, UserSerializer
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import UserManager
+from django.shortcuts import get_object_or_404
+from apps.plays.serializers import PlayDefinitionSerializer
+
+User = get_user_model() # A shortcut to the active User model
 
 class TeamViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -32,9 +39,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             Q(coaches=user) | Q(players=user) | Q(created_by=user)
         ).distinct()
 
-    # --- TEMPORARY DEBUGGING 'create' METHOD ---
     def create(self, request, *args, **kwargs):
-        print("\n--- INTERCEPTING CREATE REQUEST ---")
         print(f"Request Data Received: {request.data}")
         
         serializer = self.get_serializer(data=request.data)
@@ -43,10 +48,6 @@ class TeamViewSet(viewsets.ModelViewSet):
         is_valid = serializer.is_valid()
         
         if not is_valid:
-            print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print("!!! SERIALIZER VALIDATION FAILED !!!")
-            print(f"!!! ERRORS: {serializer.errors}")
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
             # Return the detailed errors to the frontend as well
             return Response(serializer.errors, status=400)
         
@@ -60,3 +61,114 @@ class TeamViewSet(viewsets.ModelViewSet):
         team = serializer.save(created_by=self.request.user)
         # The creator is also automatically added to the list of coaches for the new team.
         team.coaches.add(self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def add_member(self, request, pk=None):
+        """
+        Adds a user to a team's roster as either a player or a coach.
+        Expects a body like: {'user_id': <id>, 'role': 'player'}
+        """
+        team = self.get_object() # This automatically handles permissions
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id or not role:
+            return Response({'error': 'User ID and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_to_add = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if role.lower() == 'player':
+            team.players.add(user_to_add)
+            return Response({'status': f'Player {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+        elif role.lower() == 'coach':
+            team.coaches.add(user_to_add)
+            return Response({'status': f'Coach {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid role specified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ADD THIS ACTION
+    @action(detail=True, methods=['post'])
+    def remove_member(self, request, pk=None):
+        """
+        Removes a user from a team's roster.
+        Expects a body like: {'user_id': <id>, 'role': 'player'}
+        """
+        team = self.get_object()
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id or not role:
+            return Response({'error': 'User ID and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user_to_remove = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if role.lower() == 'player':
+            team.players.remove(user_to_remove)
+            return Response({'status': f'Player {user_to_remove.username} removed from {team.name}'}, status=status.HTTP_200_OK)
+        elif role.lower() == 'coach':
+            team.coaches.remove(user_to_remove)
+            return Response({'status': f'Coach {user_to_remove.username} removed from {team.name}'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid role specified.'}, status=status.HTTP_400_BAD_REQUEST)        
+
+    @action(detail=True, methods=['post'])
+    def create_and_add_player(self, request, pk=None):
+        """
+        Creates a new user with role 'PLAYER' and adds them directly to this team.
+        This is for coaches to manually build their roster.
+        """
+        team = self.get_object()
+        email = request.data.get('email')
+        username = request.data.get('username')
+        first_name = request.data.get('first_name', '') # Optional first name
+        last_name = request.data.get('last_name', '')   # Optional last name
+
+        if not username or not email:
+            return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(Q(email=email) | Q(username=username)).exists():
+            return Response({'error': 'A user with this email or username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Create a full user account, but they can't log in.
+            new_player = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                password=None,
+                role=User.Role.PLAYER,
+                is_active=False # is_active=False means they cannot log in.
+            )
+            team.players.add(new_player)
+            serializer = UserSerializer(new_player)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=True, methods=['get'])
+    def plays(self, request, pk=None):
+        """
+        Custom action to retrieve the playbook for a single team.
+        This handles: GET /api/teams/{id}/plays/
+        """
+        user = request.user
+        
+        # Step 1: Get the queryset of all teams this user is allowed to see.
+        allowed_teams = self.get_queryset()
+        
+        # Step 2: From that allowed list, get the specific team requested by its pk.
+        # If the team is not in the allowed list, this will correctly raise a 404 Not Found error.
+        team = get_object_or_404(allowed_teams, pk=pk)
+        
+        # Step 3: Get and serialize the plays for the confirmed-accessible team.
+        plays_queryset = team.plays.all().order_by('name')
+        serializer = PlayDefinitionSerializer(plays_queryset, many=True)
+        
+        return Response(serializer.data)
