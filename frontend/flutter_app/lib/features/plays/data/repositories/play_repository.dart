@@ -97,4 +97,53 @@ class PlayRepository {
       throw Exception('An error occurred while deleting the play: $e');
     }
   }
+
+  // ADD THIS UPDATE METHOD
+  Future<PlayDefinition> updatePlay({
+    required String token,
+    required int playId, // The ID of the play to update
+    required String name,
+    required String? description,
+    required String playType,
+    required int teamId,
+    int? parentId,
+  }) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/plays/$playId/',
+    ); // The detail URL
+
+    try {
+      final Map<String, dynamic> requestBody = {
+        'name': name,
+        'description': description,
+        'play_type': playType,
+        'parent': parentId,
+        'team': teamId,
+        // We must include the teamId, which the serializer requires
+        // We'll get it from the original object on the edit screen.
+      };
+
+      final response = await _client.put(
+        // Using PUT for a full update
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        // 200 OK is the success code for PUT
+        final Map<String, dynamic> body = json.decode(response.body);
+        return PlayDefinition.fromJson(body);
+      } else {
+        throw Exception(
+          'Failed to update play. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while updating the play: $e');
+    }
+  }
 }

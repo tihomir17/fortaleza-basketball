@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/plays/presentation/screens/create_play_screen.dart';
+import 'package:flutter_app/features/plays/presentation/screens/edit_play_screen.dart';
 import 'package:flutter_app/main.dart'; // For Service Locator (sl)
 import '../../data/models/play_definition_model.dart';
 import '../../data/repositories/play_repository.dart';
@@ -22,6 +23,7 @@ class PlaybookScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ... (This build method is correct and does not need changes)
     return Scaffold(
       appBar: AppBar(
         title: Text('$teamName Playbook'),
@@ -86,11 +88,30 @@ class PlaybookScreen extends StatelessWidget {
   }
 }
 
+// =========================================================================
+// === THIS IS THE WIDGET WITH THE CORRECTIONS ===
+// =========================================================================
 class _PlayCategoryCard extends StatelessWidget {
   final String title;
   final List<PlayDefinition> allPlays;
 
   const _PlayCategoryCard({required this.title, required this.allPlays});
+
+  // A single, reusable navigation helper method for this widget
+  void _navigateToEdit(BuildContext context, PlayDefinition play) async {
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => EditPlayScreen(play: play)));
+    if (result == true && context.mounted) {
+      final token = context.read<AuthCubit>().state.token;
+      if (token != null) {
+        context.read<PlaybookCubit>().fetchPlays(
+          token: token,
+          teamId: play.teamId,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,19 +133,26 @@ class _PlayCategoryCard extends StatelessWidget {
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 20),
-            ...rootPlays.map((rootPlay) => _buildPlayTree(rootPlay, allPlays)),
+            // We now pass 'context' to the recursive tree builder
+            ...rootPlays.map(
+              (rootPlay) => _buildPlayTree(context, rootPlay, allPlays),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// This is a recursive function that builds a widget tree from a flat list of plays.
-  Widget _buildPlayTree(PlayDefinition parent, List<PlayDefinition> allPlays) {
+  // This function now accepts the BuildContext to pass it down the tree
+  Widget _buildPlayTree(
+    BuildContext context,
+    PlayDefinition parent,
+    List<PlayDefinition> allPlays,
+  ) {
     final children = allPlays.where((p) => p.parentId == parent.id).toList();
 
-    // BASE CASE: If there are no children, this is a "leaf" node.
     if (children.isEmpty) {
+      // BASE CASE: Leaf node
       return ListTile(
         leading: const Opacity(
           opacity: 0.5,
@@ -136,33 +164,58 @@ class _PlayCategoryCard extends StatelessWidget {
             : null,
         trailing: _DeletePlayButton(play: parent),
         dense: true,
+        onTap: () => _navigateToEdit(
+          context,
+          parent,
+        ), // It can call the class-level helper
       );
     }
 
-    // RECURSIVE STEP: If there are children, this is a category (a "branch").
+    // RECURSIVE STEP: Branch node
     return ExpansionTile(
       leading: const Icon(Icons.account_tree_outlined),
-      trailing: _DeletePlayButton(play: parent),
       title: Text(
         parent.name,
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
+      // Pass the context to the action button builder
+      trailing: _buildActionButtons(context, parent),
       children: children
           .map(
             (child) => Padding(
-              padding: const EdgeInsets.only(
-                left: 16.0,
-              ), // Indent children visually
-              child: _buildPlayTree(child, allPlays),
+              padding: const EdgeInsets.only(left: 16.0),
+              child: _buildPlayTree(
+                context,
+                child,
+                allPlays,
+              ), // Pass context in recursion
             ),
           )
           .toList(),
     );
   }
+
+  // This helper now accepts the BuildContext as a parameter
+  Widget _buildActionButtons(BuildContext context, PlayDefinition play) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey),
+          tooltip: 'Edit "${play.name}"',
+          onPressed: () => _navigateToEdit(
+            context,
+            play,
+          ), // It can call the class-level helper
+        ),
+        _DeletePlayButton(play: play),
+      ],
+    );
+  }
 }
 
-// Helper widget for the delete button and its logic
 class _DeletePlayButton extends StatelessWidget {
+  // ... (This widget is correct and does not need changes)
   final PlayDefinition play;
   const _DeletePlayButton({required this.play});
 
@@ -170,6 +223,7 @@ class _DeletePlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: Icon(Icons.delete_outline, color: Colors.red[700]),
+      tooltip: 'Delete "${play.name}"',
       onPressed: () => _showDeleteConfirmation(context, play),
     );
   }
@@ -196,17 +250,13 @@ class _DeletePlayButton extends StatelessWidget {
                   Navigator.of(dialogContext).pop();
                   return;
                 }
-
                 try {
                   await sl<PlayRepository>().deletePlay(
                     token: token,
                     playId: play.id,
                   );
-                  Navigator.of(dialogContext).pop(); // Close the dialog
-
-                  // Refresh the playbook by finding the cubit and calling fetchPlays
-                  final teamId =
-                      play.teamId; // We have the teamId on the play object
+                  Navigator.of(dialogContext).pop();
+                  final teamId = play.teamId;
                   context.read<PlaybookCubit>().fetchPlays(
                     token: token,
                     teamId: teamId,
