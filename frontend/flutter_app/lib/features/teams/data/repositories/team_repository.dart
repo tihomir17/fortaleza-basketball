@@ -135,4 +135,56 @@ class TeamRepository {
       throw Exception('An error occurred while creating the team: $e');
     }
   }
+
+  Future<void> addMemberToTeam({
+    required String token,
+    required int teamId,
+    required int userId,
+    required String role, // 'player' or 'coach'
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'user_id': userId, 'role': role}),
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to add member. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while adding a member: $e');
+    }
+  }
+
+  Future<void> removeMemberFromTeam({
+    required String token,
+    required int teamId,
+    required int userId,
+    required String role,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/remove_member/');
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'user_id': userId, 'role': role}),
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to remove member. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while removing a member: $e');
+    }
+  }
 }

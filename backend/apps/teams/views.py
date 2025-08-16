@@ -1,10 +1,14 @@
 # apps/teams/views.py
 
 from django.db.models import Q
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.response import Response # Make sure this is imported
 from .models import Team
 from .serializers import TeamReadSerializer, TeamWriteSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model() # A shortcut to the active User model
 
 class TeamViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -32,9 +36,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             Q(coaches=user) | Q(players=user) | Q(created_by=user)
         ).distinct()
 
-    # --- TEMPORARY DEBUGGING 'create' METHOD ---
     def create(self, request, *args, **kwargs):
-        print("\n--- INTERCEPTING CREATE REQUEST ---")
         print(f"Request Data Received: {request.data}")
         
         serializer = self.get_serializer(data=request.data)
@@ -43,10 +45,6 @@ class TeamViewSet(viewsets.ModelViewSet):
         is_valid = serializer.is_valid()
         
         if not is_valid:
-            print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print("!!! SERIALIZER VALIDATION FAILED !!!")
-            print(f"!!! ERRORS: {serializer.errors}")
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
             # Return the detailed errors to the frontend as well
             return Response(serializer.errors, status=400)
         
@@ -60,3 +58,58 @@ class TeamViewSet(viewsets.ModelViewSet):
         team = serializer.save(created_by=self.request.user)
         # The creator is also automatically added to the list of coaches for the new team.
         team.coaches.add(self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def add_member(self, request, pk=None):
+        """
+        Adds a user to a team's roster as either a player or a coach.
+        Expects a body like: {'user_id': <id>, 'role': 'player'}
+        """
+        team = self.get_object() # This automatically handles permissions
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id or not role:
+            return Response({'error': 'User ID and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_to_add = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if role.lower() == 'player':
+            team.players.add(user_to_add)
+            return Response({'status': f'Player {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+        elif role.lower() == 'coach':
+            team.coaches.add(user_to_add)
+            return Response({'status': f'Coach {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid role specified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ADD THIS ACTION
+    @action(detail=True, methods=['post'])
+    def remove_member(self, request, pk=None):
+        """
+        Removes a user from a team's roster.
+        Expects a body like: {'user_id': <id>, 'role': 'player'}
+        """
+        team = self.get_object()
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id or not role:
+            return Response({'error': 'User ID and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user_to_remove = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if role.lower() == 'player':
+            team.players.remove(user_to_remove)
+            return Response({'status': f'Player {user_to_remove.username} removed from {team.name}'}, status=status.HTTP_200_OK)
+        elif role.lower() == 'coach':
+            team.coaches.remove(user_to_remove)
+            return Response({'status': f'Coach {user_to_remove.username} removed from {team.name}'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid role specified.'}, status=status.HTTP_400_BAD_REQUEST)        
