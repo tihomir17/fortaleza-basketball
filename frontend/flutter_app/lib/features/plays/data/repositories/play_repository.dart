@@ -42,38 +42,59 @@ class PlayRepository {
     required String token,
     required String name,
     required String? description,
-    required String playType, // 'OFFENSIVE' or 'DEFENSIVE'
+    required String playType,
     required int teamId,
+    int? parentId,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/plays/');
 
     try {
+      // Build the request body map
+      final Map<String, dynamic> requestBody = {
+        'name': name,
+        'description': description,
+        'play_type': playType,
+        'team': teamId,
+        // Only include the 'parent' key if parentId is not null
+        if (parentId != null) 'parent': parentId,
+      };
+
       final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({
-          'name': name,
-          'description': description,
-          'play_type': playType,
-          'team': teamId, // The API expects the primary key of the team
-        }),
+        body: json.encode(requestBody), // Encode the map
       );
 
       if (response.statusCode == 201) {
-        // 201 Created is the success code for POST
         final Map<String, dynamic> body = json.decode(response.body);
         return PlayDefinition.fromJson(body);
       } else {
-        // Try to parse the error message from the backend
-        final errorBody = json.decode(response.body);
-        final errorMessage = errorBody['detail'] ?? 'Failed to create play';
-        throw Exception(errorMessage);
+        throw Exception(
+          'Failed to create play. Server response: ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('An error occurred while creating the play: $e');
+    }
+  }
+
+  // ADD THIS DELETE METHOD
+  Future<void> deletePlay({required String token, required int playId}) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/plays/$playId/');
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      // 204 No Content is the standard success code for a DELETE request
+      if (response.statusCode != 204) {
+        throw Exception('Failed to delete play.');
+      }
+    } catch (e) {
+      throw Exception('An error occurred while deleting the play: $e');
     }
   }
 }
