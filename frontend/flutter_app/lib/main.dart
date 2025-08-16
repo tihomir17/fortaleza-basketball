@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-
 import 'features/authentication/data/repositories/auth_repository.dart';
 import 'features/authentication/presentation/cubit/auth_cubit.dart';
-import 'features/authentication/presentation/cubit/auth_state.dart';
-import 'features/authentication/presentation/screens/login_screen.dart';
-import 'features/home/presentation/screens/home_screen.dart';
 
 import 'features/teams/data/repositories/team_repository.dart';
 import 'features/teams/presentation/cubit/team_cubit.dart';
 import 'features/teams/presentation/cubit/team_detail_cubit.dart';
 
 import 'features/plays/data/repositories/play_repository.dart';
-import 'features/plays/presentation/cubit/playbook_cubit.dart'; 
+import 'features/plays/presentation/cubit/playbook_cubit.dart';
 import 'features/plays/presentation/cubit/create_play_cubit.dart';
+
+import 'core/navigation/app_router.dart';
 
 // Create a global instance of GetIt for service location
 final sl = GetIt.instance;
@@ -24,48 +22,41 @@ void setupServiceLocator() {
   sl.registerSingleton<AuthRepository>(AuthRepository());
   sl.registerLazySingleton<AuthCubit>(() => AuthCubit(authRepository: sl<AuthRepository>()));
 
-  // Teams
+  // Repositories (can be singletons as they are stateless)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
-  // Use lazySingleton and we will reset it from the AuthCubit
-  sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
-  sl.registerFactory<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
-
   sl.registerLazySingleton<PlayRepository>(() => PlayRepository());
-  sl.registerFactory<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
+
+  // Cubits that hold user-specific data MUST be lazy singletons
+  sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerLazySingleton<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerLazySingleton<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
   sl.registerFactory<CreatePlayCubit>(() => CreatePlayCubit(playRepository: sl<PlayRepository>()));
 }
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   setupServiceLocator();
-  runApp(const MyApp());
+  // We need to wait for the initial auth check to complete
+  await sl<AuthCubit>().checkAuthentication();
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
+
+  // Create an instance of our AppRouter
+  late final AppRouter appRouter = AppRouter(authCubit: sl<AuthCubit>());
+
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthCubit>(
-      create: (_) => sl<AuthCubit>()..checkAuthentication(),
-      child: MaterialApp(
+    // We still provide the AuthCubit at the top level
+    return BlocProvider.value(
+      value: sl<AuthCubit>(),
+      child: MaterialApp.router(
         title: 'Basketball Analytics',
         theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-        home: BlocBuilder<AuthCubit, AuthState>(
-          builder: (context, authState) {
-            // <-- The state is named authState
-            // Check the status of the authState
-            if (authState.status == AuthStatus.authenticated) {
-              // We are authenticated! We can safely access authState.token
-              return BlocProvider(
-                create: (context) => sl<TeamCubit>()
-                  // Call fetchTeams immediately with the token from the state
-                  ..fetchTeams(token: authState.token!),
-                child: const HomeScreen(),
-              );
-            }
-            // If we are not authenticated, show the login screen
-            return const LoginScreen();
-          },
-        ),
+        // Use the router configuration from our AppRouter class
+        routerConfig: appRouter.router,
       ),
     );
   }

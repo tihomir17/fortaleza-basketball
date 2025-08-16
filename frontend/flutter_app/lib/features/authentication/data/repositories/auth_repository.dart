@@ -2,18 +2,64 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart'; // We created this earlier
-import '../models/user_model.dart';
+import 'package:flutter_app/core/api/api_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/user_model.dart'; // <-- IMPORT THE PACKAGE
 
 class AuthRepository {
   final http.Client _client = http.Client();
+  static const String _tokenKey =
+      'authToken'; // A key to identify our token in storage
 
-  // We will need a way to store the token securely later.
-  // For now, we'll just hold it in memory.
+  // This variable is now just a quick in-memory cache.
+  // The source of truth is SharedPreferences.
   String? authToken;
-  User? currentUser; // property to hold the user
 
-  Future<User?> getMyProfile(String token) async {
+  // MODIFIED: Now saves the token to persistent storage
+  Future<String?> login(String username, String password) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/auth/login/');
+    try {
+      final response = await _client.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'username': username, 'password': password}),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        authToken = data['access'];
+
+        // Save to persistent storage
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tokenKey, authToken!);
+
+        return authToken;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // MODIFIED: Now removes the token from persistent storage
+  Future<void> logout() async {
+    authToken = null; // Clear the in-memory cache
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey); // Remove from persistent storage
+  }
+
+  // NEW: A method to read the token from storage on app startup
+  Future<String?> tryToLoadToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    if (token != null) {
+      authToken = token; // Load into the in-memory cache
+    }
+    return token;
+  }
+
+  Future<User?> getCurrentUser(String token) async {
     final url = Uri.parse('${ApiClient.baseUrl}/auth/me/');
     try {
       final response = await _client.get(
@@ -23,55 +69,16 @@ class AuthRepository {
           'Authorization': 'Bearer $token',
         },
       );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        currentUser = User.fromJson(data);
-        return currentUser;
-      }
-      return null;
-    } catch (e) {
-      print('Failed to get user profile: $e');
-      return null;
-    }
-  }
-
-  // This method now returns the token on success and null on failure.
-  Future<String?> login(String username, String password) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/auth/login/');
-
-    try {
-      final response = await _client.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'username': username,
-          'password': password,
-        }),
-      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        authToken = data['access'];
-        print('Login successful. Token acquired.');
-        return authToken; // <-- Return the token string
+        return User.fromJson(data);
       } else {
-        print('Login failed: ${response.body}');
-        return null; // <-- Return null on failure
+        // This can happen if the token is valid but expired
+        return null;
       }
     } catch (e) {
-      print('An error occurred during login: $e');
-      return null; // <-- Return null on error
+      return null;
     }
-  }
-
-  void logout() {
-    // Clear the token
-    authToken = null;
-    currentUser = null;
-    // In a real app, you would also clear the token from device storage.
-  }
-
-  bool isLoggedIn() {
-    return authToken != null;
   }
 }

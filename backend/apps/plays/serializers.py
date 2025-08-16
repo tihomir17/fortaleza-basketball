@@ -5,4 +5,5 @@ from .models import PlayDefinition
 class PlayDefinitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlayDefinition
-        fields = '__all__' # Include all fields
+        # '__all__' will automatically include our new 'parent' field
+        fields = '__all__'

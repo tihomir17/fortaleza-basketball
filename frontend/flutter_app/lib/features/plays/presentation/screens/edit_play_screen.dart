@@ -1,4 +1,4 @@
-// lib/features/plays/presentation/screens/create_play_screen.dart
+// lib/features/plays/presentation/screens/edit_play_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,19 +7,19 @@ import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/play_definition_model.dart';
 import '../../data/repositories/play_repository.dart';
 
-class CreatePlayScreen extends StatefulWidget {
-  final int teamId;
-  const CreatePlayScreen({super.key, required this.teamId});
+class EditPlayScreen extends StatefulWidget {
+  final PlayDefinition play;
+  const EditPlayScreen({super.key, required this.play});
 
   @override
-  State<CreatePlayScreen> createState() => _CreatePlayScreenState();
+  State<EditPlayScreen> createState() => _EditPlayScreenState();
 }
 
-class _CreatePlayScreenState extends State<CreatePlayScreen> {
+class _EditPlayScreenState extends State<EditPlayScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _selectedPlayType = 'OFFENSIVE';
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late String _selectedPlayType;
   int? _selectedParentId;
   bool _isLoading = false;
 
@@ -29,6 +29,12 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.play.name);
+    _descriptionController = TextEditingController(
+      text: widget.play.description,
+    );
+    _selectedPlayType = widget.play.playType;
+    _selectedParentId = widget.play.parentId;
     _fetchPotentialParents();
   }
 
@@ -42,11 +48,14 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
     try {
       final plays = await sl<PlayRepository>().getPlaysForTeam(
         token: token,
-        teamId: widget.teamId,
+        teamId: widget.play.teamId,
       );
       if (mounted) {
         setState(() {
-          _potentialParents = plays;
+          // Exclude the current play and its descendants from the list of potential parents
+          _potentialParents = plays
+              .where((p) => p.id != widget.play.id)
+              .toList();
           _isLoadingParents = false;
         });
       }
@@ -83,12 +92,13 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
       }
 
       try {
-        await sl<PlayRepository>().createPlay(
+        await sl<PlayRepository>().updatePlay(
           token: token,
+          playId: widget.play.id,
           name: _nameController.text,
           description: _descriptionController.text,
           playType: _selectedPlayType,
-          teamId: widget.teamId,
+          teamId: widget.play.teamId,
           parentId: _selectedParentId,
         );
 
@@ -98,8 +108,9 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}'),
-            backgroundColor: Colors.redAccent,
+            content: Text(
+              'Error updating play: ${e.toString().replaceFirst("Exception: ", "")}',
+            ),
           ),
         );
         setState(() => _isLoading = false);
@@ -110,7 +121,7 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create New Play')),
+      appBar: AppBar(title: const Text('Edit Play')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -132,8 +143,6 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 16),
-
-            // --- THIS IS THE CORRECT, COMPLETE DROPDOWN ---
             DropdownButtonFormField<String>(
               value: _selectedPlayType,
               items: const [
@@ -145,10 +154,7 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
               },
               decoration: const InputDecoration(labelText: 'Play Type'),
             ),
-
-            // --- END OF CORRECT DROPDOWN ---
             const SizedBox(height: 16),
-
             if (_isLoadingParents)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -176,7 +182,6 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                   labelText: 'Parent Play / Category',
                 ),
               ),
-
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitForm,
@@ -186,7 +191,7 @@ class _CreatePlayScreenState extends State<CreatePlayScreen> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 3),
                     )
-                  : const Text('Save Play'),
+                  : const Text('Save Changes'),
             ),
           ],
         ),

@@ -21,6 +21,13 @@ class PlayDefinition(models.Model):
         related_name='plays',
         help_text=_('The team this play belongs to.')
     )
+    parent = models.ForeignKey(
+        'self',  # This makes the relationship point to the same model
+        on_delete=models.CASCADE, # If a parent is deleted, its children are also deleted
+        null=True,      # A play can have no parent (it's a top-level category)
+        blank=True,     # It's optional in the Django admin
+        related_name='children' # How we can find children from a parent instance
+    )    
     # Optional: A diagram or video link for the play
     diagram_url = models.URLField(blank=True, null=True)
     video_url = models.URLField(blank=True, null=True)
@@ -31,4 +38,7 @@ class PlayDefinition(models.Model):
         unique_together = ('name', 'team')
 
     def __str__(self):
-        return f"{self.team.name} - {self.name} ({self.play_type})"
+        # A nice string representation for the admin
+        if self.parent:
+            return f"{self.parent.name} -> {self.name}"
+        return self.name
