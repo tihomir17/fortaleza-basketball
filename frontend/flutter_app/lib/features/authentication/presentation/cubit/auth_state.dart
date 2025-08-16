@@ -1,20 +1,20 @@
 // lib/features/authentication/presentation/cubit/auth_state.dart
 
 import 'package:equatable/equatable.dart';
-import '../../data/models/user_model.dart';
+import '../../data/models/user_model.dart'; // Make sure to import your User model
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
 class AuthState extends Equatable {
   final AuthStatus status;
   final String? token;
-  final User? user; // user property
+  final User? user; // <-- The required user object
 
   const AuthState._({this.status = AuthStatus.unknown, this.token, this.user});
 
   const AuthState.unknown() : this._();
 
-  // Authenticated state now requires BOTH a token and a user
+  // The authenticated state now requires BOTH the token and the user
   const AuthState.authenticated({required String token, required User user})
     : this._(status: AuthStatus.authenticated, token: token, user: user);
 

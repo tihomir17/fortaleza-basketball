@@ -2,13 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
-
-// imports for the new screen and its dependencies
-import '../../../authentication/presentation/cubit/auth_state.dart';
-import '../../../teams/presentation/cubit/team_detail_cubit.dart';
-import '../../../teams/presentation/screens/team_detail_screen.dart';
-
+import 'package:go_router/go_router.dart'; // Import the go_router package
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
@@ -18,16 +12,16 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the current authentication state, which contains our token
-    final authState = context.watch<AuthCubit>().state;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Teams'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
             onPressed: () {
+              // Call the logout method from the AuthCubit.
+              // The GoRouter redirect logic will automatically handle navigation.
               context.read<AuthCubit>().logout();
             },
           ),
@@ -60,27 +54,11 @@ class HomeScreen extends StatelessWidget {
                 subtitle: Text(
                   'Coaches: ${team.coaches.length}, Players: ${team.players.length}',
                 ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                ), // <-- A nice visual cue
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  if (authState.status == AuthStatus.authenticated &&
-                      authState.token != null) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider(
-                          // Use our service locator to create a fresh instance of TeamDetailCubit
-                          create: (_) => sl<TeamDetailCubit>()
-                            // Immediately fetch the details for the tapped team
-                            ..fetchTeamDetails(
-                              token: authState.token!,
-                              teamId: team.id,
-                            ),
-                          child: const TeamDetailScreen(),
-                        ),
-                      ),
-                    );
-                  }
+                  // Use go_router for navigation, passing the team's ID in the URL.
+                  // This will match the '/teams/:teamId' route we defined.
+                  context.go('/teams/${team.id}');
                 },
               );
             },

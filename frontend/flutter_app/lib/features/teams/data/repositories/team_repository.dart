@@ -72,6 +72,7 @@ class TeamRepository {
         throw Exception('Failed to load team details from API');
       }
     } catch (e) {
+      
       print('Error fetching team details: $e');
       throw Exception('Error fetching team details: $e');
     }
