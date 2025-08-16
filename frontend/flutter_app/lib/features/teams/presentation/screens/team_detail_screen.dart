@@ -2,6 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_app/main.dart';
+
+import '../../../authentication/presentation/cubit/auth_cubit.dart';
+import '../../../authentication/presentation/cubit/auth_state.dart';
+import '../../../plays/presentation/cubit/playbook_cubit.dart';
+import '../../../plays/presentation/screens/playbook_screen.dart';
+
 import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
 
@@ -23,6 +30,8 @@ class TeamDetailScreen extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthCubit>().state;
+    
     return Scaffold(
       appBar: AppBar(
         // We'll set the title dynamically based on the state
@@ -80,6 +89,39 @@ class TeamDetailScreen extends StatelessWidget {
           }
           // Fallback case
           return const Center(child: Text('No team data available.'));
+        },
+      ),
+      floatingActionButton: BlocBuilder<TeamDetailCubit, TeamDetailState>(
+        builder: (context, state) {
+          // Only show the button if the team has loaded successfully
+          if (state.status == TeamDetailStatus.success && state.team != null) {
+            return FloatingActionButton.extended(
+              onPressed: () {
+                // Ensure we're authenticated before navigating
+                if (authState.status == AuthStatus.authenticated && authState.token != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider(
+                        // Create a fresh PlaybookCubit instance using our service locator
+                        create: (_) => sl<PlaybookCubit>()
+                          // Immediately call fetchPlays with the required token and teamId
+                          ..fetchPlays(
+                            token: authState.token!,
+                            teamId: state.team!.id,
+                          ),
+                        // Pass the loaded team object to the PlaybookScreen
+                        child: PlaybookScreen(team: state.team!),
+                      ),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.menu_book),
+              label: const Text('View Playbook'),
+            );
+          }
+          // Return an empty widget (don't show the button) if the team isn't loaded
+          return const SizedBox.shrink();
         },
       ),
     );
