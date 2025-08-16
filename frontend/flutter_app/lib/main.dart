@@ -20,27 +20,17 @@ final sl = GetIt.instance;
 void setupServiceLocator() {
   // Auth
   sl.registerSingleton<AuthRepository>(AuthRepository());
-  sl.registerLazySingleton<AuthCubit>(
-    () => AuthCubit(authRepository: sl<AuthRepository>()),
-  );
+  sl.registerLazySingleton<AuthCubit>(() => AuthCubit(authRepository: sl<AuthRepository>()));
 
-  // Teams
+  // Repositories (can be singletons as they are stateless)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
-  // Use lazySingleton and we will reset it from the AuthCubit
-  sl.registerLazySingleton<TeamCubit>(
-    () => TeamCubit(teamRepository: sl<TeamRepository>()),
-  );
-  sl.registerFactory<TeamDetailCubit>(
-    () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
-  );
-
   sl.registerLazySingleton<PlayRepository>(() => PlayRepository());
-  sl.registerFactory<PlaybookCubit>(
-    () => PlaybookCubit(playRepository: sl<PlayRepository>()),
-  );
-  sl.registerFactory<CreatePlayCubit>(
-    () => CreatePlayCubit(playRepository: sl<PlayRepository>()),
-  );
+
+  // Cubits that hold user-specific data MUST be lazy singletons
+  sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerLazySingleton<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerLazySingleton<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
+  sl.registerFactory<CreatePlayCubit>(() => CreatePlayCubit(playRepository: sl<PlayRepository>()));
 }
 
 Future<void> main() async {

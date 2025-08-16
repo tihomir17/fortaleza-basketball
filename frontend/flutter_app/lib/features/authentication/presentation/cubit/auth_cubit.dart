@@ -1,15 +1,21 @@
 // lib/features/authentication/presentation/cubit/auth_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_app/main.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
+
+// cubits that need to be reset
+import '../../../teams/presentation/cubit/team_cubit.dart';
+import '../../../teams/presentation/cubit/team_detail_cubit.dart';
+import '../../../plays/presentation/cubit/playbook_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
 
   AuthCubit({required AuthRepository authRepository})
-    : _authRepository = authRepository,
-      super(const AuthState.unknown());
+      : _authRepository = authRepository,
+        super(const AuthState.unknown());
 
   // THIS METHOD IS NOW CORRECT
   Future<void> checkAuthentication() async {
@@ -51,7 +57,17 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
+    // First, perform the repository logout (clears token from storage)
     await _authRepository.logout();
+
+    // Next, reset all lazy singletons that hold user-specific data.
+    // This destroys their old instances. The next time they are requested,
+    // GetIt will create brand new, clean instances.
+    await sl.resetLazySingleton<TeamCubit>();
+    await sl.resetLazySingleton<TeamDetailCubit>();
+    await sl.resetLazySingleton<PlaybookCubit>();
+    
+    // Finally, emit the unauthenticated state to trigger navigation
     emit(const AuthState.unauthenticated());
   }
 }
