@@ -72,9 +72,40 @@ class TeamRepository {
         throw Exception('Failed to load team details from API');
       }
     } catch (e) {
-      
       print('Error fetching team details: $e');
       throw Exception('Error fetching team details: $e');
+    }
+  }
+
+  Future<Team> updateTeam({
+    required String token,
+    required int teamId,
+    required String newName,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/');
+
+    try {
+      // We use PATCH for partial updates, as we are only changing the name.
+      final response = await _client.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'name': newName}),
+      );
+
+      if (response.statusCode == 200) {
+        // 200 OK is the success code for PATCH/PUT
+        final Map<String, dynamic> body = json.decode(response.body);
+        return Team.fromJson(body);
+      } else {
+        throw Exception(
+          'Failed to update team. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while updating the team: $e');
     }
   }
 }
