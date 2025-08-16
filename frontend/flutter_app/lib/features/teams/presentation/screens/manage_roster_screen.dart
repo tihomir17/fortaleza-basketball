@@ -108,7 +108,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     // If the form returns true, we need to refresh the main detail screen
     // So we pop the roster screen as well to trigger the refresh there.
     if (result == true && mounted) {
-      Navigator.of(context).pop(true);
+      context.read<TeamDetailCubit>().fetchTeamDetails(
+        token: context.read<AuthCubit>().state.token!,
+        teamId: widget.team.id,
+      );
+      // Navigator.of(context).pop(true);
     }
   }
 

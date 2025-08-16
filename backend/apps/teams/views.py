@@ -7,6 +7,7 @@ from rest_framework.response import Response # Make sure this is imported
 from .models import Team
 from .serializers import TeamReadSerializer, TeamWriteSerializer, UserSerializer
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import UserManager
 from django.shortcuts import get_object_or_404
 from apps.plays.serializers import PlayDefinitionSerializer
 
@@ -141,7 +142,7 @@ class TeamViewSet(viewsets.ModelViewSet):
                 email=email,
                 first_name=first_name,
                 last_name=last_name,
-                password=User.objects.make_random_password(),
+                password=None,
                 role=User.Role.PLAYER,
                 is_active=False # is_active=False means they cannot log in.
             )
@@ -170,4 +171,4 @@ class TeamViewSet(viewsets.ModelViewSet):
         plays_queryset = team.plays.all().order_by('name')
         serializer = PlayDefinitionSerializer(plays_queryset, many=True)
         
-        return Response(serializer.data)        
+        return Response(serializer.data)

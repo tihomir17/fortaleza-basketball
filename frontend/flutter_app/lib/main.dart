@@ -13,6 +13,7 @@ import 'features/plays/presentation/cubit/playbook_cubit.dart';
 import 'features/plays/presentation/cubit/create_play_cubit.dart';
 
 import 'features/authentication/data/repositories/user_repository.dart';
+import 'core/navigation/refresh_signal.dart';
 
 import 'core/navigation/app_router.dart';
 
@@ -22,20 +23,34 @@ final sl = GetIt.instance;
 void setupServiceLocator() {
   // Auth
   sl.registerSingleton<AuthRepository>(AuthRepository());
-  sl.registerLazySingleton<AuthCubit>(() => AuthCubit(authRepository: sl<AuthRepository>()));
-  sl.registerLazySingleton<UserRepository>(() => UserRepository()); // <-- ADD THIS
+  sl.registerLazySingleton<AuthCubit>(
+    () => AuthCubit(authRepository: sl<AuthRepository>()),
+  );
+  sl.registerLazySingleton<UserRepository>(
+    () => UserRepository(),
+  ); // <-- ADD THIS
 
   // Repositories (can be singletons as they are stateless)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
   sl.registerLazySingleton<PlayRepository>(() => PlayRepository());
 
   // Cubits that hold user-specific data MUST be lazy singletons
-  sl.registerLazySingleton<TeamCubit>(() => TeamCubit(teamRepository: sl<TeamRepository>()));
-  sl.registerFactory<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
+  sl.registerLazySingleton<TeamCubit>(
+    () => TeamCubit(teamRepository: sl<TeamRepository>()),
+  );
+  sl.registerFactory<TeamDetailCubit>(
+    () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
+  );
 
-  // sl.registerLazySingleton<TeamDetailCubit>(() => TeamDetailCubit(teamRepository: sl<TeamRepository>()));
-  sl.registerFactory<PlaybookCubit>(() => PlaybookCubit(playRepository: sl<PlayRepository>()));
-  sl.registerFactory<CreatePlayCubit>(() => CreatePlayCubit(playRepository: sl<PlayRepository>()));
+  sl.registerFactory<PlaybookCubit>(
+    () => PlaybookCubit(playRepository: sl<PlayRepository>()),
+  );
+  sl.registerFactory<CreatePlayCubit>(
+    () => CreatePlayCubit(playRepository: sl<PlayRepository>()),
+  );
+
+  // Register refresh signal as a global singleton
+  sl.registerSingleton<RefreshSignal>(RefreshSignal());
 }
 
 Future<void> main() async {

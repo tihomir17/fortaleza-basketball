@@ -1,6 +1,7 @@
 // lib/features/teams/presentation/screens/edit_team_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/main.dart'; // For Service Locator (sl)
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
@@ -103,7 +104,10 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
                 );
                 // When we return, we pop this screen with 'true' to signal that
                 // the main detail screen should refresh its data.
-                if (mounted) Navigator.of(context).pop(true);
+                if (mounted) {
+                  sl<RefreshSignal>().notify();
+                  Navigator.of(context).pop();
+                }
               },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
