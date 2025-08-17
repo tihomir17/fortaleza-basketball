@@ -125,13 +125,27 @@ class _AddPlayerScreenState extends State<AddPlayerScreen> {
                 labelText: 'Jersey Number (Optional)',
               ),
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-              ], // Only allow numbers
+              // Only allow up to 2 digits
+              maxLength: 2,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              // Add validation logic
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return null; // It's optional, so empty is fine
+                }
+                final number = int.tryParse(value);
+                if (number == null) {
+                  return 'Invalid number';
+                }
+                // Note: MaxLength already prevents numbers > 99
+                // This validator is here as an extra safeguard.
+                if (number < 0 || number > 99) {
+                  return 'Enter a number 0-99';
+                }
+                return null; // Input is valid
+              },
             ),
             const SizedBox(height: 16),
-            // --- END OF FIELD ---
-            const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitForm,
               child: _isLoading

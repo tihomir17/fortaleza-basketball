@@ -7,10 +7,11 @@ import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'edit_team_screen.dart';
-// We will create this file in the next step
-// import '../../../../features/authentication/presentation/screens/edit_user_screen.dart';
+
 import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
+
+import '../../../authentication/presentation/screens/edit_user_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final int teamId;
@@ -108,6 +109,15 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
           }
           if (state.status == TeamDetailStatus.success && state.team != null) {
             final team = state.team!;
+
+            final sortedPlayers = List.of(team.players);
+            sortedPlayers.sort((a, b) {
+              // Handle cases where numbers might be null
+              final numA =
+                  a.jerseyNumber ?? 1000; // Treat nulls as a large number
+              final numB = b.jerseyNumber ?? 1000;
+              return numA.compareTo(numB); // Sort in ascending order
+            });
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: ListView(
@@ -138,7 +148,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const Divider(),
-                  for (final player in team.players)
+                  for (final player in sortedPlayers)
                     ListTile(
                       leading: CircleAvatar(
                         backgroundColor: Theme.of(context).primaryColorLight,
@@ -152,14 +162,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                       title: Text(player.displayName),
                       subtitle: const Text('Player'),
                       onTap: () {
-                        // TODO: Navigate to Edit Player Screen
-                        // Example (once EditUserScreen is created):
-                        // Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditUserScreen(user: player)));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edit player functionality coming soon!',
-                            ),
+                        // Navigate to Edit Player Screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EditUserScreen(user: player),
                           ),
                         );
                       },
