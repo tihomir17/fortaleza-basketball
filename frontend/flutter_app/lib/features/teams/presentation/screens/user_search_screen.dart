@@ -57,10 +57,11 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       );
       if (mounted) setState(() => _searchResults = results);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

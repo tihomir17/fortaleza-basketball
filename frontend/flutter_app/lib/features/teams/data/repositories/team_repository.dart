@@ -196,6 +196,7 @@ class TeamRepository {
     required String username,
     String? firstName,
     String? lastName,
+    int? jerseyNumber,
   }) async {
     final url = Uri.parse(
       '${ApiClient.baseUrl}/teams/$teamId/create_and_add_player/',
@@ -212,6 +213,7 @@ class TeamRepository {
           'username': username,
           'first_name': firstName,
           'last_name': lastName,
+          'jersey_number': jerseyNumber,
         }),
       );
       if (response.statusCode == 201) {
@@ -223,6 +225,45 @@ class TeamRepository {
       }
     } catch (e) {
       throw Exception('An error occurred while adding a player: $e');
+    }
+  }
+
+  Future<User> createAndAddCoach({
+    required String token,
+    required int teamId,
+    required String email,
+    required String username,
+    String? firstName,
+    String? lastName,
+    required String coachType,
+  }) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/teams/$teamId/create_and_add_coach/',
+    );
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'email': email,
+          'username': username,
+          'first_name': firstName,
+          'last_name': lastName,
+          'coach_type': coachType,
+        }),
+      );
+      if (response.statusCode == 201) {
+        return User.fromJson(json.decode(response.body));
+      } else {
+        throw Exception(
+          'Failed to add coach. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while adding a coach: $e');
     }
   }
 }

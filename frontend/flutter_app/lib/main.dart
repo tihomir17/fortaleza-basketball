@@ -21,36 +21,34 @@ import 'core/navigation/app_router.dart';
 final sl = GetIt.instance;
 
 void setupServiceLocator() {
-  // Auth
+  // Auth & Global Services (Singletons)
   sl.registerSingleton<AuthRepository>(AuthRepository());
+  sl.registerSingleton<UserRepository>(UserRepository());
+  sl.registerSingleton<RefreshSignal>(RefreshSignal());
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),
   );
-  sl.registerLazySingleton<UserRepository>(
-    () => UserRepository(),
-  ); // <-- ADD THIS
 
-  // Repositories (can be singletons as they are stateless)
+  // Repositories (Stateless, can be singletons)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
   sl.registerLazySingleton<PlayRepository>(() => PlayRepository());
 
-  // Cubits that hold user-specific data MUST be lazy singletons
+  // --- CUBIT REGISTRATION ---
+
+  // Session-Wide List State: A singleton that we reset on logout. CORRECT.
   sl.registerLazySingleton<TeamCubit>(
     () => TeamCubit(teamRepository: sl<TeamRepository>()),
   );
+
+  // Screen-Specific Detail State: MUST be a factory.
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
   );
 
+  // Screen-Specific Detail State: MUST be a factory.
   sl.registerFactory<PlaybookCubit>(
     () => PlaybookCubit(playRepository: sl<PlayRepository>()),
   );
-  sl.registerFactory<CreatePlayCubit>(
-    () => CreatePlayCubit(playRepository: sl<PlayRepository>()),
-  );
-
-  // Register refresh signal as a global singleton
-  sl.registerSingleton<RefreshSignal>(RefreshSignal());
 }
 
 Future<void> main() async {

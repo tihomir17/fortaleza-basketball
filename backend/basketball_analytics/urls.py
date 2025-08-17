@@ -8,11 +8,13 @@ from rest_framework.routers import DefaultRouter
 from apps.teams.views import TeamViewSet
 from apps.plays.views import PlayDefinitionViewSet
 from apps.possessions.views import PossessionViewSet
+from apps.users.views import UserViewSet
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
 router.register(r'teams', TeamViewSet, basename='team')
 router.register(r'plays', PlayDefinitionViewSet, basename='play')
+router.register(r'users', UserViewSet, basename='user')
 router.register(r'possessions', PossessionViewSet, basename='possession')
 
 urlpatterns = [

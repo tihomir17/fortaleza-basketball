@@ -23,6 +23,12 @@ class User(AbstractUser):
         help_text=_('Only applicable if the role is Coach.')
     )
 
+    jersey_number = models.PositiveIntegerField(
+        _('Jersey Number'),
+        null=True,
+        blank=True
+    )    
+
     def save(self, *args, **kwargs):
         if self.role != self.Role.COACH:
             self.coach_type = self.CoachType.NONE

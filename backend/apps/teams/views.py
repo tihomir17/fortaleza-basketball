@@ -33,9 +33,11 @@ class TeamViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return Team.objects.none()
-        # This query now includes teams the user created,
-        # in addition to teams they are a member of.
-        return Team.objects.filter(
+        
+        if user.is_superuser:
+            return Team.objects.all()
+
+        return self.queryset.filter(
             Q(coaches=user) | Q(players=user) | Q(created_by=user)
         ).distinct()
 
@@ -68,7 +70,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         Adds a user to a team's roster as either a player or a coach.
         Expects a body like: {'user_id': <id>, 'role': 'player'}
         """
-        team = self.get_object() # This automatically handles permissions
+        team_to_join = self.get_object() # The team we are adding to
         user_id = request.data.get('user_id')
         role = request.data.get('role')
 
@@ -81,8 +83,19 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if role.lower() == 'player':
-            team.players.add(user_to_add)
-            return Response({'status': f'Player {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+            # Check if this player is on any other team.
+            # The 'player_on_teams' is the related_name from the Team model.
+            existing_teams = user_to_add.player_on_teams.all()
+            
+            if existing_teams.exists():
+                print(f"Player {user_to_add.username} is already on teams: {list(existing_teams)}. Removing them first.")
+                # Remove the player from all teams they are currently on.
+                for team in existing_teams:
+                    team.players.remove(user_to_add)
+            
+            # Now, add the player to the new team.
+            team_to_join.players.add(user_to_add)
+            return Response({'status': f'Player {user_to_add.username} added to {team_to_join.name}'}, status=status.HTTP_200_OK)
         elif role.lower() == 'coach':
             team.coaches.add(user_to_add)
             return Response({'status': f'Coach {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
@@ -128,6 +141,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         username = request.data.get('username')
         first_name = request.data.get('first_name', '') # Optional first name
         last_name = request.data.get('last_name', '')   # Optional last name
+        jersey_number = request.data.get('jersey_number', None) # Get the new field
 
         if not username or not email:
             return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -146,8 +160,48 @@ class TeamViewSet(viewsets.ModelViewSet):
                 role=User.Role.PLAYER,
                 is_active=False # is_active=False means they cannot log in.
             )
+            if jersey_number is not None:
+                new_player.jersey_number = jersey_number
+           
+            new_player.save()
+
             team.players.add(new_player)
             serializer = UserSerializer(new_player)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=True, methods=['post'])
+    def create_and_add_coach(self, request, pk=None):
+        """
+        Creates a new user with role 'COACH' and adds them directly to this team.
+        """
+        team = self.get_object()
+        email = request.data.get('email')
+        username = request.data.get('username')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        coach_type = request.data.get('coach_type', 'ASSISTANT_COACH') # Default to assistant
+
+        if not username or not email:
+            return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(Q(email=email) | Q(username=username)).exists():
+            return Response({'error': 'A user with this email or username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_coach = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                password=None, # Creates an unusable password
+                role=User.Role.COACH, # <-- Set the role to COACH
+                coach_type=coach_type # Set the coach type
+            )
+            
+            team.coaches.add(new_coach) # <-- Add to the coaches list
+            serializer = UserSerializer(new_coach)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
