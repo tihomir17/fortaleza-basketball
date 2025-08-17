@@ -13,6 +13,7 @@ class PossessionSerializer(serializers.ModelSerializer):
     # --- For Reading Data (Output) ---
     game = GameSerializer(read_only=True)
     team = TeamReadSerializer(read_only=True)
+    opponent = TeamReadSerializer(read_only=True)
 
     # --- For Writing Data (Input) ---
     game_id = serializers.PrimaryKeyRelatedField(

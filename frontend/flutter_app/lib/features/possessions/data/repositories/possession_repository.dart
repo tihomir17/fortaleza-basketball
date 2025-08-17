@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/possession_model.dart';
+import 'package:flutter/foundation.dart';
 
 class PossessionRepository {
   final http.Client _client = http.Client();
@@ -39,6 +40,16 @@ class PossessionRepository {
           'defensive_sequence': defensiveSequence,
         }),
       );
+
+      // --- START OF DEBUGGING LOGS ---
+      if (kDebugMode) {
+        // Only print in debug mode
+        print("\n--- POSSESSION CREATE RESPONSE ---");
+        print("Status Code: ${response.statusCode}");
+        print("Raw JSON Body: ${response.body}");
+        print("--- END RESPONSE ---\n");
+      }
+
       if (response.statusCode == 201) {
         return Possession.fromJson(json.decode(response.body));
       } else {
