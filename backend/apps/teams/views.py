@@ -160,8 +160,11 @@ class TeamViewSet(viewsets.ModelViewSet):
                 role=User.Role.PLAYER,
                 is_active=False # is_active=False means they cannot log in.
             )
-            if jersey_number:
-                new_player.jersey_number = jersey_number            
+            if jersey_number is not None:
+                new_player.jersey_number = jersey_number
+           
+            new_player.save()
+
             team.players.add(new_player)
             serializer = UserSerializer(new_player)
             return Response(serializer.data, status=status.HTTP_201_CREATED)

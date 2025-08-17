@@ -47,7 +47,8 @@ class _EditUserScreenState extends State<EditUserScreen> {
     setState(() => _isLoading = true);
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
-      /* ... handle error ... */
+      // Handle error: show snackbar, set loading to false
+      setState(() => _isLoading = false);
       return;
     }
 
