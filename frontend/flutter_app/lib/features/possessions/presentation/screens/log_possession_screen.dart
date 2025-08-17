@@ -88,7 +88,9 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     }
 
     final sequence = _actions.join(' -> ');
-
+    final opponent = _selectedGame!.homeTeam.id == _teamWithPossession!.id
+        ? _selectedGame!.awayTeam
+        : _selectedGame!.homeTeam;
     try {
       await sl<PossessionRepository>().createPossession(
         token: token,
@@ -100,7 +102,7 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
         outcome: _selectedOutcome!,
         offensiveSequence: _isOffensivePossession ? sequence : '',
         defensiveSequence: !_isOffensivePossession ? sequence : '',
-        opponentId: null,
+        opponentId: opponent.id,
       );
       if (mounted) {
         sl<RefreshSignal>().notify(); // Notify other screens if needed

@@ -11,7 +11,7 @@ class PossessionRepository {
     required String token,
     required int gameId,
     required int teamId, // Team with the possession
-    required int? opponentId,
+    required int opponentId,
     required String startTime,
     required int duration,
     required int quarter,
@@ -30,6 +30,7 @@ class PossessionRepository {
         body: json.encode({
           'game_id': gameId,
           'team_id': teamId,
+          'opponent_id': opponentId,
           'start_time_in_game': startTime,
           'duration_seconds': duration,
           'quarter': quarter,

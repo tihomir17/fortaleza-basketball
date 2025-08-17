@@ -1,0 +1,15 @@
+[flake8]
+# Exclude these directories from linting
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    migrations
+
+# Optional: Set a max line length (black's default is 88)
+max-line-length = 88
+
+# Optional: Ignore specific error codes if you disagree with them.
+# For example, E501 is "line too long", which black handles automatically.
+# W503 is "line break before binary operator", which is not compatible with black.
+ignore = E501, W503
