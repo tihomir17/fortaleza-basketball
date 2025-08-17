@@ -43,28 +43,49 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Welcome'),
+        backgroundColor: Theme.of(
+          context,
+        ).colorScheme.surface, // Clean surface color
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.brightness_6_outlined),
             tooltip: 'Toggle Theme',
-            onPressed: () {
-              // Call the toggle method on the globally available ThemeCubit
-              context.read<ThemeCubit>().toggleTheme();
-            },
+            onPressed: () => context.read<ThemeCubit>().toggleTheme(),
           ),
         ],
       ),
       body: Center(
         child: SingleChildScrollView(
-          // Added to prevent overflow on small screens
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Form(
               key: _formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'INATDrive',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please sign in to continue',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                  ),
                   TextFormField(
                     controller: _usernameController,
                     decoration: const InputDecoration(
