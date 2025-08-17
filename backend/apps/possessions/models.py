@@ -28,6 +28,12 @@ class Possession(models.Model):
         TURNOVER_3_SECONDS = 'TO_3_SECONDS', _('Turnover: 3 Seconds')
         OTHER = 'OTHER', _('Other')
 
+    game = models.ForeignKey(
+        'games.Game',
+        on_delete=models.CASCADE,
+        related_name='possessions'
+    )
+    
     # Team relationships
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='possessions')
     opponent = models.ForeignKey(

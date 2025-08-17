@@ -7,30 +7,31 @@ from apps.teams.models import Team
 from .serializers import PossessionSerializer
 
 class PossessionViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for viewing and creating Possession instances.
-    """
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Possession.objects.all()
-    serializer_class = PossessionSerializer # Use our single, unified serializer
+    queryset = Possession.objects.all().order_by('-id')
+    serializer_class = PossessionSerializer
 
     def get_queryset(self):
         """
-        Primary security filter: ensures a user can only see possessions
-        that involve a team they are a member of.
+        This ensures a user can only see possessions from games in which
+        one of their teams participated.
         """
         user = self.request.user
-        base_queryset = super().get_queryset() # Use the queryset defined on the class
+        base_queryset = super().get_queryset()
 
         if user.is_superuser:
             return base_queryset
 
-        member_of_teams_ids = user.player_on_teams.all().values_list('id', flat=True).union(
-                              user.coach_on_teams.all().values_list('id', flat=True))
+        # Get all teams the user is a member of (as a player or coach)
+        member_of_teams = Team.objects.filter(
+            Q(players=user) | Q(coaches=user)
+        ).distinct()
         
+        # Filter the base queryset to include only possessions that belong to
+        # games where one of the user's teams was either the home or away team.
         return base_queryset.filter(
-            Q(team_id__in=member_of_teams_ids) |
-            Q(opponent_id__in=member_of_teams_ids)
+            Q(game__home_team__in=member_of_teams) |
+            Q(game__away_team__in=member_of_teams)
         ).distinct()
 
     def perform_create(self, serializer):

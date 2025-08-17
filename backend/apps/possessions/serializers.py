@@ -22,18 +22,10 @@ class PossessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Possession
         fields = [
-            'id',
-            'team',                 # read-only nested object
-            'opponent',             # read-only nested object
-            'start_time_in_game',
-            'duration_seconds',
-            'quarter',
-            'outcome',
-            'offensive_sequence',
-            'defensive_sequence',
+            'id', 'game', 'team',
+            'start_time_in_game', 'duration_seconds',
+            'quarter', 'outcome', 'offensive_sequence', 'defensive_sequence',
             'logged_by',
-            'team_id',              # write-only ID
-            'opponent_id',          # write-only ID
+            'game_id', 'team_id'
         ]
-        # These fields are handled by the view or the write-only fields above.
-        read_only_fields = ['logged_by']
+        read_only_fields = ['logged_by', 'game', 'team']
