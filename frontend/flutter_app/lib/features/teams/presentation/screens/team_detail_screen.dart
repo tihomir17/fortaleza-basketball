@@ -12,6 +12,7 @@ import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
 
 import '../../../authentication/presentation/screens/edit_user_screen.dart';
+import 'manage_roster_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final int teamId;
@@ -73,25 +74,42 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                 (state.status == TeamDetailStatus.success && state.team != null)
                 ? state.team!.name
                 : 'Team Details';
-
             return AppBar(
               title: Text(titleText),
               actions: [
+                // Only show buttons if the team has loaded successfully
                 if (state.status == TeamDetailStatus.success &&
                     state.team != null)
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    tooltip: 'Edit Team',
-                    onPressed: () async {
-                      final result = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute(
-                          builder: (_) => EditTeamScreen(team: state.team!),
-                        ),
-                      );
-                      if (result == true) {
-                        sl<RefreshSignal>().notify();
-                      }
-                    },
+                  Row(
+                    children: [
+                      // BUTTON 1: MANAGE ROSTER
+                      IconButton(
+                        icon: const Icon(Icons.people_alt_outlined),
+                        tooltip: 'Manage Roster',
+                        onPressed: () {
+                          // Navigate directly to the roster screen
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ManageRosterScreen(team: state.team!),
+                            ),
+                          );
+                        },
+                      ),
+                      // BUTTON 2: EDIT TEAM NAME
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Edit Team Name',
+                        onPressed: () async {
+                          await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => EditTeamScreen(team: state.team!),
+                            ),
+                          );
+                          // The refresh signal will handle updates
+                        },
+                      ),
+                    ],
                   ),
               ],
             );

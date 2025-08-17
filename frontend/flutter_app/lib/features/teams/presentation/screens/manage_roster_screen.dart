@@ -2,14 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/features/teams/presentation/screens/user_search_screen.dart';
-import 'package:flutter_app/main.dart'; // For Service Locator (sl)
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/features/teams/presentation/screens/add_player_screen.dart';
+import 'package:flutter_app/main.dart';
 import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
-import '../cubit/team_detail_cubit.dart';
-import 'add_player_screen.dart';
 
 class ManageRosterScreen extends StatefulWidget {
   final Team team;
@@ -20,20 +19,35 @@ class ManageRosterScreen extends StatefulWidget {
 }
 
 class _ManageRosterScreenState extends State<ManageRosterScreen> {
-  // We use local state here to avoid re-fetching the whole team on every change
   late List<User> _coaches;
   late List<User> _players;
+  bool _isLoading = false;
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
   @override
   void initState() {
     super.initState();
     _coaches = List.from(widget.team.coaches);
     _players = List.from(widget.team.players);
+    _refreshSignal.addListener(_refreshLocalRoster);
   }
 
+  @override
+  void dispose() {
+    _refreshSignal.removeListener(_refreshLocalRoster); // UNSUBSCRIBE
+    super.dispose();
+  }
+
+  // Helper method to show a loading overlay
+  void _setLoading(bool loading) => setState(() => _isLoading = loading);
+
   Future<void> _removeMember(User user, String role) async {
+    _setLoading(true);
     final token = context.read<AuthCubit>().state.token;
-    if (token == null) return;
+    if (token == null) {
+      _setLoading(false);
+      return;
+    }
 
     try {
       await sl<TeamRepository>().removeMemberFromTeam(
@@ -42,63 +56,18 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         userId: user.id,
         role: role,
       );
-      // Update local state on success
       setState(() {
         if (role == 'coach') _coaches.remove(user);
         if (role == 'player') _players.remove(user);
       });
+      sl<RefreshSignal>().notify(); // Fire global refresh signal
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  Future<void> _addMember(User user) async {
-    final token = context.read<AuthCubit>().state.token;
-    if (token == null) return;
-
-    // Determine role from the user object
-    final role = user.role.toLowerCase();
-
-    try {
-      await sl<TeamRepository>().addMemberToTeam(
-        token: token,
-        teamId: widget.team.id,
-        userId: user.id,
-        role: role,
-      );
-      // Update local state on success
-      setState(() {
-        if (role == 'coach' && !_coaches.any((c) => c.id == user.id)) {
-          _coaches.add(user);
-        }
-        if (role == 'player' && !_players.any((p) => p.id == user.id)) {
-          _players.add(user);
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  void _navigateToAddMember() async {
-    final selectedUser = await Navigator.of(context).push<User>(
-      MaterialPageRoute(
-        // We no longer pass the teamId, as the backend handles filtering
-        builder: (_) => const UserSearchScreen(),
-      ),
-    );
-
-    if (selectedUser != null) {
-      // The addMember logic will check the user's role and add them correctly.
-      _addMember(selectedUser);
+    } finally {
+      if (mounted) _setLoading(false);
     }
   }
 
@@ -109,14 +78,40 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       ),
     );
 
-    // If the form returns true, we need to refresh the main detail screen
-    // So we pop the roster screen as well to trigger the refresh there.
     if (result == true && mounted) {
-      context.read<TeamDetailCubit>().fetchTeamDetails(
-        token: context.read<AuthCubit>().state.token!,
+      // The refresh signal from AddPlayerScreen will have already fired,
+      // but we need to refresh THIS screen's local state.
+      _refreshLocalRoster();
+    }
+  }
+
+  // New method to refresh just this screen's data
+  Future<void> _refreshLocalRoster() async {
+    _setLoading(true);
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) {
+      _setLoading(false);
+      return;
+    }
+    try {
+      // Re-fetch the full team details to get the latest roster
+      final updatedTeam = await sl<TeamRepository>().getTeamDetails(
+        token: token,
         teamId: widget.team.id,
       );
-      // Navigator.of(context).pop(true);
+      if (mounted) {
+        setState(() {
+          _coaches = updatedTeam.coaches;
+          _players = updatedTeam.players;
+        });
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error refreshing roster: $e')));
+    } finally {
+      if (mounted) _setLoading(false);
     }
   }
 
@@ -128,45 +123,49 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            tooltip: 'Add Member',
-            onPressed: _navigateToAddMember,
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_add),
             tooltip: 'Add New Player',
-            onPressed: _navigateToAddPlayer, // Call the updated method
+            onPressed: _navigateToAddPlayer,
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
+      body: Stack(
         children: [
-          Text('Coaches', style: Theme.of(context).textTheme.headlineSmall),
-          const Divider(),
-          for (final coach in _coaches)
-            ListTile(
-              title: Text(coach.displayName),
-              trailing: IconButton(
-                icon: const Icon(
-                  Icons.remove_circle_outline,
-                  color: Colors.red,
+          ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              Text('Coaches', style: Theme.of(context).textTheme.headlineSmall),
+              const Divider(),
+              for (final coach in _coaches)
+                ListTile(
+                  title: Text(coach.displayName),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.red,
+                    ),
+                    onPressed: () => _removeMember(coach, 'coach'),
+                  ),
                 ),
-                onPressed: () => _removeMember(coach, 'coach'),
-              ),
-            ),
-          const SizedBox(height: 24),
-          Text('Players', style: Theme.of(context).textTheme.headlineSmall),
-          const Divider(),
-          for (final player in _players)
-            ListTile(
-              title: Text(player.displayName),
-              trailing: IconButton(
-                icon: const Icon(
-                  Icons.remove_circle_outline,
-                  color: Colors.red,
+              const SizedBox(height: 24),
+              Text('Players', style: Theme.of(context).textTheme.headlineSmall),
+              const Divider(),
+              for (final player in _players)
+                ListTile(
+                  title: Text(player.displayName),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.red,
+                    ),
+                    onPressed: () => _removeMember(player, 'player'),
+                  ),
                 ),
-                onPressed: () => _removeMember(player, 'player'),
-              ),
+            ],
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),

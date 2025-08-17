@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from .serializers import RegisterSerializer, UserSerializer
 from django.db.models import Q
+from apps.teams.models import Team
 from rest_framework import viewsets, permissions # <-- Add viewsets
 
 User = get_user_model()
@@ -58,25 +59,45 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+class UserViewSet(viewsets.ModelViewSet):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
     def get_queryset(self):
         """
-        This queryset restricts which users are visible/editable.
-        A user can always see themselves. A coach can see players on their teams.
+        THIS IS THE SIMPLEST POSSIBLE LOGIC.
+        It ensures a user can edit themselves or any other member of their teams.
         """
         user = self.request.user
         
-        # Get IDs of all teams the user coaches
-        coached_team_ids = user.coach_on_teams.values_list('id', flat=True)
+        # If the user is a superuser, return all users without filtering.
+        if user.is_superuser:
+            return User.objects.all()
         
-        # Get IDs of all players who are on the teams the user coaches
-        player_ids_on_coached_teams = User.objects.filter(
-            player_on_teams__id__in=coached_team_ids
-        ).values_list('id', flat=True)
+        # Step 1: Get all teams the current user is a member of.
+        my_teams = Team.objects.filter(Q(players=user) | Q(coaches=user))
+        
+        # Step 2: Get all players from those teams.
+        players_on_my_teams = User.objects.filter(player_on_teams__in=my_teams)
+        
+        # Step 3: Get all coaches from those teams.
+        coaches_on_my_teams = User.objects.filter(coach_on_teams__in=my_teams)
+        
+        # Step 4: Combine them all with a union and add the user themselves.
+        # The .union() method combines querysets.
+        allowed_users = players_on_my_teams.union(coaches_on_my_teams)
+        
+        # Step 5: Since union doesn't work well with further filtering,
+        # we get the IDs and do a final clean query.
+        allowed_ids = set(allowed_users.values_list('id', flat=True))
+        allowed_ids.add(user.id) # Add the user's own ID
 
-        # A user is allowed to see/edit themselves OR players on their teams.
-        return User.objects.filter(
-            Q(id=user.id) | Q(id__in=player_ids_on_coached_teams)
-        )
+        print(f"\n--- FINAL UserViewSet get_queryset ---")
+        print(f"User '{user.username}' is on teams: {list(my_teams)}")
+        print(f"Allowed to edit user IDs: {list(allowed_ids)}")
+        print(f"--- END --- \n")
+        
+        return User.objects.filter(id__in=allowed_ids)
 
     def perform_update(self, serializer):
         # Optional: Add extra validation here if needed, e.g., a coach can't change a user's role.

@@ -92,28 +92,6 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
                   : null,
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.people),
-              label: const Text('Manage Roster'),
-              onPressed: () async {
-                // Navigate to the roster screen and wait for it to pop
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ManageRosterScreen(team: widget.team),
-                  ),
-                );
-                // When we return, we pop this screen with 'true' to signal that
-                // the main detail screen should refresh its data.
-                if (mounted) {
-                  sl<RefreshSignal>().notify();
-                  Navigator.of(context).pop();
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitForm,
               style: ElevatedButton.styleFrom(

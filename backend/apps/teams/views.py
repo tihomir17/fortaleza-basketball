@@ -33,9 +33,11 @@ class TeamViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return Team.objects.none()
-        # This query now includes teams the user created,
-        # in addition to teams they are a member of.
-        return Team.objects.filter(
+        
+        if user.is_superuser:
+            return Team.objects.all()
+
+        return self.queryset.filter(
             Q(coaches=user) | Q(players=user) | Q(created_by=user)
         ).distinct()
 
@@ -68,7 +70,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         Adds a user to a team's roster as either a player or a coach.
         Expects a body like: {'user_id': <id>, 'role': 'player'}
         """
-        team = self.get_object() # This automatically handles permissions
+        team_to_join = self.get_object() # The team we are adding to
         user_id = request.data.get('user_id')
         role = request.data.get('role')
 
@@ -81,8 +83,19 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if role.lower() == 'player':
-            team.players.add(user_to_add)
-            return Response({'status': f'Player {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
+            # Check if this player is on any other team.
+            # The 'player_on_teams' is the related_name from the Team model.
+            existing_teams = user_to_add.player_on_teams.all()
+            
+            if existing_teams.exists():
+                print(f"Player {user_to_add.username} is already on teams: {list(existing_teams)}. Removing them first.")
+                # Remove the player from all teams they are currently on.
+                for team in existing_teams:
+                    team.players.remove(user_to_add)
+            
+            # Now, add the player to the new team.
+            team_to_join.players.add(user_to_add)
+            return Response({'status': f'Player {user_to_add.username} added to {team_to_join.name}'}, status=status.HTTP_200_OK)
         elif role.lower() == 'coach':
             team.coaches.add(user_to_add)
             return Response({'status': f'Coach {user_to_add.username} added to {team.name}'}, status=status.HTTP_200_OK)
