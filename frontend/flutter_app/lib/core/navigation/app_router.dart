@@ -1,6 +1,7 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/main.dart'; // To access the service locator (sl)
@@ -14,6 +15,7 @@ import '../../features/teams/presentation/screens/team_detail_screen.dart';
 // Import Playbook dependencies
 import '../../features/plays/presentation/cubit/playbook_cubit.dart';
 import '../../features/plays/presentation/screens/playbook_screen.dart';
+import '../../features/possessions/presentation/screens/log_possession_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -88,6 +90,17 @@ class AppRouter {
                           ..fetchPlays(token: token, teamId: teamId),
                     child: PlaybookScreen(teamName: teamName, teamId: teamId),
                   );
+                },
+              ),
+              GoRoute(
+                path: 'log-possession', // /teams/:teamId/log-possession
+                builder: (context, state) {
+                  // We get the team object passed as an 'extra' parameter
+                  final team = state.extra as Team?;
+                  if (team == null) {
+                    return const Scaffold(body: Center(child: Text("Error: Team data not provided.")));
+                  }
+                  return LogPossessionScreen(team: team);
                 },
               ),
             ],
