@@ -17,5 +17,13 @@ class Team(models.Model):
         blank=True
     )
 
+    competition = models.ForeignKey(
+        'competitions.Competition',
+        on_delete=models.CASCADE,
+        related_name='teams',
+        null=True, # Allow teams to exist without a competition for now
+        blank=True
+    )    
+
     def __str__(self):
         return self.name

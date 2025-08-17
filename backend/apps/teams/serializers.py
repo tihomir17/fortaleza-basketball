@@ -6,7 +6,7 @@ from apps.users.serializers import UserSerializer
 class TeamWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ['name'] # The user only provides the name.
+        fields = ['name', 'competition'] # The user only provides the name.
 
 class TeamReadSerializer(serializers.ModelSerializer):
     # We declare these so DRF knows about them, but they will be
@@ -17,7 +17,7 @@ class TeamReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Team
-        fields = ['id', 'name', 'created_by', 'players', 'coaches']
+        fields = ['id', 'name', 'created_by', 'players', 'coaches', 'competition']
 
     def to_representation(self, instance):
         """

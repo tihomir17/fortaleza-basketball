@@ -1,6 +1,7 @@
 // lib/features/teams/presentation/screens/team_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
@@ -14,6 +15,7 @@ import '../cubit/team_detail_state.dart';
 import 'manage_roster_screen.dart';
 import 'package:flutter_app/features/authentication/presentation/screens/edit_user_screen.dart';
 import 'package:flutter_app/features/authentication/presentation/screens/edit_coach_screen.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/log_possession_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final int teamId;
@@ -81,37 +83,53 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                 // Only show buttons if the team has loaded successfully
                 if (state.status == TeamDetailStatus.success &&
                     state.team != null)
-                  Row(
-                    children: [
-                      // BUTTON 1: MANAGE ROSTER
-                      IconButton(
-                        icon: const Icon(Icons.people_alt_outlined),
-                        tooltip: 'Manage Roster',
-                        onPressed: () {
-                          // Navigate directly to the roster screen
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ManageRosterScreen(team: state.team!),
-                            ),
-                          );
-                        },
-                      ),
-                      // BUTTON 2: EDIT TEAM NAME
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Edit Team Name',
-                        onPressed: () async {
-                          await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => EditTeamScreen(team: state.team!),
-                            ),
-                          );
-                          // The refresh signal will handle updates
-                        },
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.add_chart),
+                    tooltip: 'Log Possession',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BlocProvider.value(
+                            // We find the TeamCubit that already exists in the current context...
+                            value: context.read<TeamCubit>(),
+                            // ...and provide that SAME instance to the new screen.
+                            child: LogPossessionScreen(team: state.team!),
+                          ),
+                        ),
+                      );
+                    },
                   ),
+                Row(
+                  children: [
+                    // BUTTON 1: MANAGE ROSTER
+                    IconButton(
+                      icon: const Icon(Icons.people_alt_outlined),
+                      tooltip: 'Manage Roster',
+                      onPressed: () {
+                        // Navigate directly to the roster screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ManageRosterScreen(team: state.team!),
+                          ),
+                        );
+                      },
+                    ),
+                    // BUTTON 2: EDIT TEAM NAME
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Edit Team Name',
+                      onPressed: () async {
+                        await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => EditTeamScreen(team: state.team!),
+                          ),
+                        );
+                        // The refresh signal will handle updates
+                      },
+                    ),
+                  ],
+                ),
               ],
             );
           },

@@ -8,6 +8,7 @@ class Team {
   final List<User> players;
   final List<User> coaches;
   final User? createdBy;
+  final int? competitionId;
 
   Team({
     required this.id,
@@ -15,6 +16,7 @@ class Team {
     required this.players,
     required this.coaches,
     this.createdBy,
+    this.competitionId,
   });
 
   factory Team.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class Team {
       players: players,
       coaches: coaches,
       createdBy: createdBy,
+      competitionId: json['competition'],
     );
   }
 }
