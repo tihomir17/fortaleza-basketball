@@ -128,6 +128,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         username = request.data.get('username')
         first_name = request.data.get('first_name', '') # Optional first name
         last_name = request.data.get('last_name', '')   # Optional last name
+        jersey_number = request.data.get('jersey_number', None) # Get the new field
 
         if not username or not email:
             return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -146,6 +147,8 @@ class TeamViewSet(viewsets.ModelViewSet):
                 role=User.Role.PLAYER,
                 is_active=False # is_active=False means they cannot log in.
             )
+            if jersey_number:
+                new_player.jersey_number = jersey_number            
             team.players.add(new_player)
             serializer = UserSerializer(new_player)
             return Response(serializer.data, status=status.HTTP_201_CREATED)

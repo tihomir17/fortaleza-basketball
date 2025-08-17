@@ -196,6 +196,7 @@ class TeamRepository {
     required String username,
     String? firstName,
     String? lastName,
+    int? jerseyNumber,
   }) async {
     final url = Uri.parse(
       '${ApiClient.baseUrl}/teams/$teamId/create_and_add_player/',
@@ -212,6 +213,7 @@ class TeamRepository {
           'username': username,
           'first_name': firstName,
           'last_name': lastName,
+          'jersey_number': jerseyNumber, 
         }),
       );
       if (response.statusCode == 201) {

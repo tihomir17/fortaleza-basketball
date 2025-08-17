@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from .serializers import RegisterSerializer, UserSerializer
 from django.db.models import Q
+from rest_framework import viewsets, permissions # <-- Add viewsets
 
 User = get_user_model()
 
@@ -48,3 +49,36 @@ class UserSearchView(generics.ListAPIView):
         # The '__isnull=True' filter finds users where this relationship is empty.
         # We also exclude the user making the request.
         return queryset.filter(player_on_teams__isnull=True).exclude(id=self.request.user.id)
+    
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for viewing and editing User instances.
+    Permissions are handled to ensure coaches can only edit players on their own team.
+    """
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        This queryset restricts which users are visible/editable.
+        A user can always see themselves. A coach can see players on their teams.
+        """
+        user = self.request.user
+        
+        # Get IDs of all teams the user coaches
+        coached_team_ids = user.coach_on_teams.values_list('id', flat=True)
+        
+        # Get IDs of all players who are on the teams the user coaches
+        player_ids_on_coached_teams = User.objects.filter(
+            player_on_teams__id__in=coached_team_ids
+        ).values_list('id', flat=True)
+
+        # A user is allowed to see/edit themselves OR players on their teams.
+        return User.objects.filter(
+            Q(id=user.id) | Q(id__in=player_ids_on_coached_teams)
+        )
+
+    def perform_update(self, serializer):
+        # Optional: Add extra validation here if needed, e.g., a coach can't change a user's role.
+        # For now, we allow updating the fields in the serializer.
+        serializer.save()    

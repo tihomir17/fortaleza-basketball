@@ -48,10 +48,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         if (role == 'player') _players.remove(user);
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -71,16 +72,19 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       );
       // Update local state on success
       setState(() {
-        if (role == 'coach' && !_coaches.any((c) => c.id == user.id))
+        if (role == 'coach' && !_coaches.any((c) => c.id == user.id)) {
           _coaches.add(user);
-        if (role == 'player' && !_players.any((p) => p.id == user.id))
+        }
+        if (role == 'player' && !_players.any((p) => p.id == user.id)) {
           _players.add(user);
+        }
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 

@@ -3,14 +3,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'edit_team_screen.dart';
+// We will create this file in the next step
+// import '../../../../features/authentication/presentation/screens/edit_user_screen.dart';
 import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
 
-class TeamDetailScreen extends StatelessWidget {
+class TeamDetailScreen extends StatefulWidget {
   final int teamId;
   const TeamDetailScreen({super.key, required this.teamId});
+
+  @override
+  State<TeamDetailScreen> createState() => _TeamDetailScreenState();
+}
+
+class _TeamDetailScreenState extends State<TeamDetailScreen> {
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
   String _formatCoachType(String? coachType) {
     if (coachType == null || coachType == 'NONE') {
@@ -24,15 +35,39 @@ class TeamDetailScreen extends StatelessWidget {
         .map((word) => word[0].toUpperCase() + word.substring(1))
         .join(' ');
   }
+
+  @override
+  void initState() {
+    super.initState();
+    // Subscribe to the global refresh signal
+    _refreshSignal.addListener(_refreshTeamDetails);
+  }
+
+  @override
+  void dispose() {
+    // Unsubscribe to prevent memory leaks
+    _refreshSignal.removeListener(_refreshTeamDetails);
+    super.dispose();
+  }
+
+  // When the signal is fired, re-fetch the data for this screen
+  void _refreshTeamDetails() {
+    final token = context.read<AuthCubit>().state.token;
+    if (token != null && mounted) {
+      context.read<TeamDetailCubit>().fetchTeamDetails(
+        token: token,
+        teamId: widget.teamId,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // THE ENTIRE APPBAR IS NOW WRAPPED IN THE BLOCBUILDER
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: BlocBuilder<TeamDetailCubit, TeamDetailState>(
           builder: (context, state) {
-            // Determine the title based on the state
             final titleText =
                 (state.status == TeamDetailStatus.success && state.team != null)
                 ? state.team!.name
@@ -40,31 +75,20 @@ class TeamDetailScreen extends StatelessWidget {
 
             return AppBar(
               title: Text(titleText),
-              // The actions list is now correctly placed inside the AppBar
               actions: [
-                // Only build the button if the team has loaded successfully
                 if (state.status == TeamDetailStatus.success &&
                     state.team != null)
                   IconButton(
                     icon: const Icon(Icons.edit),
                     tooltip: 'Edit Team',
                     onPressed: () async {
-                      // Navigate to the edit screen and wait for a result
                       final result = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
                           builder: (_) => EditTeamScreen(team: state.team!),
                         ),
                       );
-
-                      // If the result is true, a change was made, so refresh the data
-                      if (result == true && context.mounted) {
-                        final token = context.read<AuthCubit>().state.token;
-                        if (token != null) {
-                          context.read<TeamDetailCubit>().fetchTeamDetails(
-                            token: token,
-                            teamId: teamId,
-                          );
-                        }
+                      if (result == true) {
+                        sl<RefreshSignal>().notify();
                       }
                     },
                   ),
@@ -97,6 +121,16 @@ class TeamDetailScreen extends StatelessWidget {
                     ListTile(
                       title: Text(coach.displayName),
                       subtitle: Text(_formatCoachType(coach.coachType)),
+                      onTap: () {
+                        // TODO: Navigate to Edit Coach Screen
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Edit coach functionality coming soon!',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   const SizedBox(height: 24),
                   Text(
@@ -106,8 +140,29 @@ class TeamDetailScreen extends StatelessWidget {
                   const Divider(),
                   for (final player in team.players)
                     ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Theme.of(context).primaryColorLight,
+                        child: Text(
+                          player.jerseyNumber?.toString() ?? '#',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColorDark,
+                          ),
+                        ),
+                      ),
                       title: Text(player.displayName),
                       subtitle: const Text('Player'),
+                      onTap: () {
+                        // TODO: Navigate to Edit Player Screen
+                        // Example (once EditUserScreen is created):
+                        // Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditUserScreen(user: player)));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Edit player functionality coming soon!',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -121,7 +176,10 @@ class TeamDetailScreen extends StatelessWidget {
           if (state.status == TeamDetailStatus.success && state.team != null) {
             return FloatingActionButton.extended(
               onPressed: () {
-                context.go('/teams/$teamId/plays', extra: state.team!.name);
+                context.go(
+                  '/teams/${widget.teamId}/plays',
+                  extra: state.team!.name,
+                );
               },
               icon: const Icon(Icons.menu_book),
               label: const Text('Playbook'),

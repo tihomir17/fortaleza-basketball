@@ -8,6 +8,7 @@ class User {
   final String lastName;
   final String role;
   final String? coachType; // Can be null
+  final int? jerseyNumber; 
 
   User({
     required this.id,
@@ -17,6 +18,7 @@ class User {
     required this.lastName,
     required this.role,
     this.coachType,
+    this.jerseyNumber,
   });
 
   String get displayName {
@@ -36,6 +38,7 @@ class User {
       role: json['role'],
       // Ensure coach_type is handled correctly if it's null or missing
       coachType: json['coach_type'] == 'NONE' ? null : json['coach_type'],
+      jerseyNumber: json['jersey_number'],
     );
   }
 }

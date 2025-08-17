@@ -7,8 +7,6 @@ import 'auth_state.dart';
 
 // cubits that need to be reset
 import '../../../teams/presentation/cubit/team_cubit.dart';
-import '../../../teams/presentation/cubit/team_detail_cubit.dart';
-import '../../../plays/presentation/cubit/playbook_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;

@@ -7,7 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         # Fields to include in the API response
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'coach_type']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'coach_type', 'jersey_number']
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})

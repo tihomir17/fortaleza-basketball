@@ -1,7 +1,9 @@
 // lib/features/teams/presentation/screens/add_player_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for input formatters
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/main.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart'; // Import the signal
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/team_repository.dart';
 
@@ -19,7 +21,19 @@ class _AddPlayerScreenState extends State<AddPlayerScreen> {
   final _emailController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _numberController =
+      TextEditingController(); // Controller for the number
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _numberController.dispose(); // Dispose the controller
+    super.dispose();
+  }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
@@ -27,23 +41,31 @@ class _AddPlayerScreenState extends State<AddPlayerScreen> {
     setState(() => _isLoading = true);
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
-      /* handle error */
+      // Handle error
+      setState(() => _isLoading = false);
       return;
     }
 
     try {
-      final newUser = await sl<TeamRepository>().createAndAddPlayer(
+      await sl<TeamRepository>().createAndAddPlayer(
         token: token,
         teamId: widget.teamId,
         username: _usernameController.text,
         email: _emailController.text,
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
+        firstName: _firstNameController.text.isNotEmpty
+            ? _firstNameController.text
+            : null,
+        lastName: _lastNameController.text.isNotEmpty
+            ? _lastNameController.text
+            : null,
+        jerseyNumber: int.tryParse(_numberController.text),
       );
-      if (mounted)
-        Navigator.of(context).pop(true); // Pop with 'true' to signal refresh
+      if (mounted) {
+        sl<RefreshSignal>().notify(); // Fire the global refresh signal
+        Navigator.of(context).pop();
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -51,6 +73,7 @@ class _AddPlayerScreenState extends State<AddPlayerScreen> {
             ),
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -93,11 +116,30 @@ class _AddPlayerScreenState extends State<AddPlayerScreen> {
                 labelText: 'Last Name (Optional)',
               ),
             ),
+            const SizedBox(height: 16),
+
+            // --- THIS IS THE JERSEY NUMBER FIELD ---
+            TextFormField(
+              controller: _numberController,
+              decoration: const InputDecoration(
+                labelText: 'Jersey Number (Optional)',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ], // Only allow numbers
+            ),
+            const SizedBox(height: 16),
+            // --- END OF FIELD ---
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitForm,
               child: _isLoading
-                  ? const CircularProgressIndicator()
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    )
                   : const Text('Create and Add Player'),
             ),
           ],

@@ -51,10 +51,11 @@ class AppRouter {
                   int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
               final token = authCubit.state.token;
 
-              if (token == null)
+              if (token == null) {
                 return const Scaffold(
                   body: Center(child: Text("Authentication Error")),
                 );
+              }
 
               return BlocProvider(
                 create: (context) =>
@@ -75,10 +76,11 @@ class AppRouter {
                       'Team'; // Get team name passed as extra
                   final token = authCubit.state.token;
 
-                  if (token == null)
+                  if (token == null) {
                     return const Scaffold(
                       body: Center(child: Text("Authentication Error")),
                     );
+                  }
 
                   return BlocProvider(
                     create: (context) =>
