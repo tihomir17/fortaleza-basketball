@@ -171,6 +171,41 @@ class TeamViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+    @action(detail=True, methods=['post'])
+    def create_and_add_coach(self, request, pk=None):
+        """
+        Creates a new user with role 'COACH' and adds them directly to this team.
+        """
+        team = self.get_object()
+        email = request.data.get('email')
+        username = request.data.get('username')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        coach_type = request.data.get('coach_type', 'ASSISTANT_COACH') # Default to assistant
+
+        if not username or not email:
+            return Response({'error': 'Username and email are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(Q(email=email) | Q(username=username)).exists():
+            return Response({'error': 'A user with this email or username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_coach = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                password=None, # Creates an unusable password
+                role=User.Role.COACH, # <-- Set the role to COACH
+                coach_type=coach_type # Set the coach type
+            )
+            
+            team.coaches.add(new_coach) # <-- Add to the coaches list
+            serializer = UserSerializer(new_coach)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
     @action(detail=True, methods=['get'])
     def plays(self, request, pk=None):
         """

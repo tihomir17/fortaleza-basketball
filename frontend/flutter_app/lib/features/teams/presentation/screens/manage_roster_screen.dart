@@ -9,6 +9,7 @@ import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
+import 'add_coach_screen.dart';
 
 class ManageRosterScreen extends StatefulWidget {
   final Team team;
@@ -85,6 +86,12 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     }
   }
 
+  void _navigateToAddCoach() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddCoachScreen(teamId: widget.team.id)),
+    );
+  }
+
   // New method to refresh just this screen's data
   Future<void> _refreshLocalRoster() async {
     _setLoading(true);
@@ -125,6 +132,13 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
             icon: const Icon(Icons.person_add),
             tooltip: 'Add New Player',
             onPressed: _navigateToAddPlayer,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.add_moderator_outlined,
+            ), // A different icon for coaches
+            tooltip: 'Add New Coach',
+            onPressed: _navigateToAddCoach,
           ),
         ],
       ),

@@ -66,4 +66,36 @@ class UserRepository {
       throw Exception('An error occurred while updating user: $e');
     }
   }
+
+  // ADD THIS NEW METHOD FOR COACHES
+  Future<void> updateCoach({
+    required String token,
+    required int userId,
+    required String firstName,
+    required String lastName,
+    required String coachType,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/users/$userId/');
+    try {
+      final response = await _client.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'first_name': firstName,
+          'last_name': lastName,
+          'coach_type': coachType,
+        }),
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to update coach. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while updating coach: $e');
+    }
+  }
 }

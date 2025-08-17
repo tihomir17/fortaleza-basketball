@@ -9,6 +9,12 @@ class UserSerializer(serializers.ModelSerializer):
         # Fields to include in the API response
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'coach_type', 'jersey_number']
 
+class CoachUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        # Define ONLY the fields a coach can change about another coach/themselves
+        fields = ['first_name', 'last_name', 'coach_type']
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
 

@@ -11,8 +11,9 @@ import 'edit_team_screen.dart';
 import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
 
-import '../../../authentication/presentation/screens/edit_user_screen.dart';
 import 'manage_roster_screen.dart';
+import 'package:flutter_app/features/authentication/presentation/screens/edit_user_screen.dart';
+import 'package:flutter_app/features/authentication/presentation/screens/edit_coach_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final int teamId;
@@ -147,15 +148,19 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   const Divider(),
                   for (final coach in team.coaches)
                     ListTile(
+                      leading: const CircleAvatar(
+                        // Give coaches a distinct icon
+                        backgroundColor: Colors.blueGrey,
+                        child: Icon(Icons.person_outline, color: Colors.white),
+                      ),
                       title: Text(coach.displayName),
-                      subtitle: Text(_formatCoachType(coach.coachType)),
+                      subtitle: Text(
+                        _formatCoachType(coach.coachType),
+                      ), // We will create this helper
                       onTap: () {
-                        // TODO: Navigate to Edit Coach Screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edit coach functionality coming soon!',
-                            ),
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EditCoachScreen(coach: coach),
                           ),
                         );
                       },
