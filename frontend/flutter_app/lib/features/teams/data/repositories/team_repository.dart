@@ -33,12 +33,9 @@ class TeamRepository {
             .toList();
         return teams;
       } else {
-        print('Failed to load teams. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         throw Exception('Failed to load teams from API');
       }
     } catch (e) {
-      print('Error fetching teams: $e');
       throw Exception('Error fetching teams: $e');
     }
   }
@@ -66,14 +63,9 @@ class TeamRepository {
         // We parse it directly into a Team object
         return Team.fromJson(body);
       } else {
-        print(
-          'Failed to load team details. Status code: ${response.statusCode}',
-        );
-        print('Response body: ${response.body}');
         throw Exception('Failed to load team details from API');
       }
     } catch (e) {
-      print('Error fetching team details: $e');
       throw Exception('Error fetching team details: $e');
     }
   }

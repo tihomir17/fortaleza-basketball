@@ -63,10 +63,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       });
       sl<RefreshSignal>().notify(); // Fire global refresh signal
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) _setLoading(false);
     }
@@ -113,10 +114,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error refreshing roster: $e')));
+      }
     } finally {
       if (mounted) _setLoading(false);
     }
@@ -178,7 +180,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black,
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],

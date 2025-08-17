@@ -61,10 +61,11 @@ class _EditCoachScreenState extends State<EditCoachScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

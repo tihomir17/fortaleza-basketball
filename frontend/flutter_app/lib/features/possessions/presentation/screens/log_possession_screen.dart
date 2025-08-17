@@ -27,7 +27,7 @@ class LogPossessionScreen extends StatefulWidget {
 class _LogPossessionScreenState extends State<LogPossessionScreen> {
   PossessionStep _currentStep = PossessionStep.initial;
   bool _isOffensivePossession = true;
-  List<String> _actions = [];
+  final List<String> _actions = [];
 
   // Form State
   int? _selectedOpponentId;

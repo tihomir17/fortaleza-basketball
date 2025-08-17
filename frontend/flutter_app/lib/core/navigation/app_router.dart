@@ -65,10 +65,11 @@ class AppRouter {
                   final teamName = state.extra as String? ?? 'Team';
                   final token = authCubit.state.token;
 
-                  if (token == null)
+                  if (token == null) {
                     return const Scaffold(
                       body: Center(child: Text("Authentication Error")),
                     );
+                  }
 
                   // Provide the FACTORY-scoped cubit for this specific screen
                   return BlocProvider(
