@@ -1,13 +1,11 @@
 // lib/features/teams/presentation/screens/edit_team_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/main.dart'; // For Service Locator (sl)
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
-import 'manage_roster_screen.dart';
 
 class EditTeamScreen extends StatefulWidget {
   final Team team;

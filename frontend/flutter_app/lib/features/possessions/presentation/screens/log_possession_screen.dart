@@ -1,8 +1,14 @@
 // lib/features/possessions/presentation/screens/log_possession_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/teams/presentation/cubit/team_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
+import 'package:flutter_app/features/plays/data/repositories/play_repository.dart';
+import 'package:flutter_app/features/plays/presentation/widgets/playbook_tree_view.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
@@ -47,11 +53,62 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   }
 
   void _showAddActionDialog() {
-    // This is a placeholder for showing the playbook.
-    // We will implement the real version next.
-    setState(() {
-      _actions.add("Action #${_actions.length + 1}");
-    });
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.9,
+          builder: (BuildContext context, ScrollController scrollController) {
+            final authState = context.read<AuthCubit>().state;
+            if (authState.token == null) {
+              return const Center(child: Text("Authentication Error."));
+            }
+            return FutureBuilder<List<PlayDefinition>>(
+              future: sl<PlayRepository>().getPlaysForTeam(
+                token: authState.token!,
+                teamId: widget.team.id,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Text("No plays found or error loading playbook."),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        "Select an Action",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Expanded(
+                      child: PlaybookTreeView(
+                        allPlays: snapshot.data!,
+                        onPlaySelected: (play) {
+                          setState(() => _actions.add(play.name));
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   void _endPossession() {
@@ -66,7 +123,6 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
 
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
-      // Handle error
       setState(() => _isLoading = false);
       return;
     }
@@ -90,10 +146,15 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: ${e.toString().replaceFirst("Exception: ", "")}',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -111,7 +172,6 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     if (_currentStep == PossessionStep.initial) {
       return Center(
         child: Column(
-          // THIS IS THE FIX for 'Undefined name 'mainAxisAlignment''
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
@@ -132,7 +192,6 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
       );
     }
 
-    // The rest of the build logic for the form
     return Form(
       key: _formKey,
       child: ListView(
@@ -201,76 +260,116 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   }
 
   Widget _buildMetadataSection() {
-    final allTeams = context.watch<TeamCubit>().state.teams;
-    final potentialOpponents = allTeams
-        .where((t) => t.id != widget.team.id)
-        .toList();
+    // We now wrap the whole section in a BlocBuilder that listens to the TeamCubit
+    return BlocBuilder<TeamCubit, TeamState>(
+      builder: (context, teamState) {
+        // Handle loading and error states for the team list
+        if (teamState.status == TeamStatus.loading) {
+          return const Center(child: Text("Loading teams..."));
+        }
+        if (teamState.status == TeamStatus.failure) {
+          return const Center(child: Text("Could not load teams."));
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("Metadata", style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<int>(
-          value: _selectedOpponentId,
-          items: potentialOpponents
-              .map(
-                (team) =>
-                    DropdownMenuItem(value: team.id, child: Text(team.name)),
-              )
-              .toList(),
-          onChanged: (value) => setState(() => _selectedOpponentId = value),
-          decoration: const InputDecoration(labelText: 'Opponent *'),
-          validator: (v) => v == null ? 'Please select an opponent' : null,
-        ),
-        const SizedBox(height: 16),
-        Row(
+        // Once the teams are loaded, we can build the form
+        final potentialOpponents = teamState.teams
+            .where((t) => t.id != widget.team.id)
+            .toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextFormField(
-                controller: _startTimeController,
-                decoration: const InputDecoration(
-                  labelText: 'Start Time (MM:SS) *',
+            Text("Metadata", style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _selectedOpponentId,
+                    // The items list is now guaranteed to be populated
+                    items: potentialOpponents
+                        .map(
+                          (team) => DropdownMenuItem(
+                            value: team.id,
+                            child: Text(team.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedOpponentId = value),
+                    decoration: const InputDecoration(labelText: 'Opponent *'),
+                    validator: (v) =>
+                        v == null ? 'Please select an opponent' : null,
+                  ),
                 ),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _durationController,
-                decoration: const InputDecoration(
-                  labelText: 'Duration (Secs) *',
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: 'Add New Opponent',
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => const CreateTeamScreen(),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                    if (result == true) {
+                      sl<RefreshSignal>().notify();
+                    }
+                  },
                 ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: _selectedQuarter,
-                items: const [
-                  DropdownMenuItem(value: 1, child: Text('1Q')),
-                  DropdownMenuItem(value: 2, child: Text('2Q')),
-                  DropdownMenuItem(value: 3, child: Text('3Q')),
-                  DropdownMenuItem(value: 4, child: Text('4Q')),
-                  DropdownMenuItem(value: 5, child: Text('OT')),
-                ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedQuarter = v);
-                },
-                decoration: const InputDecoration(labelText: 'Quarter *'),
-              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _startTimeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Start Time (MM:SS) *',
+                    ),
+                    validator: (v) => v!.isEmpty ? 'Required' : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _durationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Duration (Secs) *',
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? 'Required' : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _selectedQuarter,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1Q')),
+                      DropdownMenuItem(value: 2, child: Text('2Q')),
+                      DropdownMenuItem(value: 3, child: Text('3Q')),
+                      DropdownMenuItem(value: 4, child: Text('4Q')),
+                      DropdownMenuItem(value: 5, child: Text('OT')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _selectedQuarter = v);
+                    },
+                    decoration: const InputDecoration(labelText: 'Quarter *'),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildOutcomeSection() {
-    // THIS IS THE FIX for 'Too many positional arguments'
     return DropdownButtonFormField<String>(
       value: _selectedOutcome,
       items: const [

@@ -39,7 +39,7 @@ class _CreateTeamScreenState extends State<CreateTeamScreen> {
       }
 
       try {
-        final newTeam = await sl<TeamRepository>().createTeam(
+        final _ = await sl<TeamRepository>().createTeam(
           token: token,
           name: _nameController.text,
         );

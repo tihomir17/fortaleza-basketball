@@ -28,7 +28,7 @@ class Possession {
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
-    var playerList = (json['players_on_court'] as List? ?? [])
+    var _ = (json['players_on_court'] as List? ?? [])
         .map((playerJson) => User.fromJson(playerJson))
         .toList();
 
