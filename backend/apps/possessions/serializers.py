@@ -3,29 +3,38 @@
 from rest_framework import serializers
 from .models import Possession
 from apps.teams.models import Team
-from apps.teams.serializers import TeamReadSerializer # For displaying team info
+from apps.teams.serializers import TeamReadSerializer
+
+from apps.games.models import Game
+from apps.games.serializers import GameSerializer
 
 class PossessionSerializer(serializers.ModelSerializer):
-    # For GET requests, we want to show the full nested team objects.
+    # --- For Reading Data (Output) ---
+    game = GameSerializer(read_only=True)
     team = TeamReadSerializer(read_only=True)
-    opponent = TeamReadSerializer(read_only=True)
 
-    # For POST/PUT requests, the frontend will send the integer IDs for the teams.
-    # The 'source' argument tells DRF which model field to populate with the ID.
+    # --- For Writing Data (Input) ---
+    game_id = serializers.PrimaryKeyRelatedField(
+        queryset=Game.objects.all(), source='game', write_only=True
+    )
     team_id = serializers.PrimaryKeyRelatedField(
         queryset=Team.objects.all(), source='team', write_only=True
-    )
-    opponent_id = serializers.PrimaryKeyRelatedField(
-        queryset=Team.objects.all(), source='opponent', write_only=True, required=False, allow_null=True
     )
 
     class Meta:
         model = Possession
         fields = [
-            'id', 'game', 'team',
-            'start_time_in_game', 'duration_seconds',
-            'quarter', 'outcome', 'offensive_sequence', 'defensive_sequence',
+            'id',
+            'game',                 # read-only object
+            'team',                 # read-only object
+            'start_time_in_game',
+            'duration_seconds',
+            'quarter',
+            'outcome',
+            'offensive_sequence',
+            'defensive_sequence',
             'logged_by',
-            'game_id', 'team_id'
+            'game_id',              # write-only field
+            'team_id',              # write-only field
         ]
-        read_only_fields = ['logged_by', 'game', 'team']
+        read_only_fields = ['logged_by']

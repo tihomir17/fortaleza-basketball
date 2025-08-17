@@ -1,38 +1,46 @@
 // lib/features/possessions/presentation/screens/log_possession_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart'; // For date formatting
+
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_cubit.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_state.dart';
+import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_state.dart';
 import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
 import 'package:flutter_app/features/plays/data/repositories/play_repository.dart';
 import 'package:flutter_app/features/plays/presentation/widgets/playbook_tree_view.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/possession_repository.dart';
 
-enum PossessionStep { initial, logging, finished }
+enum PossessionLogStep { selectGame, selectTeam, buildPossession }
+
+enum PossessionBuildStep { logging, finished }
 
 class LogPossessionScreen extends StatefulWidget {
-  final Team team;
-  const LogPossessionScreen({super.key, required this.team});
+  const LogPossessionScreen({super.key});
 
   @override
   State<LogPossessionScreen> createState() => _LogPossessionScreenState();
 }
 
 class _LogPossessionScreenState extends State<LogPossessionScreen> {
-  PossessionStep _currentStep = PossessionStep.initial;
-  bool _isOffensivePossession = true;
-  final List<String> _actions = [];
+  PossessionLogStep _logStep = PossessionLogStep.selectGame;
+  PossessionBuildStep _buildStep = PossessionBuildStep.logging;
 
-  // Form State
-  int? _selectedCompetitionId;
-  List<Team> _teamsInSelectedCompetition = [];
-  int? _selectedOpponentId;
+  // State for selected items
+  Game? _selectedGame;
+  Team? _teamWithPossession;
+
+  // State for the possession being built
+  List<String> _actions = [];
+  bool _isOffensivePossession = true;
+
+  // Form Controllers and State
   int _selectedQuarter = 1;
   String? _selectedOutcome;
   final _startTimeController = TextEditingController();
@@ -47,76 +55,23 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     super.dispose();
   }
 
-  void _startLogging(bool isOffensive) {
+  void _onGameSelected(Game game) {
     setState(() {
-      _isOffensivePossession = isOffensive;
-      _currentStep = PossessionStep.logging;
+      _selectedGame = game;
+      _logStep = PossessionLogStep.selectTeam;
     });
   }
 
-  void _showAddActionDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.7,
-          maxChildSize: 0.9,
-          builder: (BuildContext context, ScrollController scrollController) {
-            final authState = context.read<AuthCubit>().state;
-            if (authState.token == null) {
-              return const Center(child: Text("Authentication Error."));
-            }
-            return FutureBuilder<List<PlayDefinition>>(
-              future: sl<PlayRepository>().getPlaysForTeam(
-                token: authState.token!,
-                teamId: widget.team.id,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError ||
-                    !snapshot.hasData ||
-                    snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text("No plays found or error loading playbook."),
-                  );
-                }
-
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        "Select an Action",
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    Expanded(
-                      child: PlaybookTreeView(
-                        allPlays: snapshot.data!,
-                        onPlaySelected: (play) {
-                          setState(() => _actions.add(play.name));
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
+  void _onTeamSelected(Team team, bool isOffensive) {
+    setState(() {
+      _teamWithPossession = team;
+      _isOffensivePossession = isOffensive;
+      _logStep = PossessionLogStep.buildPossession;
+    });
   }
 
   void _endPossession() {
-    setState(() {
-      _currentStep = PossessionStep.finished;
-    });
+    setState(() => _buildStep = PossessionBuildStep.finished);
   }
 
   Future<void> _savePossession() async {
@@ -124,7 +79,10 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     setState(() => _isLoading = true);
 
     final token = context.read<AuthCubit>().state.token;
-    if (token == null) {
+    if (token == null ||
+        _selectedGame == null ||
+        _teamWithPossession == null ||
+        _selectedOutcome == null) {
       setState(() => _isLoading = false);
       return;
     }
@@ -134,29 +92,25 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     try {
       await sl<PossessionRepository>().createPossession(
         token: token,
-        teamId: widget.team.id,
-        opponentId: _selectedOpponentId,
+        gameId: _selectedGame!.id,
+        teamId: _teamWithPossession!.id,
         startTime: _startTimeController.text,
         duration: int.tryParse(_durationController.text) ?? 0,
         quarter: _selectedQuarter,
         outcome: _selectedOutcome!,
         offensiveSequence: _isOffensivePossession ? sequence : '',
         defensiveSequence: !_isOffensivePossession ? sequence : '',
+        opponentId: null,
       );
       if (mounted) {
-        sl<RefreshSignal>().notify();
+        sl<RefreshSignal>().notify(); // Notify other screens if needed
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error: ${e.toString().replaceFirst("Exception: ", "")}',
-            ),
-          ),
-        );
-      }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -165,206 +119,241 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Log New Possession')),
-      body: Stepper(
-        // <-- USE A STEPPER WIDGET
-        type: StepperType.vertical,
-        currentStep: _currentStep.index, // Map our enum to the stepper's index
-        onStepTapped: null, // Disable tapping on headers
-        controlsBuilder: (context, details) {
-          // Custom controls allow us to have our specific buttons
-          if (_currentStep == PossessionStep.initial) {
-            return _buildInitialStepControls();
-          }
-          if (_currentStep == PossessionStep.logging) {
-            return _buildLoggingStepControls();
-          }
-          if (_currentStep == PossessionStep.finished) {
-            return _buildFinishedStepControls();
-          }
-          return const SizedBox.shrink();
-        },
-        steps: [
-          // STEP 1: INITIAL CHOICE
-          Step(
-            title: const Text('Possession Type'),
-            content: const Text(
-              'Select whether you are logging an offensive or defensive possession.',
+      appBar: AppBar(title: Text(_getAppBarTitle())),
+      body: _buildBody(),
+    );
+  }
+
+  String _getAppBarTitle() {
+    switch (_logStep) {
+      case PossessionLogStep.selectGame:
+        return 'Select a Game';
+      case PossessionLogStep.selectTeam:
+        return 'Select Team with Possession';
+      case PossessionLogStep.buildPossession:
+        return 'Log Possession';
+    }
+  }
+
+  Widget _buildBody() {
+    switch (_logStep) {
+      case PossessionLogStep.selectGame:
+        return _buildGameSelection();
+      case PossessionLogStep.selectTeam:
+        return _buildTeamSelection();
+      case PossessionLogStep.buildPossession:
+        return _buildPossessionForm();
+    }
+  }
+
+  Widget _buildGameSelection() {
+    return BlocBuilder<GameCubit, GameState>(
+      builder: (context, state) {
+        if (state.status == GameStatus.loading)
+          return const Center(child: CircularProgressIndicator());
+        if (state.status == GameStatus.failure)
+          return Center(
+            child: Text(state.errorMessage ?? "Failed to load games."),
+          );
+        if (state.games.isEmpty)
+          return const Center(
+            child: Text("No games found. Please create one first."),
+          );
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(8.0),
+          itemCount: state.games.length,
+          itemBuilder: (context, index) {
+            final game = state.games[index];
+            return Card(
+              child: ListTile(
+                title: Text(
+                  '${game.homeTeam.name} vs ${game.awayTeam.name}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'Date: ${DateFormat.yMMMd().format(game.gameDate)}',
+                ),
+                onTap: () => _onGameSelected(game),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTeamSelection() {
+    if (_selectedGame == null)
+      return const Center(child: Text("Error: No game selected."));
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Which team had this possession?',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
             ),
-            isActive: _currentStep.index >= 0,
-            state: _currentStep.index > 0
-                ? StepState.complete
-                : StepState.indexed,
-          ),
-          // STEP 2: LOGGING ACTIONS
-          Step(
-            title: const Text('Build Sequence & Metadata'),
-            content: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildMetadataSection(),
-                  const Divider(height: 32),
-                  Text(
-                    "Sequence",
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(/* ... Sequence display container ... */),
-                ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.sports_basketball_outlined),
+              onPressed: () => _onTeamSelected(_selectedGame!.homeTeam, true),
+              label: Text(_selectedGame!.homeTeam.name),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
-            isActive: _currentStep.index >= 1,
-            state: _currentStep.index > 1
-                ? StepState.complete
-                : StepState.indexed,
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.shield_outlined),
+              onPressed: () => _onTeamSelected(_selectedGame!.awayTeam, false),
+              label: Text(_selectedGame!.awayTeam.name),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPossessionForm() {
+    final opponent = _selectedGame!.homeTeam.id == _teamWithPossession!.id
+        ? _selectedGame!.awayTeam
+        : _selectedGame!.homeTeam;
+
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildMetadataSection(opponent),
+          const Divider(height: 32),
+          Text("Sequence", style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _actions.isEmpty ? "No actions added yet." : _actions.join(' ➡ '),
+              style: const TextStyle(fontSize: 16),
+            ),
           ),
-          // STEP 3: OUTCOME AND SAVE
-          Step(
-            title: const Text('Final Outcome'),
-            content: _buildOutcomeSection(),
-            isActive: _currentStep.index >= 2,
-            state: _currentStep.index > 2
-                ? StepState.complete
-                : StepState.indexed,
-          ),
+          const SizedBox(height: 16),
+          if (_buildStep == PossessionBuildStep.logging)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Action"),
+                  onPressed: _showAddActionDialog,
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: const Text("End Possession"),
+                  onPressed: _endPossession,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[800],
+                  ),
+                ),
+              ],
+            ),
+          if (_buildStep == PossessionBuildStep.finished) ...[
+            const Divider(height: 32),
+            _buildOutcomeSection(),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _savePossession,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text("Save Possession"),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildMetadataSection() {
-    return BlocBuilder<CompetitionCubit, CompetitionState>(
-      builder: (context, competitionState) {
-        if (competitionState.status == CompetitionStatus.loading) {
-          return const Center(child: Text("Loading competitions..."));
-        }
-        if (competitionState.status == CompetitionStatus.failure) {
-          return const Center(child: Text("Could not load competitions."));
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildMetadataSection(Team opponent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Metadata", style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        ListTile(
+          leading: const Icon(Icons.people_alt_outlined),
+          title: Text(
+            _teamWithPossession!.name,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text("vs ${opponent.name}"),
+          dense: true,
+        ),
+        const SizedBox(height: 16),
+        Row(
           children: [
-            Text("Metadata", style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              decoration: const InputDecoration(labelText: 'Competition *'),
-              hint: const Text('Select Competition'),
-              value: _selectedCompetitionId,
-              items: competitionState.competitions
-                  .map(
-                    (comp) => DropdownMenuItem(
-                      value: comp.id,
-                      child: Text(comp.name),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedCompetitionId = value;
-                    _teamsInSelectedCompetition = competitionState.competitions
-                        .firstWhere((c) => c.id == value)
-                        .teams;
-                    _selectedOpponentId = null;
-                  });
-                }
-              },
-              validator: (v) =>
-                  v == null ? 'Please select a competition' : null,
-            ),
-            const SizedBox(height: 16),
-            if (_selectedCompetitionId != null)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: _selectedOpponentId,
-                      items: _teamsInSelectedCompetition
-                          .where((t) => t.id != widget.team.id)
-                          .map(
-                            (team) => DropdownMenuItem(
-                              value: team.id,
-                              child: Text(team.name),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedOpponentId = value),
-                      decoration: const InputDecoration(
-                        labelText: 'Opponent *',
-                      ),
-                      validator: (v) =>
-                          v == null ? 'Please select an opponent' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      tooltip: 'Add New Team to Competition',
-                      onPressed: () async {
-                        final result = await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => const CreateTeamScreen(),
-                          ),
-                        );
-                        if (result == true) {
-                          sl<RefreshSignal>().notify();
-                        }
-                      },
-                    ),
-                  ),
-                ],
+            Expanded(
+              child: TextFormField(
+                controller: _startTimeController,
+                decoration: const InputDecoration(
+                  labelText: 'Start Time (MM:SS) *',
+                ),
+                validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _startTimeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Start Time (MM:SS) *',
-                    ),
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (Secs) *',
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _durationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (Secs) *',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v!.isEmpty ? 'Required' : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _selectedQuarter,
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('1Q')),
-                      DropdownMenuItem(value: 2, child: Text('2Q')),
-                      DropdownMenuItem(value: 3, child: Text('3Q')),
-                      DropdownMenuItem(value: 4, child: Text('4Q')),
-                      DropdownMenuItem(value: 5, child: Text('OT')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _selectedQuarter = v);
-                    },
-                    decoration: const InputDecoration(labelText: 'Quarter *'),
-                  ),
-                ),
-              ],
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (v) => v!.isEmpty ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _selectedQuarter,
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('1Q')),
+                  DropdownMenuItem(value: 2, child: Text('2Q')),
+                  DropdownMenuItem(value: 3, child: Text('3Q')),
+                  DropdownMenuItem(value: 4, child: Text('4Q')),
+                  DropdownMenuItem(value: 5, child: Text('OT')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedQuarter = v);
+                },
+                decoration: const InputDecoration(labelText: 'Quarter *'),
+              ),
             ),
           ],
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -421,60 +410,65 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
     );
   }
 
-  Widget _buildInitialStepControls() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.sports_basketball_outlined),
-            label: const Text("Log Offensive Possession"),
-            onPressed: () => _startLogging(true),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.shield_outlined),
-            label: const Text("Log Defensive Possession"),
-            onPressed: () => _startLogging(false),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              foregroundColor: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _showAddActionDialog() {
+    // We need the team that has possession to fetch its playbook
+    if (_teamWithPossession == null) return;
 
-  Widget _buildLoggingStepControls() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: Row(
-        children: [
-          OutlinedButton(
-            onPressed: _showAddActionDialog,
-            child: const Text("Add Action"),
-          ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: _endPossession,
-            child: const Text("End Possession"),
-          ),
-        ],
-      ),
-    );
-  }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.9,
+          builder: (BuildContext context, ScrollController scrollController) {
+            final authState = context.read<AuthCubit>().state;
+            if (authState.token == null) {
+              return const Center(child: Text("Authentication Error."));
+            }
+            return FutureBuilder<List<PlayDefinition>>(
+              future: sl<PlayRepository>().getPlaysForTeam(
+                token: authState.token!,
+                teamId: _teamWithPossession!.id, // Use the correct team's ID
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Text("No plays found for this team."),
+                  );
+                }
 
-  Widget _buildFinishedStepControls() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _savePossession,
-        child: _isLoading
-            ? const CircularProgressIndicator()
-            : const Text("Save Possession"),
-      ),
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        "Select an Action",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Expanded(
+                      child: PlaybookTreeView(
+                        allPlays: snapshot.data!,
+                        onPlaySelected: (play) {
+                          setState(() => _actions.add(play.name));
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

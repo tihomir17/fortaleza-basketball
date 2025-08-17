@@ -93,7 +93,7 @@ class AppRouter {
                     );
                   }
                   // This screen can now access the globally provided TeamCubit
-                  return LogPossessionScreen(team: team);
+                  return LogPossessionScreen();
                 },
               ),
             ],

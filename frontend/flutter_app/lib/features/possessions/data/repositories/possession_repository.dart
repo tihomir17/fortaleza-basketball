@@ -9,7 +9,8 @@ class PossessionRepository {
 
   Future<Possession> createPossession({
     required String token,
-    required int teamId,
+    required int gameId,
+    required int teamId, // Team with the possession
     required int? opponentId,
     required String startTime,
     required int duration,
@@ -22,10 +23,13 @@ class PossessionRepository {
     try {
       final response = await _client.post(
         url,
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: json.encode({
+          'game_id': gameId,
           'team_id': teamId,
-          'opponent_id': opponentId,
           'start_time_in_game': startTime,
           'duration_seconds': duration,
           'quarter': quarter,
@@ -37,7 +41,9 @@ class PossessionRepository {
       if (response.statusCode == 201) {
         return Possession.fromJson(json.decode(response.body));
       } else {
-        throw Exception('Failed to create possession. Server response: ${response.body}');
+        throw Exception(
+          'Failed to create possession. Server response: ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('An error occurred while creating possession: $e');

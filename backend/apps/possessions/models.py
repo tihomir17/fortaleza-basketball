@@ -28,18 +28,10 @@ class Possession(models.Model):
         TURNOVER_3_SECONDS = 'TO_3_SECONDS', _('Turnover: 3 Seconds')
         OTHER = 'OTHER', _('Other')
 
-    game = models.ForeignKey(
-        'games.Game',
-        on_delete=models.CASCADE,
-        related_name='possessions'
-    )
-    
+    game = models.ForeignKey('games.Game', on_delete=models.CASCADE, related_name='possessions')
+
     # Team relationships
-    team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='possessions')
-    opponent = models.ForeignKey(
-        'teams.Team', on_delete=models.SET_NULL, null=True,
-        blank=True, related_name='opponent_possessions'
-    )
+    team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='team_possessions')
     
     # Metadata
     start_time_in_game = models.CharField(_('Start Time (e.g., 12:00)'), max_length=5)
@@ -67,5 +59,5 @@ class Possession(models.Model):
         ordering = ['-id'] # Show newest possessions first by default
 
     def __str__(self):
-        opponent_name = self.opponent.name if self.opponent else "Unknown"
+        opponent_name = "Unknown"
         return f"{self.team.name} vs {opponent_name} in Q{self.quarter} at {self.start_time_in_game}"

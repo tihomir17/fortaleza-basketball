@@ -93,7 +93,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                             // We find the TeamCubit that already exists in the current context...
                             value: context.read<TeamCubit>(),
                             // ...and provide that SAME instance to the new screen.
-                            child: LogPossessionScreen(team: state.team!),
+                            child: LogPossessionScreen(),
                           ),
                         ),
                       );
