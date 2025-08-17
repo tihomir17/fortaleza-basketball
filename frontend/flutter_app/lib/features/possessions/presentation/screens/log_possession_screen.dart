@@ -1,9 +1,10 @@
 // lib/features/possessions/presentation/screens/log_possession_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/features/competitions/presentation/cubit/competition_cubit.dart';
+import 'package:flutter_app/features/competitions/presentation/cubit/competition_state.dart';
 import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
 import 'package:flutter_app/features/plays/data/repositories/play_repository.dart';
 import 'package:flutter_app/features/plays/presentation/widgets/playbook_tree_view.dart';
@@ -11,7 +12,6 @@ import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import '../../data/repositories/possession_repository.dart';
 
 enum PossessionStep { initial, logging, finished }
@@ -30,6 +30,8 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   final List<String> _actions = [];
 
   // Form State
+  int? _selectedCompetitionId;
+  List<Team> _teamsInSelectedCompetition = [];
   int? _selectedOpponentId;
   int _selectedQuarter = 1;
   String? _selectedOutcome;
@@ -260,67 +262,92 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   }
 
   Widget _buildMetadataSection() {
-    // We now wrap the whole section in a BlocBuilder that listens to the TeamCubit
-    return BlocBuilder<TeamCubit, TeamState>(
-      builder: (context, teamState) {
-        // Handle loading and error states for the team list
-        if (teamState.status == TeamStatus.loading) {
-          return const Center(child: Text("Loading teams..."));
+    return BlocBuilder<CompetitionCubit, CompetitionState>(
+      builder: (context, competitionState) {
+        if (competitionState.status == CompetitionStatus.loading) {
+          return const Center(child: Text("Loading competitions..."));
         }
-        if (teamState.status == TeamStatus.failure) {
-          return const Center(child: Text("Could not load teams."));
+        if (competitionState.status == CompetitionStatus.failure) {
+          return const Center(child: Text("Could not load competitions."));
         }
-
-        // Once the teams are loaded, we can build the form
-        final potentialOpponents = teamState.teams
-            .where((t) => t.id != widget.team.id)
-            .toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Metadata", style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _selectedOpponentId,
-                    // The items list is now guaranteed to be populated
-                    items: potentialOpponents
-                        .map(
-                          (team) => DropdownMenuItem(
-                            value: team.id,
-                            child: Text(team.name),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedOpponentId = value),
-                    decoration: const InputDecoration(labelText: 'Opponent *'),
-                    validator: (v) =>
-                        v == null ? 'Please select an opponent' : null,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Add New Opponent',
-                  onPressed: () async {
-                    final result = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(
-                        builder: (_) => const CreateTeamScreen(),
-                        fullscreenDialog: true,
-                      ),
-                    );
-                    if (result == true) {
-                      sl<RefreshSignal>().notify();
-                    }
-                  },
-                ),
-              ],
+            DropdownButtonFormField<int>(
+              decoration: const InputDecoration(labelText: 'Competition *'),
+              hint: const Text('Select Competition'),
+              value: _selectedCompetitionId,
+              items: competitionState.competitions
+                  .map(
+                    (comp) => DropdownMenuItem(
+                      value: comp.id,
+                      child: Text(comp.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedCompetitionId = value;
+                    _teamsInSelectedCompetition = competitionState.competitions
+                        .firstWhere((c) => c.id == value)
+                        .teams;
+                    _selectedOpponentId = null;
+                  });
+                }
+              },
+              validator: (v) =>
+                  v == null ? 'Please select a competition' : null,
             ),
+            const SizedBox(height: 16),
+            if (_selectedCompetitionId != null)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: _selectedOpponentId,
+                      items: _teamsInSelectedCompetition
+                          .where((t) => t.id != widget.team.id)
+                          .map(
+                            (team) => DropdownMenuItem(
+                              value: team.id,
+                              child: Text(team.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _selectedOpponentId = value),
+                      decoration: const InputDecoration(
+                        labelText: 'Opponent *',
+                      ),
+                      validator: (v) =>
+                          v == null ? 'Please select an opponent' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      tooltip: 'Add New Team to Competition',
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => const CreateTeamScreen(),
+                          ),
+                        );
+                        if (result == true) {
+                          sl<RefreshSignal>().notify();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
             Row(
               children: [
