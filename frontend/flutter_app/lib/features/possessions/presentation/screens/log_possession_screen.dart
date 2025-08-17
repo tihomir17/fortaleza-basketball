@@ -166,96 +166,68 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Log New Possession')),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_currentStep == PossessionStep.initial) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.sports_basketball_outlined),
-              label: const Text("Log Offensive Possession"),
-              onPressed: () => _startLogging(true),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(250, 50)),
+      body: Stepper(
+        // <-- USE A STEPPER WIDGET
+        type: StepperType.vertical,
+        currentStep: _currentStep.index, // Map our enum to the stepper's index
+        onStepTapped: null, // Disable tapping on headers
+        controlsBuilder: (context, details) {
+          // Custom controls allow us to have our specific buttons
+          if (_currentStep == PossessionStep.initial) {
+            return _buildInitialStepControls();
+          }
+          if (_currentStep == PossessionStep.logging) {
+            return _buildLoggingStepControls();
+          }
+          if (_currentStep == PossessionStep.finished) {
+            return _buildFinishedStepControls();
+          }
+          return const SizedBox.shrink();
+        },
+        steps: [
+          // STEP 1: INITIAL CHOICE
+          Step(
+            title: const Text('Possession Type'),
+            content: const Text(
+              'Select whether you are logging an offensive or defensive possession.',
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.shield_outlined),
-              label: const Text("Log Defensive Possession"),
-              onPressed: () => _startLogging(false),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(250, 50)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildMetadataSection(),
-          const Divider(height: 32),
-          Text("Sequence", style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _actions.isEmpty ? "No actions added yet." : _actions.join(' ➡ '),
-              style: const TextStyle(fontSize: 16),
-            ),
+            isActive: _currentStep.index >= 0,
+            state: _currentStep.index > 0
+                ? StepState.complete
+                : StepState.indexed,
           ),
-          const SizedBox(height: 16),
-          if (_currentStep == PossessionStep.logging)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text("Add Action"),
-                  onPressed: _showAddActionDialog,
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text("End Possession"),
-                  onPressed: _endPossession,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange[800],
+          // STEP 2: LOGGING ACTIONS
+          Step(
+            title: const Text('Build Sequence & Metadata'),
+            content: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _buildMetadataSection(),
+                  const Divider(height: 32),
+                  Text(
+                    "Sequence",
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-              ],
-            ),
-          if (_currentStep == PossessionStep.finished) ...[
-            const Divider(height: 32),
-            _buildOutcomeSection(),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _savePossession,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                  const SizedBox(height: 8),
+                  Container(/* ... Sequence display container ... */),
+                ],
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text("Save Possession"),
             ),
-          ],
+            isActive: _currentStep.index >= 1,
+            state: _currentStep.index > 1
+                ? StepState.complete
+                : StepState.indexed,
+          ),
+          // STEP 3: OUTCOME AND SAVE
+          Step(
+            title: const Text('Final Outcome'),
+            content: _buildOutcomeSection(),
+            isActive: _currentStep.index >= 2,
+            state: _currentStep.index > 2
+                ? StepState.complete
+                : StepState.indexed,
+          ),
         ],
       ),
     );
@@ -446,6 +418,63 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
       },
       decoration: const InputDecoration(labelText: 'Possession Outcome *'),
       validator: (v) => v == null ? 'Please select an outcome' : null,
+    );
+  }
+
+  Widget _buildInitialStepControls() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.sports_basketball_outlined),
+            label: const Text("Log Offensive Possession"),
+            onPressed: () => _startLogging(true),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.shield_outlined),
+            label: const Text("Log Defensive Possession"),
+            onPressed: () => _startLogging(false),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoggingStepControls() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Row(
+        children: [
+          OutlinedButton(
+            onPressed: _showAddActionDialog,
+            child: const Text("Add Action"),
+          ),
+          const Spacer(),
+          ElevatedButton(
+            onPressed: _endPossession,
+            child: const Text("End Possession"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinishedStepControls() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _savePossession,
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : const Text("Save Possession"),
+      ),
     );
   }
 }
