@@ -69,8 +69,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // We still provide the AuthCubit at the top level
-    return BlocProvider.value(
-      value: sl<AuthCubit>(),
+    return MultiBlocProvider(
+      providers: [
+        // --- GLOBAL PROVIDERS ---
+        // These cubits are available to ALL routes and screens in the app.
+        BlocProvider.value(value: sl<AuthCubit>()),
+        BlocProvider(create: (context) {
+          final token = sl<AuthCubit>().state.token;
+          // Only create and fetch if we have a token.
+          return sl<TeamCubit>()..fetchTeams(token: token ?? '');
+        }),
+      ],
       child: MaterialApp.router(
         title: 'Basketball Analytics',
         theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
