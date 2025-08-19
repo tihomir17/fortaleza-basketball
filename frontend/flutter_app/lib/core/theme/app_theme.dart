@@ -52,7 +52,6 @@ class AppTheme {
         surface: surface,
         onPrimary: onPrimary,
         onSurface: onSurface,
-        background: background,
       ),
       textTheme: _buildTextTheme(base.textTheme, onSurface),
       appBarTheme: AppBarTheme(

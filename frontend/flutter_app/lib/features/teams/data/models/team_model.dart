@@ -1,52 +1,43 @@
 // lib/features/teams/data/models/team_model.dart
-
-import '../../../authentication/data/models/user_model.dart';
+import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 
 class Team {
   final int id;
   final String name;
+  final User? createdBy;
   final List<User> players;
   final List<User> coaches;
-  final User? createdBy;
   final int? competitionId;
 
-  Team({
+ Team({
     required this.id,
     required this.name,
+    this.createdBy,
     required this.players,
     required this.coaches,
-    this.createdBy,
     this.competitionId,
-  });
+}); 
 
   factory Team.fromJson(Map<String, dynamic> json) {
-    // Safely parse the list of players, defaulting to an empty list if null
-    final playersData = json['players'] as List<dynamic>? ?? [];
-    final players = playersData
-        .map((playerJson) => User.fromJson(playerJson))
-        .toList();
-
-    // Safely parse the list of coaches, defaulting to an empty list if null
-    final coachesData = json['coaches'] as List<dynamic>? ?? [];
-    final coaches = coachesData
-        .map((coachJson) => User.fromJson(coachJson))
-        .toList();
-
-    // Safely parse the 'created_by' field. If it's null in the JSON, our 'createdBy' property will be null.
+    // Safely parse nested creator object
     final createdByData = json['created_by'] as Map<String, dynamic>?;
-    final createdBy = createdByData != null
-        ? User.fromJson(createdByData)
-        : null;
+    final createdBy = createdByData != null ? User.fromJson(createdByData) : null;
+
+    // Safely parse list of player objects with explicit casting
+    final playersData = json['players'] as List<dynamic>? ?? [];
+    final players = playersData.map((p) => User.fromJson(p as Map<String, dynamic>)).toList();
+
+    // Safely parse list of coach objects with explicit casting
+    final coachesData = json['coaches'] as List<dynamic>? ?? [];
+    final coaches = coachesData.map((c) => User.fromJson(c as Map<String, dynamic>)).toList();
 
     return Team(
-      // The 'id' field is the most likely culprit for the error.
-      // We ensure it defaults to a value like 0 if it's somehow null.
-      id: json['id'] as int? ?? 0,
+      id: json['id'],
       name: json['name'] as String? ?? 'Unnamed Team',
+      createdBy: createdBy,
       players: players,
       coaches: coaches,
-      createdBy: createdBy,
-      competitionId: json['competition'],
+      competitionId: json['competition'] as int?,
     );
   }
 }

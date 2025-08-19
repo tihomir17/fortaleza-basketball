@@ -37,7 +37,7 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   Team? _teamWithPossession;
 
   // State for the possession being built
-  List<String> _actions = [];
+  final List<String> _actions = [];
   bool _isOffensivePossession = true;
 
   // Form Controllers and State
@@ -109,10 +109,11 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -151,16 +152,19 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   Widget _buildGameSelection() {
     return BlocBuilder<GameCubit, GameState>(
       builder: (context, state) {
-        if (state.status == GameStatus.loading)
+        if (state.status == GameStatus.loading) {
           return const Center(child: CircularProgressIndicator());
-        if (state.status == GameStatus.failure)
+        }
+        if (state.status == GameStatus.failure) {
           return Center(
             child: Text(state.errorMessage ?? "Failed to load games."),
           );
-        if (state.games.isEmpty)
+        }
+        if (state.games.isEmpty) {
           return const Center(
             child: Text("No games found. Please create one first."),
           );
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(8.0),
@@ -186,8 +190,9 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
   }
 
   Widget _buildTeamSelection() {
-    if (_selectedGame == null)
+    if (_selectedGame == null) {
       return const Center(child: Text("Error: No game selected."));
+    }
 
     return Padding(
       padding: const EdgeInsets.all(16.0),

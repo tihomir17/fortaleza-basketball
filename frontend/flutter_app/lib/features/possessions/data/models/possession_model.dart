@@ -32,8 +32,9 @@ class Possession {
     return Possession(
       id: json['id'],
       game: Game.fromJson(json['game']),
+      // team: Team.fromJson(json['team']),
       team: Team.fromJson(json['team']),
-      opponent: json['opponent'] != null ? Team.fromJson(json['opponent']) : null,
+      opponent: json['opponent'] != null ? Team.fromJson(json['opponent']) : null,      
       startTimeInGame: json['start_time_in_game'] ?? '00:00',
       durationSeconds: json['duration_seconds'] ?? 0,
       quarter: json['quarter'] ?? 1,

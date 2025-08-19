@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -67,6 +68,10 @@ void setupServiceLocator() {
   );
   sl.registerFactory<PlaybookCubit>(
     () => PlaybookCubit(playRepository: sl<PlayRepository>()),
+  );
+
+  sl.registerFactory<GameDetailCubit>(
+    () => GameDetailCubit(gameRepository: sl<GameRepository>()),
   );
 
   sl.registerLazySingleton<GameRepository>(() => GameRepository());

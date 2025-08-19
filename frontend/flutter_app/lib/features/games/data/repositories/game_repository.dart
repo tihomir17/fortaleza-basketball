@@ -24,4 +24,24 @@ class GameRepository {
       throw Exception('Error fetching games: $e');
     }
   }
+
+  Future<Game> getGameDetails({
+    required String token,
+    required int gameId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return Game.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to load game details');
+      }
+    } catch (e) {
+      throw Exception('Error fetching game details: $e');
+    }
+  }
 }
