@@ -3,7 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_app/main.dart'; // To access the service locator (sl)
+import 'package:flutter_app/main.dart';
+// Import the new shell route
+import 'scaffold_with_nav_bar.dart';
+
+// Import all screens and cubits
 import '../../features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../features/authentication/presentation/cubit/auth_state.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
@@ -14,86 +18,117 @@ import '../../features/teams/presentation/screens/team_detail_screen.dart';
 import '../../features/plays/presentation/cubit/playbook_cubit.dart';
 import '../../features/plays/presentation/screens/playbook_screen.dart';
 import '../../features/possessions/presentation/screens/log_possession_screen.dart';
+import '../../features/games/presentation/screens/games_screen.dart';
+import '../../features/games/presentation/screens/game_detail_screen.dart';
+import '../../features/games/presentation/cubit/game_detail_cubit.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
   AppRouter({required this.authCubit});
 
+  final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
   late final GoRouter router = GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/teams',
     refreshListenable: GoRouterRefreshStream(authCubit.stream),
     debugLogDiagnostics: true,
-    initialLocation: '/teams', // Default page for logged-in users
 
     routes: [
+      // Routes that do NOT have the bottom nav bar
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      // This top-level route contains all screens that require authentication
-      GoRoute(
-        path: '/teams',
-        // The builder is now simple because TeamCubit is provided globally
-        builder: (context, state) => const HomeScreen(),
+
+      // THIS IS THE CORRECTED SHELL ROUTE STRUCTURE
+      // It wraps all main pages that share the BottomNavBar.
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (context, state, child) {
+          return ScaffoldWithNavBar(child: child);
+        },
         routes: [
-          // Nested route for team details
+          // The content for the first tab: Teams
           GoRoute(
-            path: ':teamId', // Matches '/teams/1', '/teams/2', etc.
-            builder: (context, state) {
-              final teamId =
-                  int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
-              final token = authCubit.state.token;
-
-              if (token == null) {
-                // Safeguard, redirect logic should handle this
-                return const Scaffold(
-                  body: Center(child: Text("Authentication Error")),
-                );
-              }
-
-              // Provide the FACTORY-scoped cubit for this specific screen
-              return BlocProvider(
-                create: (context) =>
-                    sl<TeamDetailCubit>()
-                      ..fetchTeamDetails(token: token, teamId: teamId),
-                child: TeamDetailScreen(teamId: teamId),
-              );
-            },
+            path: '/teams',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: HomeScreen()),
             routes: [
-              // Further nested route for a team's playbook
+              // This route is NOT part of the shell, so it will cover the nav bar.
               GoRoute(
-                path: 'plays', // Matches '/teams/1/plays'
+                path: ':teamId', // Matches '/teams/1'
+                parentNavigatorKey: _rootNavigatorKey, // Important!
                 builder: (context, state) {
                   final teamId =
                       int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
-                  final teamName = state.extra as String? ?? 'Team';
-                  final token = authCubit.state.token;
-
-                  if (token == null) {
-                    return const Scaffold(
-                      body: Center(child: Text("Authentication Error")),
-                    );
-                  }
-
-                  // Provide the FACTORY-scoped cubit for this specific screen
                   return BlocProvider(
-                    create: (context) =>
-                        sl<PlaybookCubit>()
-                          ..fetchPlays(token: token, teamId: teamId),
-                    child: PlaybookScreen(teamName: teamName, teamId: teamId),
+                    create: (context) => sl<TeamDetailCubit>()
+                      ..fetchTeamDetails(
+                        token: authCubit.state.token!,
+                        teamId: teamId,
+                      ),
+                    child: TeamDetailScreen(teamId: teamId),
                   );
                 },
+                routes: [
+                  GoRoute(
+                    path: 'plays', // '/teams/:teamId/plays'
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final teamId =
+                          int.tryParse(state.pathParameters['teamId'] ?? '') ??
+                          0;
+                      final teamName = state.extra as String? ?? 'Team';
+                      return BlocProvider(
+                        create: (context) => sl<PlaybookCubit>()
+                          ..fetchPlays(
+                            token: authCubit.state.token!,
+                            teamId: teamId,
+                          ),
+                        child: PlaybookScreen(
+                          teamName: teamName,
+                          teamId: teamId,
+                        ),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'log-possession', // '/teams/:teamId/log-possession'
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final team = state.extra as Team?;
+                      if (team == null) {
+                        return const Scaffold(
+                          body: Center(child: Text("Error")),
+                        );
+                      }
+                      return LogPossessionScreen();
+                    },
+                  ),
+                ],
               ),
-              // Further nested route for logging a possession for a team
+            ],
+          ),
+          // The content for the second tab: Games
+          GoRoute(
+            path: '/games',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: GamesScreen()),
+            routes: [
+              // This route is also not part of the shell.
               GoRoute(
-                path: 'log-possession', // Matches '/teams/1/log-possession'
+                path: ':gameId', // Matches '/games/1'
+                parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) {
-                  final team = state.extra as Team?;
-                  if (team == null) {
-                    return const Scaffold(
-                      body: Center(
-                        child: Text("Error: Team data not provided."),
+                  final gameId =
+                      int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                  return BlocProvider(
+                    create: (context) => sl<GameDetailCubit>()
+                      ..fetchGameDetails(
+                        token: authCubit.state.token!,
+                        gameId: gameId,
                       ),
-                    );
-                  }
-                  // This screen can now access the globally provided TeamCubit
-                  return LogPossessionScreen(team: team);
+                    child: GameDetailScreen(gameId: gameId),
+                  );
                 },
               ),
             ],
@@ -102,21 +137,18 @@ class AppRouter {
       ),
     ],
 
-    // This redirect logic is the core of our protected routes
     redirect: (BuildContext context, GoRouterState state) {
       final bool loggedIn = authCubit.state.status == AuthStatus.authenticated;
-      final bool isLoggingIn = state.matchedLocation == '/login';
+      final String location = state.matchedLocation;
 
-      // If user is not logged in and not on the login page, redirect to login
-      if (!loggedIn && !isLoggingIn) {
+      // If we are not logged in and not on the login page, redirect to login
+      if (!loggedIn && location != '/login') {
         return '/login';
       }
-      // If user is logged in and tries to go to the login page, redirect to home
-      if (loggedIn && isLoggingIn) {
+      // If we are logged in and on the login page, redirect to the home page
+      if (loggedIn && location == '/login') {
         return '/teams';
       }
-
-      // Otherwise, no redirect is needed
       return null;
     },
   );

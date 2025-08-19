@@ -3,14 +3,16 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/possession_model.dart';
+import 'package:flutter/foundation.dart';
 
 class PossessionRepository {
   final http.Client _client = http.Client();
 
   Future<Possession> createPossession({
     required String token,
-    required int teamId,
-    required int? opponentId,
+    required int gameId,
+    required int teamId, // Team with the possession
+    required int opponentId,
     required String startTime,
     required int duration,
     required int quarter,
@@ -22,8 +24,12 @@ class PossessionRepository {
     try {
       final response = await _client.post(
         url,
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: json.encode({
+          'game_id': gameId,
           'team_id': teamId,
           'opponent_id': opponentId,
           'start_time_in_game': startTime,
@@ -34,10 +40,22 @@ class PossessionRepository {
           'defensive_sequence': defensiveSequence,
         }),
       );
+
+      // --- START OF DEBUGGING LOGS ---
+      if (kDebugMode) {
+        // Only print in debug mode
+        print("\n--- POSSESSION CREATE RESPONSE ---");
+        print("Status Code: ${response.statusCode}");
+        print("Raw JSON Body: ${response.body}");
+        print("--- END RESPONSE ---\n");
+      }
+
       if (response.statusCode == 201) {
         return Possession.fromJson(json.decode(response.body));
       } else {
-        throw Exception('Failed to create possession. Server response: ${response.body}');
+        throw Exception(
+          'Failed to create possession. Server response: ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('An error occurred while creating possession: $e');

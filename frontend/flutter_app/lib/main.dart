@@ -1,6 +1,9 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -46,7 +49,6 @@ void setupServiceLocator() {
   );
 
   // --- CUBITS (State Management) ---
-
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),
@@ -65,6 +67,15 @@ void setupServiceLocator() {
   );
   sl.registerFactory<PlaybookCubit>(
     () => PlaybookCubit(playRepository: sl<PlayRepository>()),
+  );
+
+  sl.registerFactory<GameDetailCubit>(
+    () => GameDetailCubit(gameRepository: sl<GameRepository>()),
+  );
+
+  sl.registerLazySingleton<GameRepository>(() => GameRepository());
+  sl.registerLazySingleton<GameCubit>(
+    () => GameCubit(gameRepository: sl<GameRepository>()),
   );
 }
 
@@ -96,6 +107,7 @@ class MyApp extends StatelessWidget {
         BlocProvider.value(value: sl<ThemeCubit>()),
         BlocProvider(create: (context) => sl<TeamCubit>()),
         BlocProvider(create: (context) => sl<CompetitionCubit>()),
+        BlocProvider(create: (context) => sl<GameCubit>()),
       ],
       // BlocBuilder for Theme: rebuilds the MaterialApp when the theme changes
       child: BlocBuilder<ThemeCubit, ThemeMode>(
@@ -110,6 +122,7 @@ class MyApp extends StatelessWidget {
                 context.read<CompetitionCubit>().fetchCompetitions(
                   token: authState.token!,
                 );
+                context.read<GameCubit>().fetchGames(token: authState.token!);
               }
             },
             child: MaterialApp.router(

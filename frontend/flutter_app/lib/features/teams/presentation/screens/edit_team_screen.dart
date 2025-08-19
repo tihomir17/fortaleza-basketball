@@ -73,29 +73,44 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Team')),
+      appBar: AppBar(title: Text('EDIT ${widget.team.name.toUpperCase()}')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Team Name',
-                border: OutlineInputBorder(),
+            // Wrap the field in a Card for better grouping
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Team Name',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter team name',
+                      ),
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Please enter a name'
+                          : null,
+                    ),
+                  ],
+                ),
               ),
-              validator: (value) => (value == null || value.isEmpty)
-                  ? 'Please enter a name'
-                  : null,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
               onPressed: _isLoading ? null : _submitForm,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isLoading
+              icon: _isLoading
+                  ? Container() // Hide icon when loading
+                  : const Icon(Icons.save),
+              label: _isLoading
                   ? const SizedBox(
                       height: 20,
                       width: 20,

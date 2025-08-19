@@ -16,12 +16,17 @@ class Competition {
 
   factory Competition.fromJson(Map<String, dynamic> json) {
     final teamListData = json['teams'] as List<dynamic>? ?? [];
-    final teams = teamListData.map((teamJson) => Team.fromJson(teamJson)).toList();
+    
+    // We explicitly cast each item in the list to a Map<String, dynamic>
+    // before passing it to the Team.fromJson factory.
+    final teams = teamListData.map((teamJson) {
+      return Team.fromJson(teamJson as Map<String, dynamic>);
+    }).toList();
 
     return Competition(
       id: json['id'],
-      name: json['name'],
-      season: json['season'],
+      name: json['name'] as String? ?? 'Unnamed Competition',
+      season: json['season'] as String? ?? 'N/A',
       teams: teams,
     );
   }

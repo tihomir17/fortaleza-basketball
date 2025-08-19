@@ -1,21 +1,17 @@
 // lib/features/teams/presentation/screens/team_detail_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/authentication/presentation/screens/edit_coach_screen.dart';
+import 'package:flutter_app/features/authentication/presentation/screens/edit_user_screen.dart';
+import 'package:flutter_app/features/teams/presentation/screens/manage_roster_screen.dart';
 import 'edit_team_screen.dart';
-
 import '../cubit/team_detail_cubit.dart';
 import '../cubit/team_detail_state.dart';
-
-import 'manage_roster_screen.dart';
-import 'package:flutter_app/features/authentication/presentation/screens/edit_user_screen.dart';
-import 'package:flutter_app/features/authentication/presentation/screens/edit_coach_screen.dart';
-import 'package:flutter_app/features/possessions/presentation/screens/log_possession_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final int teamId;
@@ -28,34 +24,18 @@ class TeamDetailScreen extends StatefulWidget {
 class _TeamDetailScreenState extends State<TeamDetailScreen> {
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
-  String _formatCoachType(String? coachType) {
-    if (coachType == null || coachType == 'NONE') {
-      return 'Coach'; // Default fallback
-    }
-    // Replace underscores with spaces and capitalize the first letter of each word.
-    return coachType
-        .replaceAll('_', ' ')
-        .toLowerCase()
-        .split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
-  }
-
   @override
   void initState() {
     super.initState();
-    // Subscribe to the global refresh signal
     _refreshSignal.addListener(_refreshTeamDetails);
   }
 
   @override
   void dispose() {
-    // Unsubscribe to prevent memory leaks
     _refreshSignal.removeListener(_refreshTeamDetails);
     super.dispose();
   }
 
-  // When the signal is fired, re-fetch the data for this screen
   void _refreshTeamDetails() {
     final token = context.read<AuthCubit>().state.token;
     if (token != null && mounted) {
@@ -66,8 +46,20 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     }
   }
 
+  String _formatCoachType(String? coachType) {
+    if (coachType == null || coachType == 'NONE') return 'Coach';
+    return coachType
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
@@ -77,59 +69,39 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                 (state.status == TeamDetailStatus.success && state.team != null)
                 ? state.team!.name
                 : 'Team Details';
+
             return AppBar(
-              title: Text(titleText),
+              title: Text(titleText.toUpperCase()),
               actions: [
-                // Only show buttons if the team has loaded successfully
                 if (state.status == TeamDetailStatus.success &&
                     state.team != null)
-                  IconButton(
-                    icon: const Icon(Icons.add_chart),
-                    tooltip: 'Log Possession',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BlocProvider.value(
-                            // We find the TeamCubit that already exists in the current context...
-                            value: context.read<TeamCubit>(),
-                            // ...and provide that SAME instance to the new screen.
-                            child: LogPossessionScreen(team: state.team!),
-                          ),
-                        ),
-                      );
-                    },
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.people_alt_outlined),
+                        tooltip: 'Manage Roster',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ManageRosterScreen(team: state.team!),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Edit Team Name',
+                        onPressed: () async {
+                          await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => EditTeamScreen(team: state.team!),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                Row(
-                  children: [
-                    // BUTTON 1: MANAGE ROSTER
-                    IconButton(
-                      icon: const Icon(Icons.people_alt_outlined),
-                      tooltip: 'Manage Roster',
-                      onPressed: () {
-                        // Navigate directly to the roster screen
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ManageRosterScreen(team: state.team!),
-                          ),
-                        );
-                      },
-                    ),
-                    // BUTTON 2: EDIT TEAM NAME
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Edit Team Name',
-                      onPressed: () async {
-                        await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => EditTeamScreen(team: state.team!),
-                          ),
-                        );
-                        // The refresh signal will handle updates
-                      },
-                    ),
-                  ],
-                ),
               ],
             );
           },
@@ -137,85 +109,137 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       ),
       body: BlocBuilder<TeamDetailCubit, TeamDetailState>(
         builder: (context, state) {
-          if (state.status == TeamDetailStatus.loading ||
-              state.status == TeamDetailStatus.initial) {
+          if (state.status == TeamDetailStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (state.status == TeamDetailStatus.failure) {
-            return Center(child: Text('Error: ${state.errorMessage}'));
-          }
-          if (state.status == TeamDetailStatus.success && state.team != null) {
-            final team = state.team!;
-
-            final sortedPlayers = List.of(team.players);
-            sortedPlayers.sort((a, b) {
-              // Handle cases where numbers might be null
-              final numA =
-                  a.jerseyNumber ?? 1000; // Treat nulls as a large number
-              final numB = b.jerseyNumber ?? 1000;
-              return numA.compareTo(numB); // Sort in ascending order
-            });
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListView(
-                children: [
-                  Text(
-                    'Coaches',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const Divider(),
-                  for (final coach in team.coaches)
-                    ListTile(
-                      leading: const CircleAvatar(
-                        // Give coaches a distinct icon
-                        backgroundColor: Colors.blueGrey,
-                        child: Icon(Icons.person_outline, color: Colors.white),
-                      ),
-                      title: Text(coach.displayName),
-                      subtitle: Text(
-                        _formatCoachType(coach.coachType),
-                      ), // We will create this helper
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => EditCoachScreen(coach: coach),
-                          ),
-                        );
-                      },
-                    ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Players',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const Divider(),
-                  for (final player in sortedPlayers)
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).primaryColorLight,
-                        child: Text(
-                          player.jerseyNumber?.toString() ?? '#',
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColorDark,
-                          ),
-                        ),
-                      ),
-                      title: Text(player.displayName),
-                      subtitle: const Text('Player'),
-                      onTap: () {
-                        // Navigate to Edit Player Screen
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => EditUserScreen(user: player),
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
+          if (state.status == TeamDetailStatus.failure || state.team == null) {
+            return Center(
+              child: Text(state.errorMessage ?? 'Error loading team data.'),
             );
           }
-          return const Center(child: Text('No team data available.'));
+
+          final team = state.team!;
+          final sortedPlayers = List.of(team.players)
+            ..sort((a, b) {
+              final numA = a.jerseyNumber ?? 1000;
+              final numB = b.jerseyNumber ?? 1000;
+              if (numA == numB) return a.displayName.compareTo(b.displayName);
+              return numA.compareTo(numB);
+            });
+
+          return ListView(
+            padding: const EdgeInsets.all(8.0),
+            children: [
+              // --- COACHES CARD ---
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 16.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                        child: Text(
+                          "COACHING STAFF",
+                          style: theme.textTheme.titleLarge,
+                        ),
+                      ),
+                      const Divider(),
+                      if (team.coaches.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(child: Text('No coaches assigned.')),
+                        )
+                      else
+                        ...team.coaches.map(
+                          (coach) => ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: theme.colorScheme.primary
+                                  .withAlpha(50),
+                              child: Icon(
+                                Icons.person_outline,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            title: Text(
+                              coach.displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(_formatCoachType(coach.coachType)),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditCoachScreen(coach: coach),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // --- PLAYERS CARD ---
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 16.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                        child: Text(
+                          "PLAYERS",
+                          style: theme.textTheme.titleLarge,
+                        ),
+                      ),
+                      const Divider(),
+                      if (sortedPlayers.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(child: Text('No players assigned.')),
+                        )
+                      else
+                        ...sortedPlayers.map(
+                          (player) => ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: theme.colorScheme.secondary
+                                  .withOpacity(0.8),
+                              child: Text(
+                                player.jerseyNumber?.toString() ?? "#",
+                                style: TextStyle(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              player.displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: const Text('Player'),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditUserScreen(user: player),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
         },
       ),
       floatingActionButton: BlocBuilder<TeamDetailCubit, TeamDetailState>(
@@ -228,8 +252,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   extra: state.team!.name,
                 );
               },
+              label: const Text('PLAYBOOK'),
               icon: const Icon(Icons.menu_book),
-              label: const Text('Playbook'),
             );
           }
           return const SizedBox.shrink();
