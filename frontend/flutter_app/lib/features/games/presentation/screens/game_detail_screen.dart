@@ -103,40 +103,48 @@ class _PossessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Determine which team is the opponent for this specific possession
+    final theme = Theme.of(context);
     final game = context.read<GameDetailCubit>().state.game!;
     final opponent = (game.homeTeam.id == possession.team?.id)
         ? game.awayTeam
         : game.homeTeam;
 
+    // Determine color and icon based on outcome
+    final bool wasTurnover = possession.outcome.startsWith('TO_');
+    final bool wasScore = possession.outcome.startsWith('MADE_');
+    final Color outcomeColor = wasScore
+        ? Colors.green.shade700
+        : (wasTurnover ? Colors.red.shade700 : Colors.grey.shade600);
+
     return Card(
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(50),
+          backgroundColor: theme.colorScheme.primary.withAlpha(50),
           child: Text(
             possession.team!.name.isNotEmpty
                 ? possession.team!.name[0].toUpperCase()
                 : '?',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.secondary,
-              fontWeight: FontWeight.bold,
-            ),
           ),
         ),
         title: Text(
-          'Possession for ${possession.team?.name}',
+          '${possession.team?.name} Possession',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          'Outcome: ${_formatOutcome(possession.outcome)}',
-          style: TextStyle(
-            color: Theme.of(
-              context,
-            ).textTheme.bodySmall?.color?.withOpacity(0.8),
-          ),
+          'Q${possession.quarter} at ${possession.startTimeInGame}',
         ),
-        trailing: Text(
-          possession.startTimeInGame,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+
+        // A trailing widget that shows the outcome visually
+        trailing: Chip(
+          label: Text(
+            _formatOutcome(possession.outcome),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: outcomeColor,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),
         children: [
           // This is the expanded content
