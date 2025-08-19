@@ -10,7 +10,7 @@ import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
-import 'package:flutter_app/core/theme/theme_cubit.dart'; // Import ThemeCubit to use it
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,21 +44,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('MY TEAMS'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.brightness_6_outlined),
-            tooltip: 'Toggle Theme',
-            onPressed: () => context.read<ThemeCubit>().toggleTheme(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => context.read<AuthCubit>().logout(),
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: const Text('MY TEAMS'),
+      //   actions: [
+      //     IconButton(
+      //       icon: const Icon(Icons.brightness_6_outlined),
+      //       tooltip: 'Toggle Theme',
+      //       onPressed: () => context.read<ThemeCubit>().toggleTheme(),
+      //     ),
+      //     IconButton(
+      //       icon: const Icon(Icons.logout),
+      //       tooltip: 'Logout',
+      //       onPressed: () => context.read<AuthCubit>().logout(),
+      //     ),
+      //   ],
+      // ),
+      appBar: const UserProfileAppBar(title: 'My Teams'),
       body: BlocBuilder<TeamCubit, TeamState>(
         builder: (context, state) {
           if (state.status == TeamStatus.loading ||

@@ -104,12 +104,13 @@ class AppRouter {
                       // This route is now initiated from the Game Detail screen.
                       // We'll leave it for now but might refactor its location later.
                       final team = state.extra as Team?;
-                      if (team == null)
+                      if (team == null) {
                         return const Scaffold(
                           body: Center(
                             child: Text("Error: Team data required."),
                           ),
                         );
+                      }
                       return LogPossessionScreen();
                     },
                   ),

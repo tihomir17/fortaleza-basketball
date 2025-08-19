@@ -160,7 +160,7 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
             child: Text(state.errorMessage ?? "Failed to load games."),
           );
         }
-        if (state.games.isEmpty) {
+        if (state.filteredGames.isEmpty) {
           return const Center(
             child: Text("No games found. Please create one first."),
           );
@@ -168,9 +168,9 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.all(8.0),
-          itemCount: state.games.length,
+          itemCount: state.filteredGames.length,
           itemBuilder: (context, index) {
-            final game = state.games[index];
+            final game = state.filteredGames[index];
             return Card(
               child: ListTile(
                 title: Text(
@@ -338,9 +338,24 @@ class _LogPossessionScreenState extends State<LogPossessionScreen> {
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                // THIS IS THE NEW VALIDATION LOGIC
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Required';
+                  }
+                  final number = int.tryParse(value);
+                  if (number == null) {
+                    return 'Invalid';
+                  }
+                  // The new rule: number must be between 0 and 24
+                  if (number < 0 || number > 24) {
+                    return '0-24s';
+                  }
+                  return null; // Input is valid
+                },
               ),
             ),
+
             const SizedBox(width: 16),
             Expanded(
               child: DropdownButtonFormField<int>(

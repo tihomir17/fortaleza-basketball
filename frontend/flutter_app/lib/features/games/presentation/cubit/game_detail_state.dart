@@ -1,6 +1,7 @@
 // lib/features/games/presentation/cubit/game_detail_state.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import '../../data/models/game_model.dart';
 
 enum GameDetailStatus { initial, loading, success, failure }
@@ -13,12 +14,13 @@ class GameDetailState extends Equatable {
   const GameDetailState({
     this.status = GameDetailStatus.initial,
     this.game,
-    this.errorMessage,
+    this.errorMessage, 
   });
 
   GameDetailState copyWith({
     GameDetailStatus? status,
     Game? game,
+    List<Possession>? filteredPossessions,
     String? errorMessage,
   }) {
     return GameDetailState(

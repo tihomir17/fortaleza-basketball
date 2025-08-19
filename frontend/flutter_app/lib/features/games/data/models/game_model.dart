@@ -11,7 +11,7 @@ class Game {
   final Team awayTeam;
   final DateTime gameDate;
   final int? competitionId;
-  final List<dynamic> possessions; // Keep possessions for detail view
+  final List<Possession> possessions; // Keep possessions for detail view
 
   Game({
     required this.id,
@@ -36,11 +36,9 @@ class Game {
     final possessionListData = json['possessions'] as List<dynamic>? ?? [];
 
     // Correctly parse the raw list into a List<Possession>
-    final List<Possession> parsedPossessions = possessionListData.map((
-      possessionJson,
-    ) {
-      return Possession.fromJson(possessionJson as Map<String, dynamic>);
-    }).toList();
+    final List<Possession> parsedPossessions = possessionListData
+        .map((p) => Possession.fromJson(p as Map<String, dynamic>))
+        .toList();
 
     if (kDebugMode) {
       print(parsedPossessions);
