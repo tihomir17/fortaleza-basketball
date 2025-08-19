@@ -1,9 +1,9 @@
 // lib/features/games/presentation/screens/game_detail_screen.dart
 
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
 
@@ -14,14 +14,16 @@ class GameDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Details')),
+      appBar: AppBar(title: const Text('Game Analysis')),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
           if (state.status == GameDetailStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.status == GameDetailStatus.failure || state.game == null) {
-            return const Center(child: Text('Error loading game data.'));
+            return Center(
+              child: Text(state.errorMessage ?? 'Error loading game data.'),
+            );
           }
 
           final game = state.game!;
@@ -29,7 +31,7 @@ class GameDetailScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(8.0),
             children: [
-              // Header Card
+              // Game Header Card
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -42,7 +44,9 @@ class GameDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Date: ${DateFormat.yMMMd().format(game.gameDate)}',
+                        game.gameDate != null
+                            ? DateFormat.yMMMd().format(game.gameDate)
+                            : "Date not set",
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ],
@@ -52,25 +56,34 @@ class GameDetailScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  'Logged Possessions',
-                  style: Theme.of(context).textTheme.titleLarge,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Logged Possessions',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    // You can add a "Log New" button here if you want
+                  ],
                 ),
               ),
-              const Divider(),
 
               if (game.possessions.isEmpty)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(20.0),
+                    padding: EdgeInsets.all(32.0),
                     child: Text(
                       'No possessions have been logged for this game yet.',
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 )
               else
-                // Build the list of possessions
+                // Build the list of possessions using our custom card
                 ...game.possessions.map(
                   (possession) => _PossessionCard(possession: possession),
                 ),
@@ -82,55 +95,125 @@ class GameDetailScreen extends StatelessWidget {
   }
 }
 
-// A new widget for displaying a single possession
+// A new, dedicated widget for displaying a single possession
 class _PossessionCard extends StatelessWidget {
   final Possession possession;
   const _PossessionCard({required this.possession});
 
   @override
   Widget build(BuildContext context) {
-    // Determine the opponent for this specific possession
+    // Determine which team is the opponent for this specific possession
     final game = context.read<GameDetailCubit>().state.game!;
-    final opponent = game.homeTeam.id == possession.team.id
+    final opponent = (game.homeTeam.id == possession.team?.id)
         ? game.awayTeam
         : game.homeTeam;
 
     return Card(
       child: ExpansionTile(
-        leading: CircleAvatar(child: Text(possession.team.name[0])),
-        title: Text('${possession.team.name} Possession'),
-        subtitle: Text(
-          'Outcome: ${possession.outcome.replaceAll('_', ' ').toLowerCase()}',
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(50),
+          child: Text(
+            possession.team!.name.isNotEmpty
+                ? possession.team!.name[0].toUpperCase()
+                : '?',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.secondary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
-        trailing: Text(possession.startTimeInGame),
+        title: Text(
+          'Possession for ${possession.team?.name}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'Outcome: ${_formatOutcome(possession.outcome)}',
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).textTheme.bodySmall?.color?.withOpacity(0.8),
+          ),
+        ),
+        trailing: Text(
+          possession.startTimeInGame,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         children: [
+          // This is the expanded content
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ).copyWith(top: 0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Divider(),
                 if (possession.offensiveSequence.isNotEmpty) ...[
                   Text(
                     'Offensive Sequence:',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(possession.offensiveSequence),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      possession.offensiveSequence,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                 ],
                 if (possession.defensiveSequence.isNotEmpty) ...[
                   Text(
                     'Defensive Sequence (${opponent.name}):',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(possession.defensiveSequence),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      possession.defensiveSequence,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ),
                 ],
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Quarter: ${possession.quarter}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      'Duration: ${possession.durationSeconds}s',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  // Helper to make the outcome text more readable
+  String _formatOutcome(String outcome) {
+    return outcome.replaceAll('_', ' ').replaceFirst('TO ', 'Turnover: ');
   }
 }

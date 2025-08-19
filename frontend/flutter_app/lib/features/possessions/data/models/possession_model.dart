@@ -5,8 +5,8 @@ import 'package:flutter_app/features/teams/data/models/team_model.dart';
 
 class Possession {
   final int id;
-  final Game game;
-  final Team team; // The team that had this possession
+  final Game? game;
+  final Team? team; // The team that had this possession
   final Team? opponent;
   final String startTimeInGame;
   final int durationSeconds;
@@ -17,9 +17,9 @@ class Possession {
 
   Possession({
     required this.id,
-    required this.game,
-    required this.team,
-    required this.opponent,
+    this.game,
+    this.team,
+    this.opponent,
     required this.startTimeInGame,
     required this.durationSeconds,
     required this.quarter,
@@ -31,9 +31,8 @@ class Possession {
   factory Possession.fromJson(Map<String, dynamic> json) {
     return Possession(
       id: json['id'],
-      game: Game.fromJson(json['game']),
-      // team: Team.fromJson(json['team']),
-      team: Team.fromJson(json['team']),
+      game: json['game'] is Map<String, dynamic> ? Game.fromJson(json['game']) : null,
+      team: json['team'] is Map<String, dynamic> ? Team.fromJson(json['team']) : null,
       opponent: json['opponent'] != null ? Team.fromJson(json['opponent']) : null,      
       startTimeInGame: json['start_time_in_game'] ?? '00:00',
       durationSeconds: json['duration_seconds'] ?? 0,

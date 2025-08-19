@@ -49,7 +49,6 @@ void setupServiceLocator() {
   );
 
   // --- CUBITS (State Management) ---
-
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),
