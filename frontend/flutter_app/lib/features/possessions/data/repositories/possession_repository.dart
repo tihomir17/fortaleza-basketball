@@ -108,4 +108,27 @@ class PossessionRepository {
       throw Exception('An error occurred while updating possession: $e');
     }
   }
+
+  Future<void> deletePossession({
+    required String token,
+    required int possessionId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/possessions/$possessionId/');
+
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      // 204 No Content is the standard success code for a DELETE request.
+      if (response.statusCode != 204) {
+        throw Exception(
+          'Failed to delete possession. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while deleting the possession: $e');
+    }
+  }
 }
