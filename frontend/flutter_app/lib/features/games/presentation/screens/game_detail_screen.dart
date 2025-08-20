@@ -1,15 +1,68 @@
 // lib/features/games/presentation/screens/game_detail_screen.dart
 
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/main.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
+import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
 
-class GameDetailScreen extends StatelessWidget {
+class GameDetailScreen extends StatefulWidget {
   final int gameId;
   const GameDetailScreen({super.key, required this.gameId});
+
+  @override
+  State<GameDetailScreen> createState() => _GameDetailScreenState();
+}
+
+class _GameDetailScreenState extends State<GameDetailScreen> {
+  int? _selectedQuarterFilter;
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSignal.addListener(_refreshGameDetails);
+  }
+
+  @override
+  void dispose() {
+    _refreshSignal.removeListener(_refreshGameDetails);
+    super.dispose();
+  }
+
+  void _refreshGameDetails() {
+    final token = context.read<AuthCubit>().state.token;
+    if (token != null && mounted) {
+      context.read<GameDetailCubit>().fetchGameDetails(
+        token: token,
+        gameId: widget.gameId,
+      );
+    }
+  }
+
+  // Helper function to parse "MM:SS" time strings into a comparable integer.
+  int _parseTimeToSeconds(String time) {
+    try {
+      final parts = time.split(':');
+      if (parts.length != 2) return 0;
+      final minutes = int.tryParse(parts[0]) ?? 0;
+      final seconds = int.tryParse(parts[1]) ?? 0;
+      return (minutes * 60) + seconds;
+    } catch (e) {
+      return 0; // Return 0 if parsing fails
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +81,33 @@ class GameDetailScreen extends StatelessWidget {
 
           final game = state.game!;
 
-          return ListView(
-            padding: const EdgeInsets.all(8.0),
+          final List<Possession> filteredPossessions;
+          if (_selectedQuarterFilter == null) {
+            filteredPossessions = game.possessions;
+          } else {
+            filteredPossessions = game.possessions
+                .where((p) => p.quarter == _selectedQuarterFilter)
+                .toList();
+          }
+
+          // Create a new sorted list from the filtered list
+          final sortedPossessions = List.of(filteredPossessions);
+          sortedPossessions.sort((a, b) {
+            // Primary sort: by Quarter (ascending)
+            int quarterComparison = a.quarter.compareTo(b.quarter);
+            if (quarterComparison != 0) {
+              return quarterComparison;
+            }
+            // Secondary sort: by Start Time (descending, high to low)
+            int timeA = _parseTimeToSeconds(a.startTimeInGame);
+            int timeB = _parseTimeToSeconds(b.startTimeInGame);
+            return timeB.compareTo(timeA);
+          });
+
+          return Column(
             children: [
-              // Game Header Card
               Card(
+                margin: const EdgeInsets.all(8.0),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -54,39 +129,64 @@ class GameDetailScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
                   vertical: 8.0,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Logged Possessions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    // You can add a "Log New" button here if you want
+                child: DropdownButtonFormField<int?>(
+                  value: _selectedQuarterFilter,
+                  hint: const Text('Filter by Period...'),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.filter_list),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Full Game')),
+                    DropdownMenuItem(value: 1, child: Text('1st Quarter')),
+                    DropdownMenuItem(value: 2, child: Text('2nd Quarter')),
+                    DropdownMenuItem(value: 3, child: Text('3rd Quarter')),
+                    DropdownMenuItem(value: 4, child: Text('4th Quarter')),
+                    DropdownMenuItem(value: 5, child: Text('Overtime 1')),
+                    DropdownMenuItem(value: 6, child: Text('Overtime 2')),
                   ],
+                  onChanged: (value) {
+                    setState(() => _selectedQuarterFilter = value);
+                  },
                 ),
               ),
 
-              if (game.possessions.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text(
-                      'No possessions have been logged for this game yet.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              else
-                // Build the list of possessions using our custom card
-                ...game.possessions.map(
-                  (possession) => _PossessionCard(possession: possession),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                child: Text(
+                  'Logged Possessions',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
+              ),
+              const Divider(indent: 16, endIndent: 16),
+
+              Expanded(
+                child: sortedPossessions.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text(
+                            'No possessions found for this period.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(8.0),
+                        itemCount: sortedPossessions.length,
+                        itemBuilder: (context, index) {
+                          final possession = sortedPossessions[index];
+                          return _PossessionCard(
+                            possession: possession,
+                            game: game,
+                          );
+                        },
+                      ),
+              ),
             ],
           );
         },
@@ -95,21 +195,30 @@ class GameDetailScreen extends StatelessWidget {
   }
 }
 
-// A new, dedicated widget for displaying a single possession
 class _PossessionCard extends StatelessWidget {
   final Possession possession;
-  const _PossessionCard({required this.possession});
+  final Game game;
+
+  const _PossessionCard({required this.possession, required this.game});
+
+  String _formatOutcome(String outcome) {
+    return outcome.replaceAll('_', ' ').replaceFirst('TO ', 'TO: ');
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Determine which team is the opponent for this specific possession
     final theme = Theme.of(context);
-    final game = context.read<GameDetailCubit>().state.game!;
-    final opponent = (game.homeTeam.id == possession.team?.id)
+    final teamWithBall = possession.team;
+    if (teamWithBall == null) {
+      return const Card(
+        child: ListTile(title: Text("Data Error: Missing team")),
+      );
+    }
+
+    final opponent = (game.homeTeam.id == teamWithBall.id)
         ? game.awayTeam
         : game.homeTeam;
 
-    // Determine color and icon based on outcome
     final bool wasTurnover = possession.outcome.startsWith('TO_');
     final bool wasScore = possession.outcome.startsWith('MADE_');
     final Color outcomeColor = wasScore
@@ -121,33 +230,36 @@ class _PossessionCard extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: theme.colorScheme.primary.withAlpha(50),
           child: Text(
-            possession.team!.name.isNotEmpty
-                ? possession.team!.name[0].toUpperCase()
+            teamWithBall.name.isNotEmpty
+                ? teamWithBall.name[0].toUpperCase()
                 : '?',
+            style: TextStyle(
+              color: theme.colorScheme.secondary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         title: Text(
-          '${possession.team?.name} Possession',
+          'Possession for ${teamWithBall.name}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           'Q${possession.quarter} at ${possession.startTimeInGame}',
+          style: theme.textTheme.bodySmall,
         ),
-
-        // A trailing widget that shows the outcome visually
         trailing: Chip(
           label: Text(
             _formatOutcome(possession.outcome),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
+              fontSize: 10,
             ),
           ),
           backgroundColor: outcomeColor,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         ),
         children: [
-          // This is the expanded content
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -160,7 +272,7 @@ class _PossessionCard extends StatelessWidget {
                 if (possession.offensiveSequence.isNotEmpty) ...[
                   Text(
                     'Offensive Sequence:',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -168,7 +280,7 @@ class _PossessionCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -181,7 +293,7 @@ class _PossessionCard extends StatelessWidget {
                 if (possession.defensiveSequence.isNotEmpty) ...[
                   Text(
                     'Defensive Sequence (${opponent.name}):',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -189,7 +301,7 @@ class _PossessionCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -200,17 +312,50 @@ class _PossessionCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      'Quarter: ${possession.quarter}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
                       'Duration: ${possession.durationSeconds}s',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditPossessionScreen(
+                          possession: possession,
+                          game: game,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                TextButton.icon(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  label: Text(
+                    'Delete',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  onPressed: () => _showDeleteConfirmation(context, possession),
                 ),
               ],
             ),
@@ -220,8 +365,48 @@ class _PossessionCard extends StatelessWidget {
     );
   }
 
-  // Helper to make the outcome text more readable
-  String _formatOutcome(String outcome) {
-    return outcome.replaceAll('_', ' ').replaceFirst('TO ', 'Turnover: ');
+  void _showDeleteConfirmation(BuildContext context, Possession possession) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Possession'),
+          content: Text(
+            'Are you sure you want to delete this possession from Q${possession.quarter} at ${possession.startTimeInGame}? This action cannot be undone.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onPressed: () async {
+                final token = context.read<AuthCubit>().state.token;
+                if (token == null) return;
+                try {
+                  await sl<PossessionRepository>().deletePossession(
+                    token: token,
+                    possessionId: possession.id,
+                  );
+                  Navigator.of(dialogContext).pop();
+                  sl<RefreshSignal>().notify();
+                } catch (e) {
+                  Navigator.of(dialogContext).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error deleting possession: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }
