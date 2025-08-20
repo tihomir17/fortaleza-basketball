@@ -61,4 +61,51 @@ class PossessionRepository {
       throw Exception('An error occurred while creating possession: $e');
     }
   }
+
+  Future<Possession> updatePossession({
+    required String token,
+    required int possessionId,
+    // Pass all the editable fields
+    required int teamId,
+    required int opponentId,
+    required int gameId,
+    required String startTime,
+    required int duration,
+    required int quarter,
+    required String outcome,
+    required String offensiveSequence,
+    required String defensiveSequence,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/possessions/$possessionId/');
+    try {
+      final response = await _client.put(
+        // Use PUT for a full update
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'team_id': teamId,
+          'opponent_id': opponentId,
+          'game_id': gameId,
+          'start_time_in_game': startTime,
+          'duration_seconds': duration,
+          'quarter': quarter,
+          'outcome': outcome,
+          'offensive_sequence': offensiveSequence,
+          'defensive_sequence': defensiveSequence,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return Possession.fromJson(json.decode(response.body));
+      } else {
+        throw Exception(
+          'Failed to update possession. Server response: ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('An error occurred while updating possession: $e');
+    }
+  }
 }

@@ -14,7 +14,6 @@ import '../../features/authentication/presentation/cubit/auth_state.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
-import '../../features/teams/data/models/team_model.dart';
 import '../../features/teams/presentation/cubit/team_detail_cubit.dart';
 import '../../features/teams/presentation/screens/team_detail_screen.dart';
 import '../../features/plays/presentation/cubit/playbook_cubit.dart';
@@ -42,6 +41,12 @@ class AppRouter {
     routes: [
       // Top-level route that does NOT have the bottom navigation bar.
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+
+      GoRoute(
+        path: '/log-possession',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LogPossessionScreen(),
+      ),
 
       // The ShellRoute wraps all the main pages that share the BottomNavigationBar.
       ShellRoute(
@@ -95,23 +100,6 @@ class AppRouter {
                           teamId: teamId,
                         ),
                       );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'log-possession', // '/teams/:teamId/log-possession'
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (context, state) {
-                      // This route is now initiated from the Game Detail screen.
-                      // We'll leave it for now but might refactor its location later.
-                      final team = state.extra as Team?;
-                      if (team == null) {
-                        return const Scaffold(
-                          body: Center(
-                            child: Text("Error: Team data required."),
-                          ),
-                        );
-                      }
-                      return LogPossessionScreen();
                     },
                   ),
                 ],

@@ -7,6 +7,7 @@ import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
 
 class GameDetailScreen extends StatefulWidget {
   final int gameId;
@@ -147,27 +148,27 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 }
 
 class _PossessionCard extends StatelessWidget {
-  final Possession possession;
-  final Game game;
+  final Possession _possession;
+  final Game _game;
 
-  const _PossessionCard({required this.possession, required this.game});
+  const _PossessionCard({required Possession possession, required Game game}) : _game = game, _possession = possession;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final teamWithBall = possession.team;
+    final teamWithBall = _possession.team;
     if (teamWithBall == null) {
       return const Card(
         child: ListTile(title: Text("Data Error: Missing team")),
       );
     }
 
-    final opponent = (game.homeTeam.id == teamWithBall.id)
-        ? game.awayTeam
-        : game.homeTeam;
+    final opponent = (_game.homeTeam.id == teamWithBall.id)
+        ? _game.awayTeam
+        : _game.homeTeam;
 
-    final bool wasTurnover = possession.outcome.startsWith('TO_');
-    final bool wasScore = possession.outcome.startsWith('MADE_');
+    final bool wasTurnover = _possession.outcome.startsWith('TO_');
+    final bool wasScore = _possession.outcome.startsWith('MADE_');
     final Color outcomeColor = wasScore
         ? Colors.green.shade700
         : (wasTurnover ? Colors.red.shade700 : Colors.grey.shade600);
@@ -191,12 +192,12 @@ class _PossessionCard extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          'Q${possession.quarter} at ${possession.startTimeInGame}',
+          'Q${_possession.quarter} at ${_possession.startTimeInGame}',
           style: theme.textTheme.bodySmall,
         ),
         trailing: Chip(
           label: Text(
-            _formatOutcome(possession.outcome),
+            _formatOutcome(_possession.outcome),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -216,7 +217,7 @@ class _PossessionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Divider(),
-                if (possession.offensiveSequence.isNotEmpty) ...[
+                if (_possession.offensiveSequence.isNotEmpty) ...[
                   Text(
                     'Offensive Sequence:',
                     style: theme.textTheme.titleSmall?.copyWith(
@@ -231,13 +232,13 @@ class _PossessionCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      possession.offensiveSequence,
+                      _possession.offensiveSequence,
                       style: const TextStyle(fontFamily: 'monospace'),
                     ),
                   ),
                   const SizedBox(height: 12),
                 ],
-                if (possession.defensiveSequence.isNotEmpty) ...[
+                if (_possession.defensiveSequence.isNotEmpty) ...[
                   Text(
                     'Defensive Sequence (${opponent.name}):',
                     style: theme.textTheme.titleSmall?.copyWith(
@@ -252,7 +253,7 @@ class _PossessionCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      possession.defensiveSequence,
+                      _possession.defensiveSequence,
                       style: const TextStyle(fontFamily: 'monospace'),
                     ),
                   ),
@@ -262,12 +263,31 @@ class _PossessionCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      'Duration: ${possession.durationSeconds}s',
+                      'Duration: ${_possession.durationSeconds}s',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Edit'),
+                onPressed: () {
+                  // Navigate to the Log screen in EDIT mode
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EditPossessionScreen(possession: _possession, game: _game),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ],
