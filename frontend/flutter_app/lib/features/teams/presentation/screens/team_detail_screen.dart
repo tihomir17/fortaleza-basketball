@@ -22,17 +22,15 @@ class TeamDetailScreen extends StatefulWidget {
 }
 
 class _TeamDetailScreenState extends State<TeamDetailScreen> {
-  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
-
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshTeamDetails);
+    sl<RefreshSignal>().addListener(_refreshTeamDetails);
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshTeamDetails);
+    // sl<RefreshSignal>().removeListener(_refreshTeamDetails);
     super.dispose();
   }
 

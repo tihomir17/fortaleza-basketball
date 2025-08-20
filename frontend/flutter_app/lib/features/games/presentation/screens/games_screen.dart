@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import '../cubit/game_cubit.dart';
 import '../cubit/game_state.dart';
@@ -26,7 +25,6 @@ class _GamesScreenState extends State<GamesScreen> {
     final userTeams = context.watch<TeamCubit>().state.teams;
 
     return Scaffold(
-      appBar: const UserProfileAppBar(title: 'Games'),
       body: Column(
         children: [
           // --- THE NEW FILTER DROPDOWN WIDGET ---
