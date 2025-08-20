@@ -1,6 +1,9 @@
 // lib/features/games/presentation/screens/game_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
@@ -20,6 +23,33 @@ class GameDetailScreen extends StatefulWidget {
 class _GameDetailScreenState extends State<GameDetailScreen> {
   // The local state for the filter dropdown.
   int? _selectedQuarterFilter;
+  // Get the global refresh signal instance
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Subscribe to the signal. When it fires, call _refreshGameDetails.
+    _refreshSignal.addListener(_refreshGameDetails);
+  }
+
+  @override
+  void dispose() {
+    // Unsubscribe to prevent memory leaks
+    _refreshSignal.removeListener(_refreshGameDetails);
+    super.dispose();
+  }
+
+  // When the signal is fired, re-fetch the data for this screen
+  void _refreshGameDetails() {
+    final token = context.read<AuthCubit>().state.token;
+    if (token != null && mounted) {
+      context.read<GameDetailCubit>().fetchGameDetails(
+        token: token,
+        gameId: widget.gameId,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,22 +68,17 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
           final game = state.game!;
 
-          // The filtering logic now lives directly in the build method.
-          // This ensures it is re-run every time the UI rebuilds.
           final List<Possession> filteredPossessions;
           if (_selectedQuarterFilter == null) {
-            // If no filter is selected, use the full list from the game object.
             filteredPossessions = game.possessions;
           } else {
-            // Otherwise, apply the filter based on the dropdown's state.
-            filteredPossessions = game.possessions.where((p) {
-              return p.quarter == _selectedQuarterFilter;
-            }).toList();
+            filteredPossessions = game.possessions
+                .where((p) => p.quarter == _selectedQuarterFilter)
+                .toList();
           }
 
           return Column(
             children: [
-              // --- GAME HEADER CARD ---
               Card(
                 margin: const EdgeInsets.all(8.0),
                 child: Padding(
@@ -77,7 +102,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 ),
               ),
 
-              // --- PERIOD FILTER DROPDOWN ---
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -99,8 +123,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                     DropdownMenuItem(value: 6, child: Text('Overtime 2')),
                   ],
                   onChanged: (value) {
-                    // This now only calls setState. This triggers a rebuild,
-                    // which automatically re-runs the filtering logic above.
                     setState(() => _selectedQuarterFilter = value);
                   },
                 ),
@@ -115,17 +137,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               ),
               const Divider(indent: 16, endIndent: 16),
 
-              // --- POSSESSIONS LIST ---
               Expanded(
                 child: filteredPossessions.isEmpty
                     ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24.0),
-                          child: Text(
-                            'No possessions found for this period.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                        child: Text('No possessions found for this period.'),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(8.0),
@@ -151,7 +166,9 @@ class _PossessionCard extends StatelessWidget {
   final Possession _possession;
   final Game _game;
 
-  const _PossessionCard({required Possession possession, required Game game}) : _game = game, _possession = possession;
+  const _PossessionCard({required Possession possession, required Game game})
+    : _game = game,
+      _possession = possession;
 
   @override
   Widget build(BuildContext context) {
@@ -282,8 +299,10 @@ class _PossessionCard extends StatelessWidget {
                   // Navigate to the Log screen in EDIT mode
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          EditPossessionScreen(possession: _possession, game: _game),
+                      builder: (_) => EditPossessionScreen(
+                        possession: _possession,
+                        game: _game,
+                      ),
                     ),
                   );
                 },
