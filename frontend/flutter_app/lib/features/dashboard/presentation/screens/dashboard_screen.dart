@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
 
@@ -12,11 +13,11 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const UserProfileAppBar(title: 'DASHBOARD'),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
           if (state.status == AuthStatus.authenticated && state.user != null) {
             final user = state.user!;
-            // Build the UI based on the user's role
             if (user.role == 'ADMIN') {
               return _buildAdminDashboard(context);
             } else if (user.role == 'COACH') {
@@ -26,14 +27,11 @@ class DashboardScreen extends StatelessWidget {
               return _buildPlayerDashboard(context);
             }
           }
-          // Fallback for when state is not authenticated
           return const Center(child: CircularProgressIndicator());
         },
       ),
     );
   }
-
-  // --- WIDGET BUILDERS FOR EACH ROLE ---
 
   Widget _buildAdminDashboard(BuildContext context) {
     return ListView(
@@ -42,9 +40,7 @@ class DashboardScreen extends StatelessWidget {
         _DashboardCard(
           title: 'Manage Competitions',
           icon: Icons.emoji_events_outlined,
-          onTap: () {
-            /* TODO: Navigate to /competitions */
-          },
+          onTap: () {},
         ),
         _DashboardCard(
           title: 'Manage All Teams',
@@ -54,9 +50,7 @@ class DashboardScreen extends StatelessWidget {
         _DashboardCard(
           title: 'Manage All Users',
           icon: Icons.people_outline,
-          onTap: () {
-            /* TODO: Navigate to a global user management screen */
-          },
+          onTap: () {},
         ),
       ],
     );
@@ -67,10 +61,16 @@ class DashboardScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       children: [
         _DashboardCard(
-          title: 'My Teams',
-          subtitle: 'Manage rosters and playbooks',
+          title: 'Team Management',
+          subtitle: 'Manage rosters and teams',
           icon: Icons.group_outlined,
           onTap: () => context.go('/teams'),
+        ),
+        _DashboardCard(
+          title: 'Playbook Editor',
+          subtitle: 'Create and edit plays',
+          icon: Icons.menu_book_outlined,
+          onTap: () => context.go('/playbook'),
         ),
         _DashboardCard(
           title: 'Game Analysis',
@@ -102,16 +102,13 @@ class DashboardScreen extends StatelessWidget {
           title: 'Scouting Reports',
           subtitle: 'Preparation materials from your coach',
           icon: Icons.video_library_outlined,
-          onTap: () {
-            /* TODO */
-          },
+          onTap: () => context.go('/scouting-reports'),
         ),
       ],
     );
   }
 }
 
-// A reusable card for the dashboard items
 class _DashboardCard extends StatelessWidget {
   final String title;
   final String? subtitle;

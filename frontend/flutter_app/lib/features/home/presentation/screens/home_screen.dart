@@ -1,18 +1,16 @@
 // lib/features/home/presentation/screens/home_screen.dart
 
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart'; // Import the AppBar
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/teams/presentation/screens/create_team_screen.dart';
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,25 +20,21 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
   @override
   void initState() {
     super.initState();
-    // When the listener fires, it calls a method that reads the context.
-    sl<RefreshSignal>().addListener(_refreshTeams);
+    _refreshSignal.addListener(_refreshTeams);
   }
 
   @override
   void dispose() {
-    // We can safely remove the listener.
-    // sl<RefreshSignal>().removeListener(_refreshTeams);
+    _refreshSignal.removeListener(_refreshTeams);
     super.dispose();
   }
 
   void _refreshTeams() {
-    // Add a 'mounted' check for extra safety. This ensures the widget is still
-    // in the tree before we try to use its context.
     if (mounted) {
       final token = context.read<AuthCubit>().state.token;
       if (token != null) {
@@ -52,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const UserProfileAppBar(title: 'TEAM MANAGEMENT'),
       body: BlocBuilder<TeamCubit, TeamState>(
         builder: (context, state) {
           if (state.status == TeamStatus.loading ||
@@ -89,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
               fullscreenDialog: true,
             ),
           );
+          _refreshSignal.notify();
         },
         tooltip: 'Create Team',
         child: const Icon(Icons.add),
