@@ -89,12 +89,12 @@ class _GamesScreenState extends State<GamesScreen> {
                         ),
                         leading: const Icon(Icons.event_note_outlined),
                         title: Text(
-                          '${game.homeTeam.name ?? "N/A"} vs ${game.awayTeam.name ?? "N/A"}',
+                          '${game.homeTeam.name} vs ${game.awayTeam.name}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
                           game.gameDate != null
-                              ? DateFormat.yMMMd().format(game.gameDate!)
+                              ? DateFormat.yMMMd().format(game.gameDate)
                               : "No date",
                         ),
                         trailing: const Icon(
