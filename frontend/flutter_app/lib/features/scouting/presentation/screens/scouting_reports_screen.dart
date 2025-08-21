@@ -1,5 +1,7 @@
 // lib/features/scouting/presentation/screens/scouting_reports_screen.dart
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 

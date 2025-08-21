@@ -89,7 +89,7 @@ class _GamesScreenState extends State<GamesScreen> {
                         ),
                         leading: const Icon(Icons.event_note_outlined),
                         title: Text(
-                          '${game.homeTeam?.name ?? "N/A"} vs ${game.awayTeam?.name ?? "N/A"}',
+                          '${game.homeTeam.name ?? "N/A"} vs ${game.awayTeam.name ?? "N/A"}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
