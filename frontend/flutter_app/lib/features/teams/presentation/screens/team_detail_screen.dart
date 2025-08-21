@@ -1,8 +1,9 @@
 // lib/features/teams/presentation/screens/team_detail_screen.dart
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -238,23 +239,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
               ),
             ],
           );
-        },
-      ),
-      floatingActionButton: BlocBuilder<TeamDetailCubit, TeamDetailState>(
-        builder: (context, state) {
-          if (state.status == TeamDetailStatus.success && state.team != null) {
-            return FloatingActionButton.extended(
-              onPressed: () {
-                context.go(
-                  '/teams/${widget.teamId}/plays',
-                  extra: state.team!.name,
-                );
-              },
-              label: const Text('PLAYBOOK'),
-              icon: const Icon(Icons.menu_book),
-            );
-          }
-          return const SizedBox.shrink();
         },
       ),
     );

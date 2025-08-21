@@ -117,9 +117,12 @@ class _MyAppState extends State<MyApp> {
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {
-          if (authState.status == AuthStatus.authenticated && authState.token != null) {
+          if (authState.status == AuthStatus.authenticated &&
+              authState.token != null) {
             context.read<TeamCubit>().fetchTeams(token: authState.token!);
-            context.read<CompetitionCubit>().fetchCompetitions(token: authState.token!);
+            context.read<CompetitionCubit>().fetchCompetitions(
+              token: authState.token!,
+            );
             context.read<GameCubit>().fetchGames(token: authState.token!);
           }
         },

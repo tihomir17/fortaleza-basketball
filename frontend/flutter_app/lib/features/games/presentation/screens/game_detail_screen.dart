@@ -67,7 +67,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Analysis')),
+      appBar: AppBar(title: const Text('Game Analytics')),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
           if (state.status == GameDetailStatus.loading) {

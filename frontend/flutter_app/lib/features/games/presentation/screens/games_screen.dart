@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart'; // Import the AppBar
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import '../cubit/game_cubit.dart';
 import '../cubit/game_state.dart';
@@ -20,14 +21,12 @@ class _GamesScreenState extends State<GamesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the list of the user's teams from the globally provided TeamCubit
-    // to populate the filter dropdown.
     final userTeams = context.watch<TeamCubit>().state.teams;
 
     return Scaffold(
+      appBar: const UserProfileAppBar(title: 'GAME ANALYSIS'),
       body: Column(
         children: [
-          // --- THE NEW FILTER DROPDOWN WIDGET ---
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
             child: DropdownButtonFormField<int?>(
@@ -37,25 +36,21 @@ class _GamesScreenState extends State<GamesScreen> {
                 prefixIcon: Icon(Icons.filter_list),
               ),
               items: [
-                // Add an option to clear the filter and show all teams
                 const DropdownMenuItem<int?>(
                   value: null,
                   child: Text('All My Teams'),
                 ),
-                // Map the user's teams to dropdown menu items
-                ...userTeams.map((team) => DropdownMenuItem(
-                      value: team.id,
-                      child: Text(team.name),
-                    )),
+                ...userTeams.map(
+                  (team) =>
+                      DropdownMenuItem(value: team.id, child: Text(team.name)),
+                ),
               ],
               onChanged: (teamId) {
                 setState(() => _selectedTeamId = teamId);
-                // Call the new filter method in the GameCubit to update the list
                 context.read<GameCubit>().filterGamesByTeam(teamId);
               },
             ),
           ),
-          // --- THE GAME LIST ---
           Expanded(
             child: BlocBuilder<GameCubit, GameState>(
               builder: (context, state) {
@@ -63,7 +58,9 @@ class _GamesScreenState extends State<GamesScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (state.status == GameStatus.failure) {
-                  return Center(child: Text(state.errorMessage ?? 'Failed to load games.'));
+                  return Center(
+                    child: Text(state.errorMessage ?? 'Failed to load games.'),
+                  );
                 }
                 // Use the NEW filteredGames list from the state for the UI
                 if (state.filteredGames.isEmpty) {
@@ -78,7 +75,7 @@ class _GamesScreenState extends State<GamesScreen> {
                     ),
                   );
                 }
-                
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(8.0),
                   itemCount: state.filteredGames.length,
@@ -86,20 +83,26 @@ class _GamesScreenState extends State<GamesScreen> {
                     final game = state.filteredGames[index];
                     return Card(
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         leading: const Icon(Icons.event_note_outlined),
                         title: Text(
-                          '${game.homeTeam.name} vs ${game.awayTeam.name}',
+                          '${game.homeTeam.name ?? "N/A"} vs ${game.awayTeam.name ?? "N/A"}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          game.gameDate != null ? DateFormat.yMMMd().format(game.gameDate) : "No date",
+                          game.gameDate != null
+                              ? DateFormat.yMMMd().format(game.gameDate!)
+                              : "No date",
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                        onTap: () {
-                          // Navigate to the detail screen for this specific game
-                          context.go('/games/${game.id}');
-                        },
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        onTap: () => context.go('/games/${game.id}'),
                       ),
                     );
                   },
@@ -110,10 +113,7 @@ class _GamesScreenState extends State<GamesScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to the top-level route for logging a new possession
-          context.go('/log-possession');
-        },
+        onPressed: () => context.go('/log-possession'),
         tooltip: 'Log New Possession',
         child: const Icon(Icons.add_chart),
       ),
