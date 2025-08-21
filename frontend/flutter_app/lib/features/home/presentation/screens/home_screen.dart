@@ -1,5 +1,7 @@
 // lib/features/home/presentation/screens/home_screen.dart
 
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -20,46 +22,36 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  // final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshTeams);
+    // When the listener fires, it calls a method that reads the context.
+    sl<RefreshSignal>().addListener(_refreshTeams);
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshTeams);
+    // We can safely remove the listener.
+    // sl<RefreshSignal>().removeListener(_refreshTeams);
     super.dispose();
   }
 
   void _refreshTeams() {
-    final token = context.read<AuthCubit>().state.token;
-    if (token != null && mounted) {
-      context.read<TeamCubit>().fetchTeams(token: token);
+    // Add a 'mounted' check for extra safety. This ensures the widget is still
+    // in the tree before we try to use its context.
+    if (mounted) {
+      final token = context.read<AuthCubit>().state.token;
+      if (token != null) {
+        context.read<TeamCubit>().fetchTeams(token: token);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text('MY TEAMS'),
-      //   actions: [
-      //     IconButton(
-      //       icon: const Icon(Icons.brightness_6_outlined),
-      //       tooltip: 'Toggle Theme',
-      //       onPressed: () => context.read<ThemeCubit>().toggleTheme(),
-      //     ),
-      //     IconButton(
-      //       icon: const Icon(Icons.logout),
-      //       tooltip: 'Logout',
-      //       onPressed: () => context.read<AuthCubit>().logout(),
-      //     ),
-      //   ],
-      // ),
-      appBar: const UserProfileAppBar(title: 'My Teams'),
       body: BlocBuilder<TeamCubit, TeamState>(
         builder: (context, state) {
           if (state.status == TeamStatus.loading ||
@@ -97,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
               fullscreenDialog: true,
             ),
           );
-          _refreshSignal.notify();
         },
         tooltip: 'Create Team',
         child: const Icon(Icons.add),

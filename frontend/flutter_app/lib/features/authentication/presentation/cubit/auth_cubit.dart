@@ -1,67 +1,85 @@
 // lib/features/authentication/presentation/cubit/auth_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
+import 'package:flutter_app/main.dart'; // To access GetIt (sl)
+import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
-
-// cubits that need to be reset
+// Import all the cubits that need to be triggered
 import '../../../teams/presentation/cubit/team_cubit.dart';
+import '../../../competitions/presentation/cubit/competition_cubit.dart';
+import '../../../games/presentation/cubit/game_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
 
   AuthCubit({required AuthRepository authRepository})
-      : _authRepository = authRepository,
-        super(const AuthState.unknown());
+    : _authRepository = authRepository,
+      super(const AuthState.unknown());
 
-  // THIS METHOD IS NOW CORRECT
+  /// This is a centralized helper method called after any successful login.
+  /// It fetches all initial data needed for a user session.
+  Future<void> _onLoginSuccess(String token, User user) async {
+    // Get instances of the other global/session-wide cubits from the service locator.
+    final teamCubit = sl<TeamCubit>();
+    final competitionCubit = sl<CompetitionCubit>();
+    final gameCubit = sl<GameCubit>();
+
+    // Tell each cubit to fetch its essential data using the new token.
+    // We don't need to await these; they can run in parallel.
+    teamCubit.fetchTeams(token: token);
+    competitionCubit.fetchCompetitions(token: token);
+    gameCubit.fetchGames(token: token);
+
+    // Finally, emit the authenticated state. The UI will react to this,
+    // and the other cubits will be updating their own states in the background.
+    emit(AuthState.authenticated(token: token, user: user));
+  }
+
+  /// Checks for a saved token on app startup and authenticates the user.
   Future<void> checkAuthentication() async {
-    // 1. Try to load the token from storage
     final token = await _authRepository.tryToLoadToken();
     if (token == null) {
       emit(const AuthState.unauthenticated());
       return;
     }
 
-    // 2. If a token exists, use it to fetch the user profile
     final user = await _authRepository.getCurrentUser(token);
     if (user != null) {
-      // 3. If user is fetched successfully, we are authenticated
-      emit(AuthState.authenticated(token: token, user: user));
+      await _onLoginSuccess(token, user);
     } else {
-      // If the token is invalid/expired, we are unauthenticated
+      // Token was invalid or expired
       emit(const AuthState.unauthenticated());
     }
   }
 
-  // THIS METHOD IS ALSO CORRECTED
+  /// Attempts to log in a user with credentials.
   Future<void> login(String username, String password) async {
-    // 1. Log in to get the token
     final token = await _authRepository.login(username, password);
     if (token == null) {
       emit(const AuthState.unauthenticated());
       return;
     }
 
-    // 2. Use the new token to get the user profile
     final user = await _authRepository.getCurrentUser(token);
     if (user != null) {
-      // 3. Emit the full authenticated state
-      emit(AuthState.authenticated(token: token, user: user));
+      await _onLoginSuccess(token, user);
     } else {
       emit(const AuthState.unauthenticated());
     }
   }
 
+  /// Logs the user out and resets all user-specific data.
   Future<void> logout() async {
-    // First, perform the repository logout (clears token from storage)
+    // Clear the token from storage first.
     await _authRepository.logout();
 
-    // Next, reset all lazy singletons that hold user-specific data.
-    await sl.resetLazySingleton<TeamCubit>();
-    
-    // Finally, emit the unauthenticated state to trigger navigation
+    // This tells GoRouter to navigate to the login screen RIGHT NOW.
+    // The old screens (HomeScreen, etc.) will be disposed.
     emit(const AuthState.unauthenticated());
+
+    await sl.resetLazySingleton<TeamCubit>();
+    await sl.resetLazySingleton<CompetitionCubit>();
+    await sl.resetLazySingleton<GameCubit>();
   }
 }

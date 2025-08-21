@@ -12,12 +12,6 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DASHBOARD'),
-        actions: [
-          // Theme and Logout buttons can go here, similar to HomeScreen
-        ],
-      ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
           if (state.status == AuthStatus.authenticated && state.user != null) {
@@ -27,7 +21,8 @@ class DashboardScreen extends StatelessWidget {
               return _buildAdminDashboard(context);
             } else if (user.role == 'COACH') {
               return _buildCoachDashboard(context);
-            } else { // 'PLAYER'
+            } else {
+              // 'PLAYER'
               return _buildPlayerDashboard(context);
             }
           }
@@ -47,7 +42,9 @@ class DashboardScreen extends StatelessWidget {
         _DashboardCard(
           title: 'Manage Competitions',
           icon: Icons.emoji_events_outlined,
-          onTap: () { /* TODO: Navigate to /competitions */ },
+          onTap: () {
+            /* TODO: Navigate to /competitions */
+          },
         ),
         _DashboardCard(
           title: 'Manage All Teams',
@@ -57,7 +54,9 @@ class DashboardScreen extends StatelessWidget {
         _DashboardCard(
           title: 'Manage All Users',
           icon: Icons.people_outline,
-          onTap: () { /* TODO: Navigate to a global user management screen */ },
+          onTap: () {
+            /* TODO: Navigate to a global user management screen */
+          },
         ),
       ],
     );
@@ -103,7 +102,9 @@ class DashboardScreen extends StatelessWidget {
           title: 'Scouting Reports',
           subtitle: 'Preparation materials from your coach',
           icon: Icons.video_library_outlined,
-          onTap: () { /* TODO */ },
+          onTap: () {
+            /* TODO */
+          },
         ),
       ],
     );
@@ -128,12 +129,19 @@ class _DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Icon(icon, size: 40, color: Theme.of(context).colorScheme.primary),
+        leading: Icon(
+          icon,
+          size: 40,
+          color: Theme.of(context).colorScheme.primary,
+        ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: subtitle != null ? Text(subtitle!) : null,
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 // lib/core/navigation/scaffold_with_nav_bar.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:go_router/go_router.dart';
 
 class ScaffoldWithNavBar extends StatelessWidget {
@@ -9,9 +10,21 @@ class ScaffoldWithNavBar extends StatelessWidget {
   // The widget to display in the body of the Scaffold.
   final Widget child;
 
+  // A helper map to associate routes with their titles
+  static const Map<String, String> _routeTitles = {
+    '/': 'DASHBOARD',
+    '/teams': 'MY TEAMS',
+    '/games': 'GAMES',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final String location = GoRouterState.of(context).matchedLocation;
+    final String title =
+        _routeTitles[location] ?? ''; // Default to empty string
+
     return Scaffold(
+      appBar: UserProfileAppBar(title: title),
       body: child,
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
