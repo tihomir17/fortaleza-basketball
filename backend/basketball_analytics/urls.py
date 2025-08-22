@@ -11,6 +11,7 @@ from apps.possessions.views import PossessionViewSet
 from apps.competitions.views import CompetitionViewSet
 from apps.users.views import UserViewSet
 from apps.games.views import GameViewSet
+from apps.events.views import CalendarEventViewSet
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
@@ -20,6 +21,7 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"possessions", PossessionViewSet, basename="possession")
 router.register(r"competitions", CompetitionViewSet, basename="competition")
 router.register(r"games", GameViewSet, basename="game")
+router.register(r"events", CalendarEventViewSet, basename="event")
 
 urlpatterns = [
     # The Django admin site
