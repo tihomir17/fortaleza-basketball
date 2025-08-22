@@ -1,10 +1,21 @@
 // lib/features/calendar/presentation/screens/calendar_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/calendar/presentation/screens/edit_event_screen.dart';
+import 'package:flutter_app/features/games/presentation/screens/schedule_game_screen.dart';
+import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
+import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart'; // Import for navigation
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:flutter_app/main.dart';
+import 'package:flutter_app/features/calendar/data/repositories/event_repository.dart';
+
+import 'schedule_event_screen.dart';
 import '../../../games/data/models/game_model.dart';
 import '../../data/models/calendar_event_model.dart';
 import '../cubit/calendar_cubit.dart';
@@ -18,6 +29,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   List<dynamic> _selectedEvents = [];
@@ -26,21 +38,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    _refreshSignal.addListener(_refreshCalendar);
   }
 
-  // This function is the key. It gets called by the calendar for each day.
+  @override
+  void dispose() {
+    _refreshSignal.removeListener(_refreshCalendar);
+    super.dispose();
+  }
+
+  void _refreshCalendar() {
+    final token = context.read<AuthCubit>().state.token;
+    if (token != null && mounted) {
+      context.read<CalendarCubit>().fetchCalendarData(token: token);
+    }
+  }
+
   List<dynamic> _getEventsForDay(DateTime day, CalendarState state) {
-    // Filter the master list of games
     final gamesOnDay = state.games.where(
       (game) => isSameDay(game.gameDate, day),
     );
-    // Filter the master list of events
     final eventsOnDay = state.events.where(
       (event) => isSameDay(event.startTime, day),
     );
-
-    // Return a combined list
-    return [...gamesOnDay, ...eventsOnDay];
+    return [...gamesOnDay, ...eventsOnDay]..sort((a, b) {
+      final timeA = a is Game ? a.gameDate : (a as CalendarEvent).startTime;
+      final timeB = b is Game ? b.gameDate : (b as CalendarEvent).startTime;
+      return timeA.compareTo(timeB);
+    });
   }
 
   void _onDaySelected(
@@ -52,7 +77,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
-        // When a day is selected, update the list of events for that day
         _selectedEvents = _getEventsForDay(selectedDay, state);
       });
     }
@@ -61,7 +85,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const UserProfileAppBar(title: 'CALENDAR'),
+      appBar: UserProfileAppBar(
+        title: 'CALENDAR',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Schedule Game or Practice',
+            onPressed: () {
+              // The logic for showing the choice dialog remains the same
+              showModalBottomSheet(
+                context: context,
+                builder: (ctx) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.sports_basketball_outlined),
+                      title: const Text('Schedule a New Game'),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ScheduleGameScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.fitness_center),
+                      title: const Text('Schedule a Practice'),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ScheduleEventScreen(
+                              initialDate: _selectedDay ?? DateTime.now(),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: BlocBuilder<CalendarCubit, CalendarState>(
         builder: (context, state) {
           if (state.status == CalendarStatus.loading) {
@@ -73,8 +142,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             );
           }
 
-          // When the state rebuilds (e.g., after the initial fetch),
-          // ensure the selected day's events are updated.
           if (_selectedDay != null) {
             _selectedEvents = _getEventsForDay(_selectedDay!, state);
           }
@@ -86,67 +153,238 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                // Pass the current state to the handlers
                 onDaySelected: (selected, focused) =>
                     _onDaySelected(selected, focused, state),
                 eventLoader: (day) => _getEventsForDay(day, state),
-                // ... (calendar styling)
-              ),
-              const Divider(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _selectedEvents.length,
-                  itemBuilder: (context, index) {
-                    final item = _selectedEvents[index];
-
-                    // Use type checking to build the correct ListTile for each item
-                    if (item is Game) {
-                      return _buildGameTile(item);
-                    } else if (item is CalendarEvent) {
-                      return _buildEventTile(item);
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, day, events) {
+                    if (events.isNotEmpty) {
+                      return Positioned(
+                        right: 1,
+                        bottom: 1,
+                        child: _buildEventsMarker(events),
+                      );
                     }
-                    return const SizedBox.shrink();
+                    return null;
                   },
                 ),
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  todayDecoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  markerDecoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+
+                headerStyle: const HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: _selectedEvents.isEmpty
+                    ? const Center(
+                        child: Text("No events scheduled for this day."),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 80.0),
+
+                        itemCount: _selectedEvents.length,
+                        itemBuilder: (context, index) {
+                          final item = _selectedEvents[index];
+                          if (item is Game) return _buildGameTile(item);
+                          if (item is CalendarEvent) {
+                            return _buildEventTile(item);
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
               ),
             ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          /* TODO: Navigate to a new "Schedule Event" screen */
-        },
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _buildEventsMarker(List<dynamic> events) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+      ),
+      width: 16.0,
+      height: 16.0,
+      child: Center(
+        child: Text(
+          '${events.length}',
+          style: const TextStyle(color: Colors.white, fontSize: 10.0),
+        ),
       ),
     );
   }
 
-  // Helper widget to build a ListTile for a Game
   Widget _buildGameTile(Game game) {
+    final theme = Theme.of(context);
+    final isFinished = game.homeTeamScore != null && game.awayTeamScore != null;
+
+    // Determine Win/Loss state for one of the user's teams
+    final userTeams = context.read<TeamCubit>().state.teams;
+    final userTeamInGame = userTeams.firstWhere(
+      (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id);
+
+    Color resultColor =
+        theme.colorScheme.primary; // Default color for scheduled games
+    String resultLetter = " ";
+    if (isFinished && userTeamInGame != null) {
+      bool homeTeamWon = game.homeTeamScore! > game.awayTeamScore!;
+      bool didUserTeamWin =
+          (userTeamInGame.id == game.homeTeam.id && homeTeamWon) ||
+          (userTeamInGame.id == game.awayTeam.id && !homeTeamWon);
+      resultColor = didUserTeamWin
+          ? Colors.green.shade700
+          : theme.colorScheme.error;
+      resultLetter = didUserTeamWin ? "W" : "L";
+    }
+
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.sports_basketball),
+        leading: CircleAvatar(
+          backgroundColor: resultColor,
+          child: Text(
+            resultLetter,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         title: Text(
           '${game.homeTeam.name} vs ${game.awayTeam.name}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text('Game at ${DateFormat.jm().format(game.gameDate)}'),
+        subtitle: isFinished
+            ? Text(
+                'Final: ${game.homeTeamScore} - ${game.awayTeamScore}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              )
+            : Text('Game at ${DateFormat.jm().format(game.gameDate)}'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () => context.go('/games/${game.id}'),
       ),
     );
   }
 
-  // Helper widget to build a ListTile for a CalendarEvent
+  // THIS IS THE CORRECTED WIDGET FOR OTHER EVENTS
   Widget _buildEventTile(CalendarEvent event) {
     return Card(
       child: ListTile(
         leading: Icon(
-          event.eventType == 'PRACTICE_TEAM' ? Icons.group : Icons.person,
+          event.eventType.startsWith('PRACTICE')
+              ? Icons.fitness_center
+              : Icons.event,
+          color: Theme.of(context).colorScheme.secondary,
         ),
-        title: Text(event.title),
-        subtitle: Text(
-          'Practice at ${DateFormat.jm().format(event.startTime)}',
+        title: Text(
+          event.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        subtitle: Text('Starts at ${DateFormat.jm().format(event.startTime)}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              tooltip: 'Edit Event',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EditEventScreen(event: event),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              tooltip: 'Delete Event',
+              onPressed: () => _showDeleteConfirmation(context, event),
+            ),
+          ],
+        ),
+        onTap: () {
+          /* TODO: Navigate to Event Detail Screen */
+        },
       ),
+    );
+  }
+
+  // A NEW, GENERIC DELETE CONFIRMATION DIALOG
+  void _showDeleteConfirmation(BuildContext context, dynamic event) {
+    final isGame = event is Game;
+    final title = isGame ? 'Delete Game' : 'Delete Event';
+    final content = isGame
+        ? 'Are you sure you want to delete the game between ${event.homeTeam.name} and ${event.awayTeam.name}?'
+        : 'Are you sure you want to delete the event "${event.title}"?';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text('$content This action cannot be undone.'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onPressed: () async {
+                final token = context.read<AuthCubit>().state.token;
+                if (token == null) return;
+                try {
+                  if (isGame) {
+                    await sl<GameRepository>().deleteGame(
+                      token: token,
+                      gameId: event.id,
+                    );
+                  } else {
+                    await sl<EventRepository>().deleteEvent(
+                      token: token,
+                      eventId: event.id,
+                    );
+                  }
+                  Navigator.of(dialogContext).pop();
+                  sl<RefreshSignal>().notify();
+                } catch (e) {
+                  // handle error
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

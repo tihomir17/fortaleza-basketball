@@ -1,7 +1,7 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/possessions/presentation/screens/log_possession_screen.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/main.dart';
@@ -36,57 +36,38 @@ class AppRouter {
     debugLogDiagnostics: true,
 
     routes: [
-      // The login screen is the only route outside the main shell
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-
-      // THIS IS THE NEW ROOT SHELL ROUTE FOR THE ENTIRE AUTHENTICATED APP
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) {
-          // The CoachScaffold is now the root UI for everything else
           return CoachScaffold(child: child);
         },
         routes: [
-          // All other routes are now children of this shell
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const DashboardScreen(),
-          ),
+          GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
           GoRoute(
             path: '/teams',
             builder: (context, state) => const HomeScreen(),
             routes: [
               GoRoute(
-                path: ':teamId', // Matches '/teams/1'
+                path: ':teamId',
                 builder: (context, state) {
-                  final teamId =
-                      int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
+                  final teamId = int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
                   return BlocProvider(
-                    create: (context) => sl<TeamDetailCubit>()
-                      ..fetchTeamDetails(
-                        token: authCubit.state.token!,
-                        teamId: teamId,
-                      ),
+                    create: (context) => sl<TeamDetailCubit>()..fetchTeamDetails(token: authCubit.state.token!, teamId: teamId),
                     child: TeamDetailScreen(teamId: teamId),
                   );
                 },
                 routes: [
                   GoRoute(
-                    path: 'plays', // '/teams/:teamId/plays'
+                    path: 'plays',
                     builder: (context, state) {
-                      final teamId =
-                          int.tryParse(state.pathParameters['teamId'] ?? '') ??
-                          0;
+                      final teamId = int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
                       final teamName = state.extra as String? ?? 'Team';
                       return BlocProvider(
-                        create: (context) => sl<PlaybookCubit>()
-                          ..fetchPlays(
-                            token: authCubit.state.token!,
-                            teamId: teamId,
-                          ),
-                        child: PlaybookScreen(
-                          teamName: teamName,
-                          teamId: teamId,
-                        ),
+                        create: (context) => sl<PlaybookCubit>()..fetchPlays(token: authCubit.state.token!, teamId: teamId),
+                        child: PlaybookScreen(teamName: teamName, teamId: teamId),
                       );
                     },
                   ),
@@ -99,46 +80,33 @@ class AppRouter {
             builder: (context, state) => const GamesScreen(),
             routes: [
               GoRoute(
-                path: ':gameId', // Matches '/games/1'
+                path: ':gameId',
                 builder: (context, state) {
-                  final gameId =
-                      int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                  final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
                   return BlocProvider(
-                    create: (context) => sl<GameDetailCubit>()
-                      ..fetchGameDetails(
-                        token: authCubit.state.token!,
-                        gameId: gameId,
-                      ),
+                    create: (context) => sl<GameDetailCubit>()..fetchGameDetails(token: authCubit.state.token!, gameId: gameId),
                     child: GameDetailScreen(gameId: gameId),
                   );
                 },
+                routes: [
+                  GoRoute(
+                    path: 'track', // Matches '/games/1/track'
+                    builder: (context, state) {
+                      // We will eventually pass the game object here as an 'extra'
+                      return const LiveTrackingScreen();
+                    },
+                  ),
+                ],
               ),
             ],
           ),
-          GoRoute(
-            path: '/playbook',
-            builder: (context, state) => const PlaybookHubScreen(),
-          ),
-          GoRoute(
-            path: '/calendar',
-            builder: (context, state) => const CalendarScreen(),
-          ),
-          GoRoute(
-            path: '/scouting-reports',
-            builder: (context, state) => const ScoutingReportsScreen(),
-          ),
-          GoRoute(
-            path: '/self-scouting',
-            builder: (context, state) => const SelfScoutingScreen(),
-          ),
-          GoRoute(
-            path: '/log-possession',
-            builder: (context, state) => const LogPossessionScreen(),
-          ),
+          GoRoute(path: '/playbook', builder: (context, state) => const PlaybookHubScreen()),
+          GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen()),
+          GoRoute(path: '/scouting-reports', builder: (context, state) => const ScoutingReportsScreen()),
+          GoRoute(path: '/self-scouting', builder: (context, state) => const SelfScoutingScreen()),
         ],
       ),
     ],
-
     redirect: (BuildContext context, GoRouterState state) {
       final bool loggedIn = authCubit.state.status == AuthStatus.authenticated;
       final bool isLoggingIn = state.matchedLocation == '/login';

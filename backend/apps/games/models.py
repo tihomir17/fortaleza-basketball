@@ -13,7 +13,7 @@ class Game(models.Model):
     away_team = models.ForeignKey(
         "teams.Team", on_delete=models.CASCADE, related_name="away_games"
     )
-    game_date = models.DateField()
+    game_date = models.DateTimeField()
 
     # Optional: You could add final scores here later
     home_team_score = models.PositiveIntegerField(null=True, blank=True)

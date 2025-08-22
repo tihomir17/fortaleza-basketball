@@ -5,12 +5,12 @@ from apps.teams.models import Team
 from apps.games.models import Game
 from apps.possessions.models import Possession
 from apps.teams.serializers import TeamReadSerializer
-from apps.games.serializers import GameSerializer
+from apps.games.serializers import GameReadSerializer, GameWriteSerializer
 
 
 # This is the "deep" serializer for the main /api/possessions/ endpoint.
 class PossessionSerializer(serializers.ModelSerializer):
-    game = GameSerializer(read_only=True)
+    game = GameReadSerializer(read_only=True)
     team = TeamReadSerializer(read_only=True)
     opponent = TeamReadSerializer(read_only=True)
 

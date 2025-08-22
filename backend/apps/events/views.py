@@ -4,7 +4,8 @@ from rest_framework import viewsets, permissions
 from .models import CalendarEvent
 from .serializers import CalendarEventSerializer
 from django.db.models import Q
-from apps.teams.models import Team # Import the Team model
+from apps.teams.models import Team  # Import the Team model
+
 
 class CalendarEventViewSet(viewsets.ModelViewSet):
     serializer_class = CalendarEventSerializer

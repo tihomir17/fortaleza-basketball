@@ -52,7 +52,6 @@ void setupServiceLocator() {
   sl.registerLazySingleton<GameRepository>(() => GameRepository());
   sl.registerLazySingleton<EventRepository>(() => EventRepository());
 
-  // --- CUBITS (State Management) ---
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),

@@ -3,10 +3,10 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -51,7 +51,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
   }
 
-  // Helper function to parse "MM:SS" time strings into a comparable integer.
   int _parseTimeToSeconds(String time) {
     try {
       final parts = time.split(':');
@@ -60,14 +59,14 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       final seconds = int.tryParse(parts[1]) ?? 0;
       return (minutes * 60) + seconds;
     } catch (e) {
-      return 0; // Return 0 if parsing fails
+      return 0;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Analytics')),
+      appBar: AppBar(title: const Text('Game Analysis')),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
           if (state.status == GameDetailStatus.loading) {
@@ -90,15 +89,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 .toList();
           }
 
-          // Create a new sorted list from the filtered list
           final sortedPossessions = List.of(filteredPossessions);
           sortedPossessions.sort((a, b) {
-            // Primary sort: by Quarter (ascending)
             int quarterComparison = a.quarter.compareTo(b.quarter);
-            if (quarterComparison != 0) {
-              return quarterComparison;
-            }
-            // Secondary sort: by Start Time (descending, high to low)
+            if (quarterComparison != 0) return quarterComparison;
             int timeA = _parseTimeToSeconds(a.startTimeInGame);
             int timeB = _parseTimeToSeconds(b.startTimeInGame);
             return timeB.compareTo(timeA);
@@ -166,12 +160,34 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
               Expanded(
                 child: sortedPossessions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(24.0),
-                          child: Text(
-                            'No possessions found for this period.',
-                            textAlign: TextAlign.center,
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.list_alt_outlined,
+                                size: 80,
+                                color: Colors.grey[300],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Possessions Logged',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _selectedQuarterFilter == null
+                                    ? 'Tap the "Log Possession" button on the Games screen to get started.'
+                                    : 'No possessions found for this period.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
                         ),
                       )
@@ -191,23 +207,85 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           );
         },
       ),
+
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // Navigate to the new nested route
+          context.go('/games/${widget.gameId}/track');
+        },
+        label: const Text('Track Possession'),
+        icon: const Icon(Icons.add_chart),
+      ),
     );
   }
 }
 
-class _PossessionCard extends StatelessWidget {
+class _PossessionCard extends StatefulWidget {
   final Possession possession;
   final Game game;
-
   const _PossessionCard({required this.possession, required this.game});
+
+  @override
+  State<_PossessionCard> createState() => _PossessionCardState();
+}
+
+class _PossessionCardState extends State<_PossessionCard> {
+  bool _isExpanded = false;
 
   String _formatOutcome(String outcome) {
     return outcome.replaceAll('_', ' ').replaceFirst('TO ', 'TO: ');
   }
 
+  void _showDeleteConfirmation(BuildContext context, Possession possession) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Possession'),
+          content: Text(
+            'Are you sure you want to delete this possession from Q${possession.quarter} at ${possession.startTimeInGame}? This action cannot be undone.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onPressed: () async {
+                final token = context.read<AuthCubit>().state.token;
+                if (token == null) return;
+                try {
+                  await sl<PossessionRepository>().deletePossession(
+                    token: token,
+                    possessionId: possession.id,
+                  );
+                  Navigator.of(dialogContext).pop();
+                  sl<RefreshSignal>().notify();
+                } catch (e) {
+                  Navigator.of(dialogContext).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error deleting possession: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final possession = widget.possession;
+    final game = widget.game;
     final teamWithBall = possession.team;
     if (teamWithBall == null) {
       return const Card(
@@ -247,18 +325,31 @@ class _PossessionCard extends StatelessWidget {
           'Q${possession.quarter} at ${possession.startTimeInGame}',
           style: theme.textTheme.bodySmall,
         ),
-        trailing: Chip(
-          label: Text(
-            _formatOutcome(possession.outcome),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 10,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Chip(
+              label: Text(
+                _formatOutcome(possession.outcome),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
+              backgroundColor: outcomeColor,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             ),
-          ),
-          backgroundColor: outcomeColor,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            const SizedBox(width: 8),
+            RotationTransition(
+              turns: AlwaysStoppedAnimation(_isExpanded ? 0.25 : 0),
+              child: const Icon(Icons.keyboard_arrow_down),
+            ),
+          ],
         ),
+        onExpansionChanged: (bool expanded) {
+          setState(() => _isExpanded = expanded);
+        },
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -362,51 +453,6 @@ class _PossessionCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _showDeleteConfirmation(BuildContext context, Possession possession) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete Possession'),
-          content: Text(
-            'Are you sure you want to delete this possession from Q${possession.quarter} at ${possession.startTimeInGame}? This action cannot be undone.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            TextButton(
-              child: Text(
-                'Delete',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onPressed: () async {
-                final token = context.read<AuthCubit>().state.token;
-                if (token == null) return;
-                try {
-                  await sl<PossessionRepository>().deletePossession(
-                    token: token,
-                    possessionId: possession.id,
-                  );
-                  Navigator.of(dialogContext).pop();
-                  sl<RefreshSignal>().notify();
-                } catch (e) {
-                  Navigator.of(dialogContext).pop();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error deleting possession: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 }
