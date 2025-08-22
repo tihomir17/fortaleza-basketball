@@ -64,18 +64,6 @@ void setupServiceLocator() {
   sl.registerLazySingleton<CompetitionCubit>(
     () => CompetitionCubit(competitionRepository: sl<CompetitionRepository>()),
   );
-
-  // Cubits
-  sl.registerLazySingleton<AuthCubit>(
-    () => AuthCubit(authRepository: sl<AuthRepository>()),
-  );
-  sl.registerLazySingleton<ThemeCubit>(() => ThemeCubit());
-  sl.registerLazySingleton<TeamCubit>(
-    () => TeamCubit(teamRepository: sl<TeamRepository>()),
-  );
-  sl.registerLazySingleton<CompetitionCubit>(
-    () => CompetitionCubit(competitionRepository: sl<CompetitionRepository>()),
-  );
   sl.registerLazySingleton<GameCubit>(
     () => GameCubit(gameRepository: sl<GameRepository>()),
   );
