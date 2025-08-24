@@ -1,6 +1,7 @@
 // lib/features/possessions/presentation/screens/live_tracking_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 
 class LiveTrackingScreen extends StatefulWidget {
   const LiveTrackingScreen({super.key});
@@ -25,44 +26,72 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
+      appBar: const UserProfileAppBar(title: 'Game logger'),
+      
       body: SafeArea(
         child: Column(
           children: [
+            // This Expanded is the key to preventing all layout errors.
+            // It gives the main content area a finite height.
             Expanded(
-              child: SingleChildScrollView(
+              child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  alignment: WrapAlignment.center,
+                child: Column(
                   children: [
+                    // --- TOP ROW: OFFENSE (fixed height) ---
                     _Panel(
                       title: 'OFFENCE',
                       child: _OffensePanel(onButtonPressed: _onButtonPressed),
                     ),
-                    _Panel(
-                      title: 'OFFENCE HALF COURT',
-                      child: _HalfCourtPanel(onButtonPressed: _onButtonPressed),
+                    const SizedBox(height: 8),
+
+                    // --- MIDDLE ROW: HALF COURT, DEFENSE, PLAYERS ---
+                    // This row is expanded to fill the remaining vertical space
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Each panel is in an Expanded widget to control its width
+                          Expanded(
+                            flex: 4, // Adjust flex to control relative widths
+                            child: _Panel(
+                              title: 'OFFENCE HALF COURT',
+                              child: _HalfCourtPanel(onButtonPressed: _onButtonPressed),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 4,
+                            child: _Panel(
+                              title: 'DEFFENCE',
+                              child: _DefensePanel(onButtonPressed: _onButtonPressed),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 3,
+                            child: _Panel(
+                              title: 'PLAYERS',
+                              child: _PlayersPanel(onButtonPressed: _onButtonPressed),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    _Panel(
-                      title: 'DEFFENCE',
-                      child: _DefensePanel(onButtonPressed: _onButtonPressed),
-                    ),
-                    _Panel(
-                      title: 'PLAYERS',
-                      child: _PlayersPanel(onButtonPressed: _onButtonPressed),
-                    ),
-                    _Panel(
-                      title: 'CONTROL',
-                      child: _ControlPanel(onButtonPressed: _onButtonPressed),
-                    ),
-                    _Panel(
-                      title: 'OUTCOME',
-                      child: _OutcomePanel(onButtonPressed: _onButtonPressed),
-                    ),
-                    _Panel(
-                      title: 'ADVANCE',
-                      child: _AdvancePanel(onButtonPressed: _onButtonPressed),
+                    const SizedBox(height: 8),
+
+                    // --- BOTTOM ROW: CONTROL, OUTCOME, ADVANCE (fixed height) ---
+                    IntrinsicHeight( // Ensures all panels in this row are the same height
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(flex: 2, child: _Panel(title: 'CONTROL', child: _ControlPanel(onButtonPressed: _onButtonPressed))),
+                          const SizedBox(width: 8),
+                          Expanded(flex: 4, child: _Panel(title: 'OUTCOME', child: _OutcomePanel(onButtonPressed: _onButtonPressed))),
+                          const SizedBox(width: 8),
+                          Expanded(flex: 4, child: _Panel(title: 'ADVANCE', child: _AdvancePanel(onButtonPressed: _onButtonPressed))),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -73,7 +102,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         ),
       ),
     );
-  }
+  }  
 
   Widget _buildSequenceDisplay() {
     return Container(
@@ -136,13 +165,16 @@ class _ActionButton extends StatelessWidget {
   final Color? color;
   final Color? textColor;
   final ValueChanged<String> onPressed;
+  final int flex;
 
   const _ActionButton({
     required this.text,
     this.color,
     this.textColor,
+    required this.flex,
     required this.onPressed,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -163,40 +195,45 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// --- CUSTOM WIDGETS FOR EACH PANEL (REBUILT FOR SAFETY) ---
-
 class _OffensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
   const _OffensePanel({required this.onButtonPressed});
+
   @override
   Widget build(BuildContext context) {
-    // Using Wrap internally is safer than nested Rows
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children:
-          [
-                'FastBreak',
-                'Transit',
-                '<14s',
-                'BoB 1',
-                'BoB 2',
-                'SoB 1',
-                'SoB 2',
-                'Special',
-                'Special',
-                'ATO Spec',
-                'Set 13',
-                'Set 14',
-              ]
-              .map(
-                (t) => _ActionButton(
-                  text: t,
-                  color: Colors.green,
-                  onPressed: onButtonPressed,
-                ),
-              )
-              .toList(),
+    // We use a Column to stack the two rows vertically
+    return Column(
+      children: [
+        // --- First ROW ---
+        Row(
+          children: List.generate(12, (i) {
+            return _ActionButton(
+              text: 'Set ${i + 1}',
+              color: Colors.green,
+              flex: 1, // All buttons in this row have equal width
+              onPressed: onButtonPressed,
+            );
+          }),
+        ),
+        // --- Second row ---
+        Row(
+          children: [
+            _ActionButton(text: 'FastBreak', color: Colors.grey[400], flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Transit', color: Colors.grey[400], flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: '<14s', color: Colors.grey[400], flex: 1, onPressed: onButtonPressed),
+            _ActionButton(text: 'BoB 1', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'BoB 2', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'SoB 1', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'SoB 2', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Special', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Special', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'ATO Spec', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Set 13', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Set 14', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+          ],
+        ),
+        const SizedBox(height: 4), // Small gap between rows
+      ],
     );
   }
 }
@@ -211,20 +248,44 @@ class _HalfCourtPanel extends StatelessWidget {
       children: [
         TableRow(
           children: [
-            _ActionButton(text: 'PnR', onPressed: onButtonPressed),
-            _ActionButton(text: 'Att. CloseOut', onPressed: onButtonPressed),
+            _ActionButton(text: 'PnR', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Att. CloseOut', flex: 2, onPressed: onButtonPressed),
           ],
         ),
         TableRow(
           children: [
-            _ActionButton(text: 'Score', onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Kick Out', onPressed: onButtonPressed),
+            _ActionButton(text: 'Score', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Kick Out', flex: 2, onPressed: onButtonPressed),
           ],
         ),
         TableRow(
           children: [
-            _ActionButton(text: 'Big Guy', onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', onPressed: onButtonPressed),
+            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+          ],
+        ),
+                TableRow(
+          children: [
+            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+          ],
+        ),
+                TableRow(
+          children: [
+            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+          ],
+        ),
+                TableRow(
+          children: [
+            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+          ],
+        ),
+                TableRow(
+          children: [
+            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
           ],
         ),
       ],
@@ -259,6 +320,7 @@ class _DefensePanel extends StatelessWidget {
                 (t) => _ActionButton(
                   text: t,
                   color: Colors.red[700],
+                  flex: 1,
                   onPressed: onButtonPressed,
                 ),
               )
@@ -279,7 +341,7 @@ class _PlayersPanel extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         GridView.count(
-          crossAxisCount: 12, // 5 players per team
+          crossAxisCount: 12, // 12 players per team
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: List.generate(
@@ -287,6 +349,7 @@ class _PlayersPanel extends StatelessWidget {
             (i) => _ActionButton(
               text: '#',
               color: i < 12 ? Colors.blue[800] : Colors.grey[800],
+              flex: 2,
               onPressed: onButtonPressed,
             ),
           ),
@@ -307,6 +370,7 @@ class _PlayersPanel extends StatelessWidget {
                     (t) => _ActionButton(
                       text: t,
                       color: Colors.purple,
+                      flex: 2, 
                       onPressed: onButtonPressed,
                     ),
                   )
@@ -329,15 +393,16 @@ class _ControlPanel extends StatelessWidget {
             _ActionButton(
               text: 'START',
               color: Colors.green,
+              flex: 2,
               onPressed: onButtonPressed,
             ),
-            _ActionButton(text: 'Period', onPressed: onButtonPressed),
+            _ActionButton(text: 'Period', flex: 2, onPressed: onButtonPressed),
           ],
         ),
         TableRow(
           children: [
-            _ActionButton(text: 'Off', onPressed: onButtonPressed),
-            _ActionButton(text: 'Def', onPressed: onButtonPressed),
+            _ActionButton(text: 'Off', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Def', flex: 2, onPressed: onButtonPressed),
           ],
         ),
         TableRow(
@@ -345,15 +410,16 @@ class _ControlPanel extends StatelessWidget {
             _ActionButton(
               text: 'END',
               color: Colors.red,
+              flex: 2,
               onPressed: onButtonPressed,
             ),
-            _ActionButton(text: 'FORW', onPressed: onButtonPressed),
+            _ActionButton(text: 'FORW', flex: 2, onPressed: onButtonPressed),
           ],
         ),
         TableRow(
           children: [
             const SizedBox.shrink(),
-            _ActionButton(text: 'UNDO', onPressed: onButtonPressed),
+            _ActionButton(text: 'UNDO', flex: 2, onPressed: onButtonPressed),
           ],
         ),
       ],
@@ -384,7 +450,7 @@ class _OutcomePanel extends StatelessWidget {
         '4-8s',
         '8-14s',
         '14-20s',
-      ].map((t) => _ActionButton(text: t, onPressed: onButtonPressed)).toList(),
+      ].map((t) => _ActionButton(text: t, flex: 2, onPressed: onButtonPressed)).toList(),
     );
   }
 }
@@ -412,7 +478,7 @@ class _AdvancePanel extends StatelessWidget {
         'Steal',
         'Deny / +1',
         'After TimeOut',
-      ].map((t) => _ActionButton(text: t, onPressed: onButtonPressed)).toList(),
+      ].map((t) => _ActionButton(text: t, flex: 2, onPressed: onButtonPressed)).toList(),
     );
   }
 }

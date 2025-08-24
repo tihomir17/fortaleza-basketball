@@ -34,6 +34,8 @@ import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 
 final sl = GetIt.instance;
 
+final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
+
 void setupServiceLocator() {
   // --- SINGLETONS (Live for the entire app lifecycle) ---
 
@@ -84,6 +86,8 @@ void setupServiceLocator() {
   sl.registerFactory<GameDetailCubit>(
     () => GameDetailCubit(gameRepository: sl<GameRepository>()),
   );
+
+  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);
 }
 
 Future<void> main() async {

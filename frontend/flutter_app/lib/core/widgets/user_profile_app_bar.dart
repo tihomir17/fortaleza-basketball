@@ -1,6 +1,7 @@
 // lib/core/widgets/user_profile_app_bar.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
@@ -106,7 +107,28 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
     // Add the default actions at the very end
     allActions.addAll(defaultActions);
 
-    return AppBar(title: Text(title.toUpperCase()), actions: allActions);
+    return AppBar(
+      // THIS IS THE NEW PART: The leading icon button
+      // leading: IconButton(
+      //   icon: const Icon(Icons.menu),
+      //   tooltip: 'Toggle Menu',
+      //   onPressed: () {
+      //     // Check screen size to decide what to do
+      //     final isWideScreen = MediaQuery.of(context).size.width > 768;
+      //     if (isWideScreen) {
+      //       // On wide screens, toggle our global notifier's value
+      //       isSidebarVisible.value = !isSidebarVisible.value;
+      //     } else {
+      //       // On narrow screens, open the standard drawer
+      //       Scaffold.of(context).openDrawer();
+      //     }
+      //   },
+      // ),
+      automaticallyImplyLeading:
+          true, // This is the default, ensures back button works
+      title: Text(title.toUpperCase()),
+      actions: allActions,
+    );
   }
 
   @override
