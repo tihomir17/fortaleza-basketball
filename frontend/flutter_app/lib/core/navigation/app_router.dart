@@ -1,6 +1,7 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -36,16 +37,16 @@ class AppRouter {
     debugLogDiagnostics: true,
 
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       ShellRoute(
         builder: (context, state, child) {
           return CoachScaffold(child: child);
         },
         routes: [
-          GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const DashboardScreen(),
+          ),
           GoRoute(
             path: '/teams',
             builder: (context, state) => const HomeScreen(),
@@ -53,9 +54,14 @@ class AppRouter {
               GoRoute(
                 path: ':teamId',
                 builder: (context, state) {
-                  final teamId = int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
+                  final teamId =
+                      int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
                   return BlocProvider(
-                    create: (context) => sl<TeamDetailCubit>()..fetchTeamDetails(token: authCubit.state.token!, teamId: teamId),
+                    create: (context) => sl<TeamDetailCubit>()
+                      ..fetchTeamDetails(
+                        token: authCubit.state.token!,
+                        teamId: teamId,
+                      ),
                     child: TeamDetailScreen(teamId: teamId),
                   );
                 },
@@ -63,11 +69,20 @@ class AppRouter {
                   GoRoute(
                     path: 'plays',
                     builder: (context, state) {
-                      final teamId = int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
+                      final teamId =
+                          int.tryParse(state.pathParameters['teamId'] ?? '') ??
+                          0;
                       final teamName = state.extra as String? ?? 'Team';
                       return BlocProvider(
-                        create: (context) => sl<PlaybookCubit>()..fetchPlays(token: authCubit.state.token!, teamId: teamId),
-                        child: PlaybookScreen(teamName: teamName, teamId: teamId),
+                        create: (context) => sl<PlaybookCubit>()
+                          ..fetchPlays(
+                            token: authCubit.state.token!,
+                            teamId: teamId,
+                          ),
+                        child: PlaybookScreen(
+                          teamName: teamName,
+                          teamId: teamId,
+                        ),
                       );
                     },
                   ),
@@ -82,9 +97,14 @@ class AppRouter {
               GoRoute(
                 path: ':gameId',
                 builder: (context, state) {
-                  final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                  final gameId =
+                      int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
                   return BlocProvider(
-                    create: (context) => sl<GameDetailCubit>()..fetchGameDetails(token: authCubit.state.token!, gameId: gameId),
+                    create: (context) => sl<GameDetailCubit>()
+                      ..fetchGameDetails(
+                        token: authCubit.state.token!,
+                        gameId: gameId,
+                      ),
                     child: GameDetailScreen(gameId: gameId),
                   );
                 },
@@ -93,17 +113,38 @@ class AppRouter {
                     path: 'track', // Matches '/games/1/track'
                     builder: (context, state) {
                       // We will eventually pass the game object here as an 'extra'
-                      return const LiveTrackingScreen();
+                      // Get the game object passed as an 'extra' parameter
+                      final game = state.extra as Game?;
+                      if (game == null) {
+                        return const Scaffold(
+                          body: Center(
+                            child: Text("Error: Game data is required."),
+                          ),
+                        );
+                      }
+                      return LiveTrackingScreen(game: game);
                     },
                   ),
                 ],
               ),
             ],
           ),
-          GoRoute(path: '/playbook', builder: (context, state) => const PlaybookHubScreen()),
-          GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen()),
-          GoRoute(path: '/scouting-reports', builder: (context, state) => const ScoutingReportsScreen()),
-          GoRoute(path: '/self-scouting', builder: (context, state) => const SelfScoutingScreen()),
+          GoRoute(
+            path: '/playbook',
+            builder: (context, state) => const PlaybookHubScreen(),
+          ),
+          GoRoute(
+            path: '/calendar',
+            builder: (context, state) => const CalendarScreen(),
+          ),
+          GoRoute(
+            path: '/scouting-reports',
+            builder: (context, state) => const ScoutingReportsScreen(),
+          ),
+          GoRoute(
+            path: '/self-scouting',
+            builder: (context, state) => const SelfScoutingScreen(),
+          ),
         ],
       ),
     ],

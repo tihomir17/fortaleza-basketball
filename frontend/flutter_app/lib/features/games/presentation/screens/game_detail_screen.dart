@@ -66,7 +66,38 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Analysis')),
+      appBar: AppBar(
+        title: const Text('Game Analysis'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(
+              right: 8.0,
+            ), // Add some space from the edge
+            child: Center(
+              // Use Center to vertically align the button
+              child: TextButton.icon(
+                onPressed: () {
+                  final game = context.read<GameDetailCubit>().state.game;
+                  if (game != null) {
+                    context.go('/games/${widget.gameId}/track', extra: game);
+                  }
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Add Possession'),
+                style: TextButton.styleFrom(
+                  // Use the theme's accent color for high visibility
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  // Add a subtle border
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
           if (state.status == GameDetailStatus.loading) {
@@ -206,15 +237,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
             ],
           );
         },
-      ),
-
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Navigate to the new nested route
-          context.go('/games/${widget.gameId}/track');
-        },
-        label: const Text('Track Possession'),
-        icon: const Icon(Icons.add_chart),
       ),
     );
   }

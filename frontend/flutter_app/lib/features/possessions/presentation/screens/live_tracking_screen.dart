@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:flutter_app/features/games/data/models/game_model.dart';
 
 class LiveTrackingScreen extends StatefulWidget {
-  const LiveTrackingScreen({super.key});
+  final Game game;
+  const LiveTrackingScreen({super.key, required this.game});
   @override
   State<LiveTrackingScreen> createState() => _LiveTrackingScreenState();
 }
