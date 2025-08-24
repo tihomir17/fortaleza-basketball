@@ -77,10 +77,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               // Use Center to vertically align the button
               child: TextButton.icon(
                 onPressed: () {
-                  final game = context.read<GameDetailCubit>().state.game;
-                  if (game != null) {
-                    context.go('/games/${widget.gameId}/track', extra: game);
-                  }
+                  // The router will get the ID from the URL.
+                  context.go('/games/${widget.gameId}/track');
                 },
                 icon: const Icon(Icons.add_circle_outline, size: 18),
                 label: const Text('Add Possession'),

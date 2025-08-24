@@ -1,7 +1,6 @@
 // lib/core/widgets/user_profile_app_bar.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';

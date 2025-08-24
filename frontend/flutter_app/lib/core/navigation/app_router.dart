@@ -1,7 +1,6 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -110,19 +109,14 @@ class AppRouter {
                 },
                 routes: [
                   GoRoute(
-                    path: 'track', // Matches '/games/1/track'
+                    path: 'track', // Matches '/games/:gameId/track'
                     builder: (context, state) {
-                      // We will eventually pass the game object here as an 'extra'
-                      // Get the game object passed as an 'extra' parameter
-                      final game = state.extra as Game?;
-                      if (game == null) {
-                        return const Scaffold(
-                          body: Center(
-                            child: Text("Error: Game data is required."),
-                          ),
-                        );
-                      }
-                      return LiveTrackingScreen(game: game);
+                      // Get the gameId from the URL path parameters
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ??
+                          0;
+                      // We no longer need to pass the game object as 'extra'
+                      return LiveTrackingScreen(gameId: gameId);
                     },
                   ),
                 ],

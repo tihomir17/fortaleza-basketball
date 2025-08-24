@@ -2,17 +2,66 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
+import 'package:flutter_app/main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class LiveTrackingScreen extends StatefulWidget {
-  final Game game;
-  const LiveTrackingScreen({super.key, required this.game});
+class LiveTrackingScreen extends StatelessWidget {
+  final int gameId;
+  const LiveTrackingScreen({super.key, required this.gameId});
+
   @override
-  State<LiveTrackingScreen> createState() => _LiveTrackingScreenState();
+  Widget build(BuildContext context) {
+    // We now wrap the entire screen in a BlocProvider for the GameDetailCubit
+    return BlocProvider(
+      create: (context) => sl<GameDetailCubit>()
+        ..fetchGameDetails(
+          token: context.read<AuthCubit>().state.token!,
+          gameId: gameId,
+        ),
+      child: Scaffold(
+        appBar: const UserProfileAppBar(title: 'Game logger'),
+        body: SafeArea(
+          // We use a BlocBuilder to wait for the game data to load
+          child: BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              if (state.status == GameDetailStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.status == GameDetailStatus.failure ||
+                  state.game == null) {
+                return const Center(
+                  child: Text("Error: Could not load game data."),
+                );
+              }
+
+              // Once the game is loaded, we build the main UI
+              final game = state.game!;
+              return _LiveTrackingView(
+                game: game,
+              ); // Pass the loaded game to the view
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
-  List<String> _sequence = [];
+// Extract the main UI into its own StatefulWidget to manage its local state
+class _LiveTrackingView extends StatefulWidget {
+  final Game game;
+  const _LiveTrackingView({required this.game});
+
+  @override
+  _LiveTrackingViewState createState() => _LiveTrackingViewState();
+}
+
+class _LiveTrackingViewState extends State<_LiveTrackingView> {
+  final List<String> _sequence = [];
 
   void _onButtonPressed(String action) {
     setState(() {
@@ -28,8 +77,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      appBar: const UserProfileAppBar(title: 'Game logger'),
-      
       body: SafeArea(
         child: Column(
           children: [
@@ -42,7 +89,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   children: [
                     // --- TOP ROW: OFFENSE (fixed height) ---
                     _Panel(
-                      title: 'OFFENCE',
+                      title: 'OFFENSE',
                       child: _OffensePanel(onButtonPressed: _onButtonPressed),
                     ),
                     const SizedBox(height: 8),
@@ -51,14 +98,16 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     // This row is expanded to fill the remaining vertical space
                     Expanded(
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           // Each panel is in an Expanded widget to control its width
                           Expanded(
                             flex: 4, // Adjust flex to control relative widths
                             child: _Panel(
-                              title: 'OFFENCE HALF COURT',
-                              child: _HalfCourtPanel(onButtonPressed: _onButtonPressed),
+                              title: 'OFFENSE HALF COURT',
+                              child: _HalfCourtPanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -66,7 +115,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                             flex: 4,
                             child: _Panel(
                               title: 'DEFFENCE',
-                              child: _DefensePanel(onButtonPressed: _onButtonPressed),
+                              child: _DefensePanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -74,7 +125,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                             flex: 3,
                             child: _Panel(
                               title: 'PLAYERS',
-                              child: _PlayersPanel(onButtonPressed: _onButtonPressed),
+                              child: _PlayersPanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
                             ),
                           ),
                         ],
@@ -83,15 +136,40 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     const SizedBox(height: 8),
 
                     // --- BOTTOM ROW: CONTROL, OUTCOME, ADVANCE (fixed height) ---
-                    IntrinsicHeight( // Ensures all panels in this row are the same height
+                    IntrinsicHeight(
+                      // Ensures all panels in this row are the same height
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(flex: 2, child: _Panel(title: 'CONTROL', child: _ControlPanel(onButtonPressed: _onButtonPressed))),
+                          Expanded(
+                            flex: 2,
+                            child: _Panel(
+                              title: 'CONTROL',
+                              child: _ControlPanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Expanded(flex: 4, child: _Panel(title: 'OUTCOME', child: _OutcomePanel(onButtonPressed: _onButtonPressed))),
+                          Expanded(
+                            flex: 4,
+                            child: _Panel(
+                              title: 'OUTCOME',
+                              child: _OutcomePanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Expanded(flex: 4, child: _Panel(title: 'ADVANCE', child: _AdvancePanel(onButtonPressed: _onButtonPressed))),
+                          Expanded(
+                            flex: 4,
+                            child: _Panel(
+                              title: 'ADVANCE',
+                              child: _AdvancePanel(
+                                onButtonPressed: _onButtonPressed,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -104,7 +182,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         ),
       ),
     );
-  }  
+  }
 
   Widget _buildSequenceDisplay() {
     return Container(
@@ -177,7 +255,6 @@ class _ActionButton extends StatelessWidget {
     required this.onPressed,
   });
 
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -220,18 +297,78 @@ class _OffensePanel extends StatelessWidget {
         // --- Second row ---
         Row(
           children: [
-            _ActionButton(text: 'FastBreak', color: Colors.grey[400], flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Transit', color: Colors.grey[400], flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: '<14s', color: Colors.grey[400], flex: 1, onPressed: onButtonPressed),
-            _ActionButton(text: 'BoB 1', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'BoB 2', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'SoB 1', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'SoB 2', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Special', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Special', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'ATO Spec', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Set 13', color: Colors.green, flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Set 14', color: Colors.green, flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'FastBreak',
+              color: Colors.grey[400],
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'Transit',
+              color: Colors.grey[400],
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: '<14s',
+              color: Colors.grey[400],
+              flex: 1,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'BoB 1',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'BoB 2',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'SoB 1',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'SoB 2',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'Special',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'Special',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'ATO Spec',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'Set 13',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'Set 14',
+              color: Colors.green,
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
         const SizedBox(height: 4), // Small gap between rows
@@ -251,43 +388,71 @@ class _HalfCourtPanel extends StatelessWidget {
         TableRow(
           children: [
             _ActionButton(text: 'PnR', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Att. CloseOut', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'After Close-Out',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
         TableRow(
           children: [
             _ActionButton(text: 'Score', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Kick Out', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'After Kick Out',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
         TableRow(
           children: [
             _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'After Extra Pass',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
-                TableRow(
+        TableRow(
           children: [
-            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: '3rd Guy', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'Cuts', flex: 2, onPressed: onButtonPressed),
           ],
         ),
-                TableRow(
+        TableRow(
           children: [
-            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'ISO', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'After Off Reb',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
-                TableRow(
+        TableRow(
           children: [
-            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'HighPost',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
+            _ActionButton(
+              text: 'After HandOff',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
-                TableRow(
+        TableRow(
           children: [
-            _ActionButton(text: 'Big Guy', flex: 2, onPressed: onButtonPressed),
-            _ActionButton(text: 'Aft. Ext Pass', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(text: 'LowPost', flex: 2, onPressed: onButtonPressed),
+            _ActionButton(
+              text: 'After Off-Screen',
+              flex: 2,
+              onPressed: onButtonPressed,
+            ),
           ],
         ),
       ],
@@ -298,35 +463,111 @@ class _HalfCourtPanel extends StatelessWidget {
 class _DefensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
   const _DefensePanel({required this.onButtonPressed});
+
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children:
-          [
-                'SWITCH',
-                'DROP',
-                'HEDGE',
-                'TRAP',
-                'ICE',
-                'FLAT',
-                '/',
-                '2-3',
-                '3-2',
-                '1-3-1',
-                'Zone Press',
-                'ISO',
-              ]
-              .map(
-                (t) => _ActionButton(
-                  text: t,
-                  color: Colors.red[700],
-                  flex: 1,
-                  onPressed: onButtonPressed,
-                ),
-              )
-              .toList(),
+    final defColor = Colors.red[700];
+
+    // Helper widget for the column headers
+    Widget buildHeader(String text) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- COLUMN 1: PnR ---
+        Expanded(
+          flex: 2, // Give it a bit more space
+          child: Column(
+            children: [
+              buildHeader('PnR'),
+              ...['SWITCH', 'DROP', 'HEDGE', 'TRAP', 'ICE', 'FLAT', '/']
+                  .map(
+                    (t) => _ActionButton(
+                      text: t,
+                      color: defColor,
+                      onPressed: onButtonPressed,
+                      flex: 2,
+                    ),
+                  )
+                  ,
+            ],
+          ),
+        ),
+
+        // --- COLUMN 2: Zone ---
+        Expanded(
+          flex: 2,
+          child: Column(
+            children: [
+              buildHeader('Zone'),
+              ...['2-3', '3-2', '1-3-1', '1-2-2', 'zone']
+                  .map(
+                    (t) => _ActionButton(
+                      text: t,
+                      color: defColor,
+                      onPressed: onButtonPressed,
+                      flex: 2,
+                    ),
+                  )
+                  ,
+            ],
+          ),
+        ),
+
+        // --- COLUMN 3: Zone Press ---
+        Expanded(
+          flex: 3, // Give it more space as the text is longer
+          child: Column(
+            children: [
+              buildHeader('Zone Press'),
+              // We create three identical buttons here
+              _ActionButton(
+                text: 'Zone Press',
+                color: defColor,
+                onPressed: onButtonPressed,
+                flex: 2,
+              ),
+              _ActionButton(
+                text: 'Zone Press',
+                color: defColor,
+                onPressed: onButtonPressed,
+                flex: 2,
+              ),
+              _ActionButton(
+                text: 'Zone Press',
+                color: defColor,
+                onPressed: onButtonPressed,
+                flex: 2,
+              ),
+            ],
+          ),
+        ),
+
+        // --- COLUMN 4: Other ---
+        Expanded(
+          flex: 2,
+          child: Column(
+            children: [
+              buildHeader('Other'),
+              _ActionButton(
+                text: 'ISO',
+                color: Colors.red,
+                onPressed: onButtonPressed,
+                flex: 2,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -372,7 +613,7 @@ class _PlayersPanel extends StatelessWidget {
                     (t) => _ActionButton(
                       text: t,
                       color: Colors.purple,
-                      flex: 2, 
+                      flex: 2,
                       onPressed: onButtonPressed,
                     ),
                   )
@@ -437,22 +678,28 @@ class _OutcomePanel extends StatelessWidget {
     return Wrap(
       spacing: 4,
       runSpacing: 4,
-      children: [
-        'Lay Up',
-        'Shot',
-        'Turnov',
-        '2pt',
-        '3pt',
-        'Foul',
-        'Made',
-        'Miss',
-        'Ft',
-        'ShotQuality',
-        '<4s',
-        '4-8s',
-        '8-14s',
-        '14-20s',
-      ].map((t) => _ActionButton(text: t, flex: 2, onPressed: onButtonPressed)).toList(),
+      children:
+          [
+                'Lay Up',
+                'Shot',
+                'Turnov',
+                '2pt',
+                '3pt',
+                'Foul',
+                'Made',
+                'Miss',
+                'Ft',
+                'ShotQuality',
+                '<4s',
+                '4-8s',
+                '8-14s',
+                '14-20s',
+              ]
+              .map(
+                (t) =>
+                    _ActionButton(text: t, flex: 2, onPressed: onButtonPressed),
+              )
+              .toList(),
     );
   }
 }
@@ -465,22 +712,28 @@ class _AdvancePanel extends StatelessWidget {
     return Wrap(
       spacing: 4,
       runSpacing: 4,
-      children: [
-        'OffReb Tag',
-        '0',
-        '1',
-        '2',
-        '3',
-        '4',
-        'Yes',
-        'No',
-        'Paint Touch',
-        'Kick Out',
-        'Extra Pass',
-        'Steal',
-        'Deny / +1',
-        'After TimeOut',
-      ].map((t) => _ActionButton(text: t, flex: 2, onPressed: onButtonPressed)).toList(),
+      children:
+          [
+                'OffReb Tag',
+                '0',
+                '1',
+                '2',
+                '3',
+                '4',
+                'Yes',
+                'No',
+                'Paint Touch',
+                'Kick Out',
+                'Extra Pass',
+                'Steal',
+                'Deny / +1',
+                'After TimeOut',
+              ]
+              .map(
+                (t) =>
+                    _ActionButton(text: t, flex: 2, onPressed: onButtonPressed),
+              )
+              .toList(),
     );
   }
 }
