@@ -509,7 +509,7 @@ class _OffensePanel extends StatelessWidget {
       children: [
         // --- First ROW ---
         Row(
-          children: List.generate(14, (i) {
+          children: List.generate(20, (i) {
             return _ActionButton(
               text: 'Set ${i + 1}',
               color: setButtonColor,
