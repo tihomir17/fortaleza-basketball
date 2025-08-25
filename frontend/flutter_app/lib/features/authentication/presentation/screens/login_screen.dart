@@ -1,7 +1,6 @@
 // lib/features/authentication/presentation/screens/login_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/theme/theme_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/auth_cubit.dart';
 
@@ -48,13 +47,13 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
         ).colorScheme.surface, // Clean surface color
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.brightness_6_outlined),
-            tooltip: 'Toggle Theme',
-            onPressed: () => context.read<ThemeCubit>().toggleTheme(),
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.brightness_6_outlined),
+        //     tooltip: 'Toggle Theme',
+        //     onPressed: () => context.read<ThemeCubit>().toggleTheme(),
+        //   ),
+        // ],
       ),
       body: Center(
         child: SingleChildScrollView(
