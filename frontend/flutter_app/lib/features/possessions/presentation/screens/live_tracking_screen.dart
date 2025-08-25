@@ -166,15 +166,16 @@ class __LiveTrackingStatefulWrapperState
     setState(() {
       if (action == 'START') {
         _isSessionActive = true;
-        _sequence = []; // Clear the sequence for a new possession
+        _sequence = [widget.currentPeriod];
+
         return; // Do not add "START" to the sequence list
       }
 
       if (action == 'END') {
         _isSessionActive = false;
         // Optionally, you could add "END" to the sequence here if you want
-        // _sequence.add(action);
         // TODO: Trigger the save possession logic
+        _sequence = [];
         return;
       }
 
@@ -810,9 +811,8 @@ class _PlayersPanel extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(1.0),
                   child: ElevatedButton(
-                    // --- THIS IS THE FIX ---
-                    // If widget.isEnabled is true, assign the _showSubstitutionDialog function.
-                    // If widget.isEnabled is false, assign null.
+                    // If isEnabled is true, assign the _showSubstitutionDialog function.
+                    // If isEnabled is false, assign null.
                     // Flutter automatically disables the button when onPressed is null.
                     onPressed: isEnabled
                         ? () => _showSubstitutionDialog(context)
