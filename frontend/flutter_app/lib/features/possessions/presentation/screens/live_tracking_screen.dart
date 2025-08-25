@@ -1,18 +1,29 @@
 // lib/features/possessions/presentation/screens/live_tracking_screen.dart
 
+// ignore_for_file: unused_import, unused_element_parameter
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class LiveTrackingScreen extends StatelessWidget {
+class LiveTrackingScreen extends StatefulWidget {
   final int gameId;
   const LiveTrackingScreen({super.key, required this.gameId});
+
+  @override
+  State<LiveTrackingScreen> createState() => _LiveTrackingScreenState();
+}
+
+class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
+  // Local UI state for the screen
+  String _currentPeriod = "Q1";
 
   @override
   Widget build(BuildContext context) {
@@ -20,58 +31,138 @@ class LiveTrackingScreen extends StatelessWidget {
       create: (context) => sl<GameDetailCubit>()
         ..fetchGameDetails(
           token: context.read<AuthCubit>().state.token!,
-          gameId: gameId,
+          gameId: widget.gameId,
         ),
-      // The BlocBuilder is now the root of the UI for this screen.
       child: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
-          // Error handler
-          if (state.status == GameDetailStatus.loading) {
-            return const Scaffold(
-              appBar: UserProfileAppBar(title: 'Loading Session...'),
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (state.status == GameDetailStatus.failure || state.game == null) {
-            return Scaffold(
-              appBar: const UserProfileAppBar(title: 'Error'),
-              body: Center(
-                child: Text(state.errorMessage ?? "Could not load game data."),
-              ),
-            );
-          }
-
-          // If we have the data, build the full screen.
-          final game = state.game!;
-          final String appBarTitle =
-              'Game: ${game.homeTeam?.name ?? 'Home'} vs ${game.awayTeam?.name ?? 'Away'}';
+          // Determine the AppBar title based on the state
+          final game = state.game;
+          final String appBarTitle = game != null
+              ? '${game.homeTeam.name} vs ${game.awayTeam.name}'
+              : 'Loading Session...';
 
           return Scaffold(
-            appBar: UserProfileAppBar(title: appBarTitle),
+            appBar: UserProfileAppBar(
+              title: appBarTitle,
+              actions: [
+                // Only show the period selector if the game has loaded
+                if (state.status == GameDetailStatus.success && game != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: PopupMenuButton<String>(
+                      onSelected: (newPeriod) {
+                        // setState is available here because we are in a StatefulWidget
+                        setState(() {
+                          _currentPeriod = newPeriod;
+                        });
+                      },
+                      child: Chip(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.secondary,
+                        label: Text(
+                          _currentPeriod,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'Q1',
+                          child: Text('1st Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q2',
+                          child: Text('2nd Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q3',
+                          child: Text('3rd Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q4',
+                          child: Text('4th Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'OT',
+                          child: Text('Overtime'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             body: SafeArea(
-              // The main UI is now built inside a dedicated widget.
-              child: _LiveTrackingView(game: game),
+              child: _buildBody(state), // Pass the state to the body builder
             ),
           );
         },
       ),
     );
   }
+
+  Widget _buildBody(GameDetailState state) {
+    if (state.status == GameDetailStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.status == GameDetailStatus.failure || state.game == null) {
+      return Center(
+        child: Text(state.errorMessage ?? "Could not load game data."),
+      );
+    }
+    // If data is loaded, build the main view
+    return _LiveTrackingView(game: state.game!, currentPeriod: _currentPeriod);
+  }
 }
 
-// Extract the main UI into its own StatefulWidget to manage its local state
-class _LiveTrackingView extends StatefulWidget {
+// The main UI view, which is now stateless as its state is passed in
+class _LiveTrackingView extends StatelessWidget {
   final Game game;
-  const _LiveTrackingView({required this.game});
+  final String currentPeriod;
+
+  const _LiveTrackingView({required this.game, required this.currentPeriod});
+
+  // This StatefulWidget holds the local state for the sequence
+  @override
+  Widget build(BuildContext context) {
+    return _LiveTrackingStatefulWrapper(
+      game: game,
+      currentPeriod: currentPeriod,
+    );
+  }
+}
+
+class _LiveTrackingStatefulWrapper extends StatefulWidget {
+  final Game game;
+  final String currentPeriod;
+
+  const _LiveTrackingStatefulWrapper({
+    required this.game,
+    required this.currentPeriod,
+  });
 
   @override
-  _LiveTrackingViewState createState() => _LiveTrackingViewState();
+  __LiveTrackingStatefulWrapperState createState() =>
+      __LiveTrackingStatefulWrapperState();
 }
 
-class _LiveTrackingViewState extends State<_LiveTrackingView> {
+class __LiveTrackingStatefulWrapperState
+    extends State<_LiveTrackingStatefulWrapper> {
   final List<String> _sequence = [];
 
   void _onButtonPressed(String action) {
+    // --- SPECIAL BUTTON LOGIC ---
+    if (action == 'Turnover') {
+      _showTurnoverMenu();
+      return;
+    }
+    if (action == 'Free Throw') {
+      _showFreeThrowMenu();
+      return;
+    }
+
     setState(() {
       if (action == "UNDO" && _sequence.isNotEmpty) {
         _sequence.removeLast();
@@ -79,6 +170,69 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
         _sequence.add(action);
       }
     });
+  }
+
+  void _showTurnoverMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => ListView(
+        children: [
+          const ListTile(
+            title: Text(
+              'Select Turnover Type',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ...[
+            'Out of bounds',
+            'Travelling',
+            'Offensive foul',
+            '3 seconds in key',
+            '5 seconds violation',
+            '8 seconds violation',
+            'Shot clock violation',
+            'Bad pass',
+            'Technical foul',
+          ].map(
+            (type) => ListTile(
+              title: Text(type),
+              onTap: () {
+                // Add the specific turnover type to the sequence
+                _onButtonPressed('TO: $type');
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFreeThrowMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.check_circle, color: Colors.green),
+            title: const Text('Made'),
+            onTap: () {
+              _onButtonPressed('FT Made');
+              Navigator.of(ctx).pop();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.cancel, color: Colors.red),
+            title: const Text('Missed'),
+            onTap: () {
+              _onButtonPressed('FT Miss');
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -156,6 +310,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                               title: 'CONTROL',
                               child: _ControlPanel(
                                 onButtonPressed: _onButtonPressed,
+                                currentPeriod: "N/A",
                               ),
                             ),
                           ),
@@ -219,7 +374,9 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
       color: Colors.black87,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Text(
-        _sequence.isEmpty ? "Start: ..." : _sequence.join(' / '),
+        _sequence.isEmpty
+            ? "Press Start for the new possesion."
+            : _sequence.join(' / '),
         style: const TextStyle(
           color: Colors.white,
           fontFamily: 'monospace',
@@ -843,7 +1000,11 @@ class _PlayersPanel extends StatelessWidget {
 
 class _ControlPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _ControlPanel({required this.onButtonPressed});
+  final String currentPeriod; // It now accepts the current period
+  const _ControlPanel({
+    required this.onButtonPressed,
+    required this.currentPeriod,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -866,7 +1027,7 @@ class _ControlPanel extends StatelessWidget {
                   onPressed: onButtonPressed,
                 ),
                 _ActionButton(
-                  text: 'Period',
+                  text: currentPeriod,
                   color: Colors.grey,
                   onPressed: onButtonPressed,
                 ),
@@ -1011,7 +1172,7 @@ class _OutcomePanel extends StatelessWidget {
                   onPressed: onButtonPressed,
                 ),
                 _ActionButton(
-                  text: 'Free throw',
+                  text: 'Free Throw',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
                 ),
@@ -1104,12 +1265,6 @@ class _OffRebPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final offRebTagColor = Colors.pink[300];
-
-    Widget buildHeader(String text) => Text(
-      text,
-      textAlign: TextAlign.center,
-      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-    );
 
     return Column(
       mainAxisAlignment:
