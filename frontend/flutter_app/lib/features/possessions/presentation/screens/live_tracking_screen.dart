@@ -22,47 +22,35 @@ class LiveTrackingScreen extends StatelessWidget {
           token: context.read<AuthCubit>().state.token!,
           gameId: gameId,
         ),
-      // We wrap the Scaffold in a BlocBuilder to get the game data for the AppBar
+      // The BlocBuilder is now the root of the UI for this screen.
       child: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
-          final game = state.game;
+          // Error handler
+          if (state.status == GameDetailStatus.loading) {
+            return const Scaffold(
+              appBar: UserProfileAppBar(title: 'Loading Session...'),
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (state.status == GameDetailStatus.failure || state.game == null) {
+            return Scaffold(
+              appBar: const UserProfileAppBar(title: 'Error'),
+              body: Center(
+                child: Text(state.errorMessage ?? "Could not load game data."),
+              ),
+            );
+          }
 
-          // Determine the title for the AppBar
-          final String appBarTitle = game != null
-              ? '${game.homeTeam.name} vs ${game.awayTeam.name}'
-              : 'Possession Logger';
+          // If we have the data, build the full screen.
+          final game = state.game!;
+          final String appBarTitle =
+              'Game: ${game.homeTeam?.name ?? 'Home'} vs ${game.awayTeam?.name ?? 'Away'}';
 
           return Scaffold(
-            // Use our custom AppBar that can handle the menu toggle
             appBar: UserProfileAppBar(title: appBarTitle),
             body: SafeArea(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        if (state.status == GameDetailStatus.loading) {
-                          return const Center(
-                            child: Text("Loading Game Data..."),
-                          );
-                        }
-                        if (state.status == GameDetailStatus.failure ||
-                            game == null) {
-                          return Center(
-                            child: Text(
-                              state.errorMessage ??
-                                  "Error: Could not load game data.",
-                            ),
-                          );
-                        }
-
-                        // Once the game is loaded, build the main UI
-                        return _LiveTrackingView(game: game);
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              // The main UI is now built inside a dedicated widget.
+              child: _LiveTrackingView(game: game),
             ),
           );
         },
@@ -98,7 +86,6 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
     // The main Column that holds the content and the sequence display
     return Column(
       children: [
-        // --- THIS IS THE CORE OF THE FIX ---
         // Expanded ensures this container takes up all available space
         Expanded(
           // The FittedBox is the magic widget. It will scale its child
@@ -113,22 +100,21 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
               height: 720,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                // The rest of your layout goes inside this SizedBox.
                 // Because it has a fixed size, none of the inner widgets
                 // will ever cause an overflow error.
                 child: Column(
                   children: [
                     _Panel(
-                      title: 'OFFENCE',
+                      title: 'OFFENSE',
                       child: _OffensePanel(onButtonPressed: _onButtonPressed),
                     ),
                     const SizedBox(height: 8),
-                    Expanded(
+                    IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: _Panel(
                               title: 'OFFENSE HALF COURT',
                               child: _HalfCourtPanel(
@@ -138,7 +124,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: _Panel(
                               title: 'DEFENSE',
                               child: _DefensePanel(
@@ -148,7 +134,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 3,
+                            flex: 4,
                             child: _Panel(
                               title: 'PLAYERS',
                               child: _PlayersPanel(
@@ -165,7 +151,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            flex: 2,
+                            flex: 3,
                             child: _Panel(
                               title: 'CONTROL',
                               child: _ControlPanel(
@@ -175,7 +161,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: _Panel(
                               title: 'OUTCOME',
                               child: _OutcomePanel(
@@ -195,7 +181,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 2,
                             child: _Panel(
                               title: 'TAG OFFENSIVE REBOUND',
                               child: _OffRebPanel(
@@ -205,7 +191,7 @@ class _LiveTrackingViewState extends State<_LiveTrackingView> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 2,
                             child: _Panel(
                               title: 'ADVANCED',
                               child: _AdvancePanel(
@@ -1091,10 +1077,6 @@ class _ShootPanel extends StatelessWidget {
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
                   ),
-                ],
-              ),
-              Row(
-                children: [
                   _ActionButton(
                     text: '8-14s',
                     color: Colors.indigo,
@@ -1133,9 +1115,6 @@ class _OffRebPanel extends StatelessWidget {
       mainAxisAlignment:
           MainAxisAlignment.spaceBetween, //ensures space between tables
       children: [
-        // Expanded(
-        //   flex: 2,
-        // child:
         Table(
           // Define the relative widths of the 4 content columns
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -1156,13 +1135,6 @@ class _OffRebPanel extends StatelessWidget {
                   // Set default height for all rows
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   children: [
-                    TableRow(
-                      children: [
-                        buildHeader('Off'),
-                        buildHeader('Reb'),
-                        buildHeader('Tag'),
-                      ],
-                    ), // TableRow
                     TableRow(
                       children: [
                         _ActionButton(
@@ -1226,7 +1198,6 @@ class _OffRebPanel extends StatelessWidget {
             ), // TableRow
           ],
         ),
-        // ),
       ],
     );
   }
