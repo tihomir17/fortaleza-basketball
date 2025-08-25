@@ -163,6 +163,10 @@ class __LiveTrackingStatefulWrapperState
       return;
     }
 
+    if (action == 'Substitution') {
+      _showSubstitutionDialog(context);
+    }
+
     setState(() {
       if (action == 'START') {
         _isSessionActive = true;
@@ -187,6 +191,76 @@ class __LiveTrackingStatefulWrapperState
         _sequence.add(action);
       }
     });
+  }
+
+  // Method to display the custom dialog for the sub
+  void _showSubstitutionDialog(BuildContext context) {
+    // Controllers for the text fields
+    final playerInController = TextEditingController();
+    final playerOutController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Substitution'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Make the dialog content compact
+              children: [
+                TextFormField(
+                  controller: playerInController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player In',
+                    prefixIcon: Icon(Icons.arrow_upward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: playerOutController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Out',
+                    prefixIcon: Icon(Icons.arrow_downward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  // If the form is valid, create the action string
+                  final String subAction =
+                      'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
+                  // Call the main onPressed callback to add it to the sequence
+                  _onButtonPressed(subAction);
+                  // Close the dialog
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showTurnoverMenu() {
@@ -487,6 +561,7 @@ class _ActionButton extends StatelessWidget {
             fontSize: textSize ?? 14,
             fontWeight: FontWeight.bold,
             height: 1.1,
+            fontFamily: 'Montserrat',
           ),
         ),
         child: Text(text),
@@ -682,83 +757,6 @@ class _PlayersPanel extends StatelessWidget {
 
   const _PlayersPanel({required this.onButtonPressed, required this.isEnabled});
 
-  // Method to display the custom dialog for the sub
-  void _showSubstitutionDialog(BuildContext context) {
-    // Controllers for the text fields
-    final playerInController = TextEditingController();
-    final playerOutController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    if (isEnabled) {
-      showDialog(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Substitution'),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize:
-                    MainAxisSize.min, // Make the dialog content compact
-                children: [
-                  TextFormField(
-                    controller: playerInController,
-                    decoration: const InputDecoration(
-                      labelText: 'Player In',
-                      prefixIcon: Icon(Icons.arrow_upward),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 2,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: playerOutController,
-                    decoration: const InputDecoration(
-                      labelText: 'Player Out',
-                      prefixIcon: Icon(Icons.arrow_downward),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 2,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Required' : null,
-                  ),
-                ],
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.of(dialogContext).pop(),
-              ),
-              ElevatedButton(
-                child: const Text('Confirm'),
-                onPressed: () {
-                  if (formKey.currentState!.validate()) {
-                    // If the form is valid, create the action string
-                    final String subAction =
-                        'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
-                    // Call the main onPressed callback to add it to the sequence
-                    onButtonPressed(subAction);
-                    // Close the dialog
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-              ),
-            ],
-          );
-        },
-      );
-    } else {
-      Center(
-        child: Text("Logging is inactive. Press start to log new possession."),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -806,30 +804,11 @@ class _PlayersPanel extends StatelessWidget {
                   onPressed: onButtonPressed,
                   isEnabled: isEnabled,
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(1.0),
-                  child: ElevatedButton(
-                    // If isEnabled is true, assign the _showSubstitutionDialog function.
-                    // If isEnabled is false, assign null.
-                    // Flutter automatically disables the button when onPressed is null.
-                    onPressed: isEnabled
-                        ? () => _showSubstitutionDialog(context)
-                        : null,
-
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(32),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    child: const Text('Substitution'),
-                  ),
+                _ActionButton(
+                  text: 'Substitution',
+                  color: Colors.black,
+                  onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),

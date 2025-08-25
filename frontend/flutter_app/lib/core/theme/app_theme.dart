@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // --- BRAND COLORS ---
-  static const Color primaryColor = Color(0xFF0A192F); // Even deeper navy
-  static const Color accentColor = Color(0xFFF9A825); // Vibrant gold
+  static const Color primaryColor = Color(0xFF0A192F); // Deep Navy Blue
+  static const Color accentColor = Color(0xFFF9A825); // Vibrant Gold/Orange
+  static const Color lightBackgroundColor = Color(0xFFF4F6F8);
+  static const Color lightSurfaceColor = Colors.white;
+  static const Color darkBackgroundColor = Color(0xFF121212);
+  static const Color darkSurfaceColor = Color(0xFF1E1E1E);
 
   // --- LIGHT THEME ---
   static ThemeData get lightTheme {
@@ -84,15 +88,15 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accent,
-          foregroundColor: onPrimary,
+          elevation: 2,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.0),
-          ), // Rounded buttons
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           textStyle: const TextStyle(
             fontFamily: 'Montserrat',
             fontWeight: FontWeight.bold,
+            fontSize: 14,
           ),
         ),
       ),

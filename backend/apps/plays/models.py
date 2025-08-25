@@ -17,7 +17,9 @@ class PlayDefinition(models.Model):
         PLAYERS = "PLAYERS", _("Players")
         CONTROL = "CONTROL", _("Control")
         OUTCOME = "OUTCOME", _("Outcome")
-        ADVANCE = "ADVANCE", _("Advance")
+        SHOOT = "SHOOT", _("Shoot")
+        TAGOFFREB = "TAGOFFREB", _("TagOffReb")
+        ADVANCE = "ADVANCED", _("Advanced")
         OTHER = "OTHER", _("Other")
 
     name = models.CharField(_("Play Name"), max_length=255)
