@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
@@ -57,14 +58,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                         });
                       },
                       child: Chip(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.secondary,
+                        backgroundColor: Colors.red,
                         label: Text(
                           _currentPeriod,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimary,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -150,7 +149,8 @@ class _LiveTrackingStatefulWrapper extends StatefulWidget {
 
 class __LiveTrackingStatefulWrapperState
     extends State<_LiveTrackingStatefulWrapper> {
-  final List<String> _sequence = [];
+  List<String> _sequence = [];
+  bool _isSessionActive = false;
 
   void _onButtonPressed(String action) {
     // --- SPECIAL BUTTON LOGIC ---
@@ -164,6 +164,22 @@ class __LiveTrackingStatefulWrapperState
     }
 
     setState(() {
+      if (action == 'START') {
+        _isSessionActive = true;
+        _sequence = []; // Clear the sequence for a new possession
+        return; // Do not add "START" to the sequence list
+      }
+
+      if (action == 'END') {
+        _isSessionActive = false;
+        // Optionally, you could add "END" to the sequence here if you want
+        // _sequence.add(action);
+        // TODO: Trigger the save possession logic
+        return;
+      }
+
+      if (!_isSessionActive) return;
+
       if (action == "UNDO" && _sequence.isNotEmpty) {
         _sequence.removeLast();
       } else if (action != "UNDO") {
@@ -260,7 +276,10 @@ class __LiveTrackingStatefulWrapperState
                   children: [
                     _Panel(
                       title: 'OFFENSE',
-                      child: _OffensePanel(onButtonPressed: _onButtonPressed),
+                      child: _OffensePanel(
+                        onButtonPressed: _onButtonPressed,
+                        isEnabled: _isSessionActive,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     IntrinsicHeight(
@@ -273,6 +292,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'OFFENSE HALF COURT',
                               child: _HalfCourtPanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -283,6 +303,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'DEFENSE',
                               child: _DefensePanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -293,6 +314,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'PLAYERS',
                               child: _PlayersPanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -310,7 +332,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'CONTROL',
                               child: _ControlPanel(
                                 onButtonPressed: _onButtonPressed,
-                                currentPeriod: "N/A",
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -351,6 +373,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'ADVANCED',
                               child: _AdvancePanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -432,6 +455,7 @@ class _ActionButton extends StatelessWidget {
   final ValueChanged<String> onPressed;
   final int? flex;
   final double? textSize;
+  final bool isEnabled;
 
   const _ActionButton({
     required this.text,
@@ -440,6 +464,7 @@ class _ActionButton extends StatelessWidget {
     this.textSize,
     this.textColor,
     this.flex,
+    this.isEnabled = true,
   });
 
   @override
@@ -447,7 +472,7 @@ class _ActionButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(2.0),
       child: ElevatedButton(
-        onPressed: () => onPressed(text),
+        onPressed: isEnabled ? () => onPressed(text) : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: color ?? Colors.lightBlue,
           foregroundColor: textColor ?? Colors.white,
@@ -468,7 +493,9 @@ class _ActionButton extends StatelessWidget {
 
 class _OffensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _OffensePanel({required this.onButtonPressed});
+  final bool isEnabled;
+
+  const _OffensePanel({required this.onButtonPressed, required this.isEnabled});
 
   @override
   Widget build(BuildContext context) {
@@ -484,73 +511,38 @@ class _OffensePanel extends StatelessWidget {
               color: setButtonColor,
               onPressed: onButtonPressed,
               textSize: 14,
+              isEnabled: isEnabled,
             );
           }),
         ),
         // --- Second row ---
         Row(
-          children: [
-            _ActionButton(
-              text: 'FastBreak',
-              color: Colors.grey[400],
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Transit',
-              color: Colors.grey[400],
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: '<14s',
-              color: Colors.grey[400],
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'BoB 1',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'BoB 2',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'SoB 1',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'SoB 2',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Special',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Special',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'ATO Spec',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Set 13',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Set 14',
-              color: setButtonColor,
-              onPressed: onButtonPressed,
-            ),
-          ],
+          children:
+              [
+                    'FastBreak',
+                    'Transit',
+                    '<14s',
+                    'BoB 1',
+                    'BoB 2',
+                    'SoB 1',
+                    'SoB 2',
+                    'Special 1',
+                    'Special 2',
+                    'ATO Spec',
+                    'Set 13',
+                    'Set 14',
+                  ]
+                  .map(
+                    (t) => Expanded(
+                      child: _ActionButton(
+                        text: t,
+                        color: Colors.grey[400],
+                        onPressed: onButtonPressed,
+                        isEnabled: isEnabled, // <-- PASS THE STATE
+                      ),
+                    ),
+                  )
+                  .toList(),
         ),
         const SizedBox(height: 4), // Small gap between rows
       ],
@@ -560,275 +552,133 @@ class _OffensePanel extends StatelessWidget {
 
 class _HalfCourtPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _HalfCourtPanel({required this.onButtonPressed});
+  final bool isEnabled;
+
+  const _HalfCourtPanel({
+    required this.onButtonPressed,
+    required this.isEnabled,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final darkBlue = Colors.blue[900];
-    // Table is good for this kind of rigid layout
+    // Define the colors based on your design
+    final darkBlue = const Color(0xFF00008B); // A deep, solid blue
+    final teal = const Color(0xFF20B2AA); // A vibrant teal/cyan
+
+    // Data structure for the panel.
+    // We're using a list of maps to hold both the text and the color for each button.
+    final List<Map<String, dynamic>> buttonData = [
+      {'left': 'PnR', 'right': 'Att. CloseOut', 'leftColor': darkBlue},
+      {'left': 'Score', 'right': 'Aft. Kick Out', 'leftColor': teal},
+      {'left': 'Big Guy', 'right': 'Aft. Ext Pass', 'leftColor': teal},
+      {'left': '3rd Guy', 'right': 'Cuts', 'leftColor': teal},
+      {'left': 'ISO', 'right': 'Aft. Off Reb', 'leftColor': darkBlue},
+      {'left': 'HighPost', 'right': 'Aft. HandOff', 'leftColor': teal},
+      {'left': 'LowPost', 'right': 'Aft. OffScreen', 'leftColor': teal},
+    ];
+
     return Table(
-      columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2)},
-      // Set default height for all rows
+      columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      children: [
-        TableRow(
+      children: buttonData.map((rowData) {
+        return TableRow(
           children: [
+            // Left column button
             _ActionButton(
-              text: 'PnR',
-              color: darkBlue,
+              text: rowData['left'],
+              color: rowData['leftColor'], // Use the color from our data map
+              textColor: Colors.white,
               onPressed: onButtonPressed,
+              isEnabled: isEnabled,
             ),
+            // Right column button - always dark blue
             _ActionButton(
-              text: 'Attack Close-Out',
+              text: rowData['right'],
               color: darkBlue,
+              textColor: Colors.white,
               onPressed: onButtonPressed,
+              isEnabled: isEnabled,
             ),
           ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'Score',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'After Kick Out',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(text: 'Big Guy', onPressed: onButtonPressed),
-            _ActionButton(
-              text: 'After Extra Pass',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(text: '3rd Guy', onPressed: onButtonPressed),
-            _ActionButton(
-              text: 'Cuts',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'ISO',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'After Off Reb',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(text: 'HighPost', onPressed: onButtonPressed),
-            _ActionButton(
-              text: 'After HandOff',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(text: 'LowPost', onPressed: onButtonPressed),
-            _ActionButton(
-              text: 'After Off-Screen',
-              color: darkBlue,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 }
 
 class _DefensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _DefensePanel({required this.onButtonPressed});
+  final bool isEnabled;
+
+  const _DefensePanel({required this.onButtonPressed, required this.isEnabled});
 
   @override
   Widget build(BuildContext context) {
     final defColor = Colors.red[700];
 
-    // Helper for column headers
-    Widget buildHeader(String text) => Text(
-      text,
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 14,
-        color: Colors.black,
-      ),
-    );
-
-    // Helper for empty cells to create spacing
-    Widget emptyCell() => const SizedBox.shrink();
+    // This defines the entire layout. An empty string "" will be an empty cell.
+    const List<List<String>> layout = [
+      ['PnR', 'Zone', 'Zone Press', 'Other'], // Headers
+      ['SWITCH', '2-3', 'Zone Press', 'ISO'],
+      ['DROP', '3-2', 'Zone Press', ""],
+      ['HEDGE', '1-3-1', 'Zone Press', ""],
+      ['TRAP', '1-2-2', "", ""],
+      ['ICE', 'zone', "", ""],
+      ['FLAT', "", "", ""],
+      ['WEAK', "", "", ""],
+    ];
 
     return Table(
-      // Define the relative widths of the 4 content columns
       columnWidths: const {
         0: FlexColumnWidth(2),
         1: FlexColumnWidth(2),
         2: FlexColumnWidth(3),
         3: FlexColumnWidth(2),
       },
-      // Set default height for all rows
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      children: [
-        // --- HEADER ROW ---
-        TableRow(
-          children: [
-            buildHeader('PnR'),
-            buildHeader('Zone'),
-            buildHeader('Zone Press'),
-            buildHeader('Other'),
-          ],
-        ),
-        // --- BUTTON ROWS ---
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'SWITCH',
-              color: defColor,
+      // Programmatically build the TableRows from our data structure
+      children: List.generate(layout.length, (rowIndex) {
+        final rowData = layout[rowIndex];
+        return TableRow(
+          children: List.generate(rowData.length, (colIndex) {
+            final text = rowData[colIndex];
+
+            // If it's the header row, build a Text widget
+            if (rowIndex == 0) {
+              return Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              );
+            }
+
+            // If the text is empty, create an empty cell
+            if (text.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            // Otherwise, build an ActionButton
+            return _ActionButton(
+              text: text,
+              color: text == 'ISO' ? Colors.red : defColor,
               onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: '2-3',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Zone Press',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'ISO',
-              color: Colors.red,
-              onPressed: onButtonPressed,
-            ),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'DROP',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: '3-2',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Zone Press',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(), // No button in this cell
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'HEDGE',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: '1-3-1',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'Zone Press',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'TRAP',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: '1-2-2',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(),
-            emptyCell(),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'ICE',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            _ActionButton(
-              text: 'zone',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(),
-            emptyCell(),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'FLAT',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(),
-            emptyCell(),
-            emptyCell(),
-          ],
-        ),
-        TableRow(
-          children: [
-            _ActionButton(
-              text: 'WEAK',
-              color: defColor,
-              onPressed: onButtonPressed,
-            ),
-            emptyCell(),
-            emptyCell(),
-            emptyCell(),
-          ],
-        ),
-      ],
+              isEnabled: isEnabled,
+            );
+          }),
+        );
+      }),
     );
   }
 }
 
 class _PlayersPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _PlayersPanel({required this.onButtonPressed});
+  final bool isEnabled;
+
+  const _PlayersPanel({required this.onButtonPressed, required this.isEnabled});
 
   // Method to display the custom dialog for the sub
   void _showSubstitutionDialog(BuildContext context) {
@@ -837,67 +687,74 @@ class _PlayersPanel extends StatelessWidget {
     final playerOutController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Substitution'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // Make the dialog content compact
-              children: [
-                TextFormField(
-                  controller: playerInController,
-                  decoration: const InputDecoration(
-                    labelText: 'Player In',
-                    prefixIcon: Icon(Icons.arrow_upward),
+    if (isEnabled) {
+      showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Substitution'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min, // Make the dialog content compact
+                children: [
+                  TextFormField(
+                    controller: playerInController,
+                    decoration: const InputDecoration(
+                      labelText: 'Player In',
+                      prefixIcon: Icon(Icons.arrow_upward),
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 2,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Required' : null,
                   ),
-                  keyboardType: TextInputType.number,
-                  maxLength: 2,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: playerOutController,
-                  decoration: const InputDecoration(
-                    labelText: 'Player Out',
-                    prefixIcon: Icon(Icons.arrow_downward),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: playerOutController,
+                    decoration: const InputDecoration(
+                      labelText: 'Player Out',
+                      prefixIcon: Icon(Icons.arrow_downward),
+                    ),
+                    keyboardType: TextInputType.number,
+                    maxLength: 2,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Required' : null,
                   ),
-                  keyboardType: TextInputType.number,
-                  maxLength: 2,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'Required' : null,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            ElevatedButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  // If the form is valid, create the action string
-                  final String subAction =
-                      'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
-                  // Call the main onPressed callback to add it to the sequence
-                  onButtonPressed(subAction);
-                  // Close the dialog
-                  Navigator.of(dialogContext).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(dialogContext).pop(),
+              ),
+              ElevatedButton(
+                child: const Text('Confirm'),
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    // If the form is valid, create the action string
+                    final String subAction =
+                        'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
+                    // Call the main onPressed callback to add it to the sequence
+                    onButtonPressed(subAction);
+                    // Close the dialog
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      Center(
+        child: Text("Logging is inactive. Press start to log new possession."),
+      );
+    }
   }
 
   @override
@@ -927,6 +784,7 @@ class _PlayersPanel extends StatelessWidget {
                   text: '#',
                   color: color,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 );
               }),
             );
@@ -944,6 +802,7 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'BoxOut -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 Padding(
                   // Wrap in Padding to match the _ActionButton style
@@ -973,11 +832,13 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'DefReb +1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Recover -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),
@@ -987,6 +848,7 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'OffReb -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 const SizedBox.shrink(), // Empty cell for the bottom right
               ],
@@ -1000,11 +862,9 @@ class _PlayersPanel extends StatelessWidget {
 
 class _ControlPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final String currentPeriod; // It now accepts the current period
-  const _ControlPanel({
-    required this.onButtonPressed,
-    required this.currentPeriod,
-  });
+  final bool isEnabled;
+
+  const _ControlPanel({required this.onButtonPressed, required this.isEnabled});
 
   @override
   Widget build(BuildContext context) {
@@ -1026,11 +886,6 @@ class _ControlPanel extends StatelessWidget {
                   color: Colors.green,
                   onPressed: onButtonPressed,
                 ),
-                _ActionButton(
-                  text: currentPeriod,
-                  color: Colors.grey,
-                  onPressed: onButtonPressed,
-                ),
               ],
             ),
           ],
@@ -1050,16 +905,19 @@ class _ControlPanel extends StatelessWidget {
                   text: 'Off',
                   color: Colors.grey,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Def',
                   color: Colors.grey,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'UNDO',
                   color: Colors.grey,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled, // TODO: UNDO MUST BE ALWAYS ACTIVE!
                 ),
               ],
             ),
@@ -1079,11 +937,13 @@ class _ControlPanel extends StatelessWidget {
                   text: 'END',
                   color: Colors.red,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'FORW',
                   color: Colors.grey,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),
@@ -1202,10 +1062,10 @@ class _ShootPanel extends StatelessWidget {
       children: [
         // --- LEFT COLUMN: OffReb Tag ---
         Expanded(
-          flex: 22, // Give this section more space
+          flex: 2, // Give this section more space
           child: Column(
             children: [
-              buildHeader('Shoot quality'),
+              buildHeader('Shoot Quality'),
               Row(
                 children: [
                   _ActionButton(
@@ -1360,64 +1220,53 @@ class _OffRebPanel extends StatelessWidget {
 
 class _AdvancePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _AdvancePanel({required this.onButtonPressed});
+  final bool isEnabled; // Add the isEnabled flag
+
+  const _AdvancePanel({
+    super.key,
+    required this.onButtonPressed,
+    required this.isEnabled, // Add to constructor
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Table(
-          columnWidths: const {
-            0: FlexColumnWidth(1), // Give START more space
-            1: FlexColumnWidth(1),
-          },
+    // Define the colors based on your design
+    final indigoBlue = Colors.indigoAccent; // A deep, solid blue
+    final stealColor = Colors.redAccent; // A vibrant teal/cyan
+
+    // Data structure for the panel.
+    // We're using a list of maps to hold both the text and the color for each button.
+    final List<Map<String, dynamic>> buttonData = [
+      {'left': 'Paint Touch', 'right': 'Steal', 'rightColor': stealColor},
+      {'left': 'Kick Out', 'right': 'Deny / +1', 'rightColor': stealColor},
+      {'left': 'Extra Pass', 'right': 'After TO', 'leftColor': Colors.black},
+    ];
+
+    return Table(
+      columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: buttonData.map((rowData) {
+        return TableRow(
           children: [
-            TableRow(
-              children: [
-                _ActionButton(
-                  text: 'Paint Touch',
-                  color: Colors.indigo,
-                  onPressed: onButtonPressed,
-                ),
-                _ActionButton(
-                  text: 'Steal',
-                  color: Colors.deepOrangeAccent,
-                  onPressed: onButtonPressed,
-                ),
-              ],
+            // Left column button
+            _ActionButton(
+              text: rowData['left'],
+              color: indigoBlue, // Use the color from our data map
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: isEnabled,
             ),
-            TableRow(
-              children: [
-                _ActionButton(
-                  text: 'Kick Out',
-                  color: Colors.indigo,
-                  onPressed: onButtonPressed,
-                ),
-                _ActionButton(
-                  text: 'Deny / +1',
-                  color: Colors.deepOrangeAccent,
-                  onPressed: onButtonPressed,
-                ),
-              ],
-            ),
-            TableRow(
-              children: [
-                _ActionButton(
-                  text: 'Extra pass',
-                  color: Colors.indigo,
-                  onPressed: onButtonPressed,
-                ),
-                _ActionButton(
-                  text: 'After TO',
-                  color: Colors.black,
-                  onPressed: onButtonPressed,
-                ),
-              ],
+            // Right column button - always dark blue
+            _ActionButton(
+              text: rowData['right'],
+              color: rowData['rightColor'], // Use the color from our data map,
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: isEnabled,
             ),
           ],
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 }
