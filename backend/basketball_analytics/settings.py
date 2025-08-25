@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.possessions.apps.PossessionsConfig",
     "apps.competitions.apps.CompetitionsConfig",
     "apps.games.apps.GamesConfig",
+    "apps.events.apps.EventsConfig",
 ]
 
 MIDDLEWARE = [

@@ -10,14 +10,20 @@ class PlayDefinition(models.Model):
     Stores the definition of an offensive or defensive play.
     """
 
-    class PlayType(models.TextChoices):
-        OFFENSIVE = "OFFENSIVE", _("Offensive")
-        DEFENSIVE = "DEFENSIVE", _("Defensive")
+    class Category(models.TextChoices):
+        OFFENSE = "OFFENSE", _("Offense")
+        OFFENSE_HALF_COURT = "OFFENSE_HALF_COURT", _("Offense Half Court")
+        DEFENSE = "DEFENSE", _("Defense")
+        PLAYERS = "PLAYERS", _("Players")
+        CONTROL = "CONTROL", _("Control")
+        OUTCOME = "OUTCOME", _("Outcome")
+        ADVANCE = "ADVANCE", _("Advance")
+        OTHER = "OTHER", _("Other")
 
     name = models.CharField(_("Play Name"), max_length=255)
     description = models.TextField(_("Description"), blank=True, null=True)
     play_type = models.CharField(
-        _("Play Type"), max_length=50, choices=PlayType.choices
+        _("Play Type"), max_length=50, choices=Category.choices
     )
     team = models.ForeignKey(
         "teams.Team",
@@ -31,6 +37,15 @@ class PlayDefinition(models.Model):
         null=True,  # A play can have no parent (it's a top-level category)
         blank=True,  # It's optional in the Django admin
         related_name="children",  # How we can find children from a parent instance
+    )
+    category = models.CharField(
+        _("UI Category"),
+        max_length=50,
+        choices=Category.choices,
+        default=Category.OTHER,
+    )
+    subcategory = models.CharField(
+        _("UI Sub-Category"), max_length=100, blank=True, null=True
     )
     # Optional: A diagram or video link for the play
     diagram_url = models.URLField(blank=True, null=True)

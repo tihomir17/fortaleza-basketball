@@ -1,7 +1,7 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/possessions/presentation/screens/log_possession_screen.dart';
+import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_app/main.dart';
@@ -36,17 +36,12 @@ class AppRouter {
     debugLogDiagnostics: true,
 
     routes: [
-      // The login screen is the only route outside the main shell
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-
-      // THIS IS THE NEW ROOT SHELL ROUTE FOR THE ENTIRE AUTHENTICATED APP
       ShellRoute(
         builder: (context, state, child) {
-          // The CoachScaffold is now the root UI for everything else
           return CoachScaffold(child: child);
         },
         routes: [
-          // All other routes are now children of this shell
           GoRoute(
             path: '/',
             builder: (context, state) => const DashboardScreen(),
@@ -56,7 +51,7 @@ class AppRouter {
             builder: (context, state) => const HomeScreen(),
             routes: [
               GoRoute(
-                path: ':teamId', // Matches '/teams/1'
+                path: ':teamId',
                 builder: (context, state) {
                   final teamId =
                       int.tryParse(state.pathParameters['teamId'] ?? '') ?? 0;
@@ -71,7 +66,7 @@ class AppRouter {
                 },
                 routes: [
                   GoRoute(
-                    path: 'plays', // '/teams/:teamId/plays'
+                    path: 'plays',
                     builder: (context, state) {
                       final teamId =
                           int.tryParse(state.pathParameters['teamId'] ?? '') ??
@@ -99,7 +94,7 @@ class AppRouter {
             builder: (context, state) => const GamesScreen(),
             routes: [
               GoRoute(
-                path: ':gameId', // Matches '/games/1'
+                path: ':gameId',
                 builder: (context, state) {
                   final gameId =
                       int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
@@ -112,6 +107,19 @@ class AppRouter {
                     child: GameDetailScreen(gameId: gameId),
                   );
                 },
+                routes: [
+                  GoRoute(
+                    path: 'track', // Matches '/games/:gameId/track'
+                    builder: (context, state) {
+                      // Get the gameId from the URL path parameters
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ??
+                          0;
+                      // We no longer need to pass the game object as 'extra'
+                      return LiveTrackingScreen(gameId: gameId);
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -131,14 +139,9 @@ class AppRouter {
             path: '/self-scouting',
             builder: (context, state) => const SelfScoutingScreen(),
           ),
-          GoRoute(
-            path: '/log-possession',
-            builder: (context, state) => const LogPossessionScreen(),
-          ),
         ],
       ),
     ],
-
     redirect: (BuildContext context, GoRouterState state) {
       final bool loggedIn = authCubit.state.status == AuthStatus.authenticated;
       final bool isLoggingIn = state.matchedLocation == '/login';

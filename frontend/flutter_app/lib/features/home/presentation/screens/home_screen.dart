@@ -1,10 +1,10 @@
 // lib/features/home/presentation/screens/home_screen.dart
 
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart'; // Import the AppBar
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
@@ -12,41 +12,23 @@ import 'package:flutter_app/features/teams/presentation/screens/create_team_scre
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshSignal.addListener(_refreshTeams);
-  }
-
-  @override
-  void dispose() {
-    _refreshSignal.removeListener(_refreshTeams);
-    super.dispose();
-  }
-
-  void _refreshTeams() {
-    if (mounted) {
-      final token = context.read<AuthCubit>().state.token;
-      if (token != null) {
-        context.read<TeamCubit>().fetchTeams(token: token);
-      }
+  void _refreshTeams(BuildContext context) {
+    final token = context.read<AuthCubit>().state.token;
+    if (token != null) {
+      context.read<TeamCubit>().fetchTeams(token: token);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const UserProfileAppBar(title: 'TEAM MANAGEMENT'),
+      appBar: UserProfileAppBar(
+        title: 'MY TEAMS',
+        onRefresh: () => _refreshTeams(context),
+      ),
       body: BlocBuilder<TeamCubit, TeamState>(
         builder: (context, state) {
           if (state.status == TeamStatus.loading ||
@@ -61,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () async => _refreshTeams(),
+            onRefresh: () async => _refreshTeams(context),
             child: ListView.builder(
               padding: const EdgeInsets.all(8.0),
               itemCount: state.teams.length,
@@ -78,13 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const CreateTeamScreen(),
-              fullscreenDialog: true,
-            ),
-          );
-          _refreshSignal.notify();
+          // Awaiting the result here is now less critical, but good practice
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const CreateTeamScreen()));
+          // Manually refresh after returning
+          _refreshTeams(context);
         },
         tooltip: 'Create Team',
         child: const Icon(Icons.add),

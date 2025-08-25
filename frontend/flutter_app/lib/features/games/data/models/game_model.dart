@@ -12,6 +12,8 @@ class Game {
   final DateTime gameDate;
   final int? competitionId;
   final List<Possession> possessions; // Keep possessions for detail view
+  final int? homeTeamScore; // <-- ADD THIS
+  final int? awayTeamScore; // <-- ADD THIS
 
   Game({
     required this.id,
@@ -20,6 +22,8 @@ class Game {
     required this.gameDate,
     this.competitionId,
     this.possessions = const [],
+    this.homeTeamScore,
+    this.awayTeamScore,
   });
 
   factory Game.fromJson(Map<String, dynamic> json) {
@@ -31,10 +35,9 @@ class Game {
       print("Type of 'possessions' data: ${json['possessions'].runtimeType}");
       print("--- END OF LOGS ---\n");
     }
-    // --- END OF DEBUGGING LOGS ---
+
     // Safely get the list of possessions from the JSON
     final possessionListData = json['possessions'] as List<dynamic>? ?? [];
-
     // Correctly parse the raw list into a List<Possession>
     final List<Possession> parsedPossessions = possessionListData
         .map((p) => Possession.fromJson(p as Map<String, dynamic>))
@@ -44,17 +47,26 @@ class Game {
       print(parsedPossessions);
     }
 
+    // Safely parse the competition ID, which might be a Map or an int
+    int? compId;
+    if (json['competition'] is int) {
+      compId = json['competition'];
+    } else if (json['competition'] is Map<String, dynamic>) {
+      compId = json['competition']['id'];
+    }
+
     return Game(
       id: json['id'],
       // If the key is null or not a map, the result will be null.
       homeTeam: Team.fromJson(json['home_team']),
       awayTeam: Team.fromJson(json['away_team']),
-
       gameDate: DateTime.parse(json['game_date']),
 
-      competitionId: json['competition'],
+      competitionId: compId,
 
       possessions: parsedPossessions,
+      homeTeamScore: json['home_team_score'],
+      awayTeamScore: json['away_team_score'],
     );
   }
 }

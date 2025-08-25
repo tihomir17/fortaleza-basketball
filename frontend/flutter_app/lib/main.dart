@@ -21,6 +21,7 @@ import 'features/teams/data/repositories/team_repository.dart';
 import 'features/plays/data/repositories/play_repository.dart';
 import 'features/possessions/data/repositories/possession_repository.dart';
 import 'features/competitions/data/repositories/competition_repository.dart';
+import 'features/calendar/data/repositories/event_repository.dart';
 
 // Features - Cubits
 import 'features/authentication/presentation/cubit/auth_cubit.dart';
@@ -29,8 +30,11 @@ import 'features/teams/presentation/cubit/team_cubit.dart';
 import 'features/teams/presentation/cubit/team_detail_cubit.dart';
 import 'features/plays/presentation/cubit/playbook_cubit.dart';
 import 'features/competitions/presentation/cubit/competition_cubit.dart';
+import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 
 final sl = GetIt.instance;
+
+final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
 
 void setupServiceLocator() {
   // --- SINGLETONS (Live for the entire app lifecycle) ---
@@ -47,8 +51,9 @@ void setupServiceLocator() {
   sl.registerLazySingleton<CompetitionRepository>(
     () => CompetitionRepository(),
   );
+  sl.registerLazySingleton<GameRepository>(() => GameRepository());
+  sl.registerLazySingleton<EventRepository>(() => EventRepository());
 
-  // --- CUBITS (State Management) ---
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(authRepository: sl<AuthRepository>()),
@@ -60,23 +65,29 @@ void setupServiceLocator() {
   sl.registerLazySingleton<CompetitionCubit>(
     () => CompetitionCubit(competitionRepository: sl<CompetitionRepository>()),
   );
+  sl.registerLazySingleton<GameCubit>(
+    () => GameCubit(gameRepository: sl<GameRepository>()),
+  );
 
-  // Cubits with screen-specific state are factories to ensure they are created fresh each time.
+  sl.registerLazySingleton<CalendarCubit>(
+    () => CalendarCubit(
+      gameRepository: sl<GameRepository>(),
+      eventRepository: sl<EventRepository>(),
+    ),
+  );
+
+  // Factories for screen-specific state
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
   );
   sl.registerFactory<PlaybookCubit>(
     () => PlaybookCubit(playRepository: sl<PlayRepository>()),
   );
-
   sl.registerFactory<GameDetailCubit>(
     () => GameDetailCubit(gameRepository: sl<GameRepository>()),
   );
 
-  sl.registerLazySingleton<GameRepository>(() => GameRepository());
-  sl.registerLazySingleton<GameCubit>(
-    () => GameCubit(gameRepository: sl<GameRepository>()),
-  );
+  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);
 }
 
 Future<void> main() async {
@@ -114,6 +125,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => sl<TeamCubit>()),
         BlocProvider(create: (context) => sl<CompetitionCubit>()),
         BlocProvider(create: (context) => sl<GameCubit>()),
+        BlocProvider(create: (context) => sl<CalendarCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {
