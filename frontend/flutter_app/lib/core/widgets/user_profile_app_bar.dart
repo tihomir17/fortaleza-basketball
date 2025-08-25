@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
-import 'package:flutter_app/core/theme/theme_cubit.dart';
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -22,11 +21,11 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     // These are the default action buttons that will appear on the far right.
     final List<Widget> defaultActions = [
-      IconButton(
-        icon: const Icon(Icons.brightness_6_outlined),
-        tooltip: 'Toggle Theme',
-        onPressed: () => context.read<ThemeCubit>().toggleTheme(),
-      ),
+      // IconButton(
+      //   icon: const Icon(Icons.brightness_6_outlined),
+      //   tooltip: 'Toggle Theme',
+      //   onPressed: () => context.read<ThemeCubit>().toggleTheme(),
+      // ),
       BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
           if (state.status == AuthStatus.authenticated && state.user != null) {

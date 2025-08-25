@@ -509,7 +509,7 @@ class _OffensePanel extends StatelessWidget {
       children: [
         // --- First ROW ---
         Row(
-          children: List.generate(12, (i) {
+          children: List.generate(20, (i) {
             return _ActionButton(
               text: 'Set ${i + 1}',
               color: setButtonColor,
@@ -533,8 +533,6 @@ class _OffensePanel extends StatelessWidget {
                     'Special 1',
                     'Special 2',
                     'ATO Spec',
-                    'Set 13',
-                    'Set 14',
                   ]
                   .map(
                     (t) => Expanded(
@@ -572,13 +570,13 @@ class _HalfCourtPanel extends StatelessWidget {
     // Data structure for the panel.
     // We're using a list of maps to hold both the text and the color for each button.
     final List<Map<String, dynamic>> buttonData = [
-      {'left': 'PnR', 'right': 'Att. CloseOut', 'leftColor': darkBlue},
-      {'left': 'Score', 'right': 'Aft. Kick Out', 'leftColor': teal},
-      {'left': 'Big Guy', 'right': 'Aft. Ext Pass', 'leftColor': teal},
+      {'left': 'PnR', 'right': 'Attack CloseOut', 'leftColor': darkBlue},
+      {'left': 'Score', 'right': 'After Kick Out', 'leftColor': teal},
+      {'left': 'Big Guy', 'right': 'After Ext Pass', 'leftColor': teal},
       {'left': '3rd Guy', 'right': 'Cuts', 'leftColor': teal},
-      {'left': 'ISO', 'right': 'Aft. Off Reb', 'leftColor': darkBlue},
-      {'left': 'HighPost', 'right': 'Aft. HandOff', 'leftColor': teal},
-      {'left': 'LowPost', 'right': 'Aft. OffScreen', 'leftColor': teal},
+      {'left': 'ISO', 'right': 'After Off Reb', 'leftColor': darkBlue},
+      {'left': 'HighPost', 'right': 'After HandOff', 'leftColor': teal},
+      {'left': 'LowPost', 'right': 'After OffScreen', 'leftColor': teal},
     ];
 
     return Table(
@@ -623,9 +621,9 @@ class _DefensePanel extends StatelessWidget {
     // This defines the entire layout. An empty string "" will be an empty cell.
     const List<List<String>> layout = [
       ['PnR', 'Zone', 'Zone Press', 'Other'], // Headers
-      ['SWITCH', '2-3', 'Zone Press', 'ISO'],
-      ['DROP', '3-2', 'Zone Press', ""],
-      ['HEDGE', '1-3-1', 'Zone Press', ""],
+      ['SWITCH', '2-3', 'Full court press', 'ISO'],
+      ['DROP', '3-2', '3/4 court press', ""],
+      ['HEDGE', '1-3-1', 'Half court press', ""],
       ['TRAP', '1-2-2', "", ""],
       ['ICE', 'zone', "", ""],
       ['FLAT', "", "", ""],
@@ -949,12 +947,12 @@ class _ControlPanel extends StatelessWidget {
                   onPressed: onButtonPressed,
                   isEnabled: isEnabled,
                 ),
-                _ActionButton(
-                  text: 'FORW',
-                  color: Colors.grey,
-                  onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
-                ),
+                // _ActionButton(
+                //   text: 'FORW',
+                //   color: Colors.grey,
+                //   onPressed: onButtonPressed,
+                //   isEnabled: isEnabled,
+                // ), // TODO: Implement REDO functionality for the next release.
               ],
             ),
           ],
@@ -1020,16 +1018,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: '2pts',
                   color: Colors.deepOrangeAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: '3pts',
                   color: Colors.deepOrangeAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Foul',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),
@@ -1039,16 +1040,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: 'Made',
                   color: Colors.green,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Miss',
                   color: Colors.red,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Free Throw',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),
@@ -1113,7 +1117,7 @@ class _ShootPanel extends StatelessWidget {
                     isEnabled: isEnabled,
                   ),
                   _ActionButton(
-                    text: '4-8s',
+                    text: '4-7s',
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
                     isEnabled: isEnabled,
@@ -1125,7 +1129,7 @@ class _ShootPanel extends StatelessWidget {
                     isEnabled: isEnabled,
                   ),
                   _ActionButton(
-                    text: '14-20s',
+                    text: '15-20s',
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
                     isEnabled: isEnabled,
