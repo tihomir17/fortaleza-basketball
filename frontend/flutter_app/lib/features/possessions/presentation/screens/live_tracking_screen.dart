@@ -343,6 +343,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'OUTCOME',
                               child: _OutcomePanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -353,6 +354,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'SHOOT',
                               child: _ShootPanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -363,6 +365,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'TAG OFFENSIVE REBOUND',
                               child: _OffRebPanel(
                                 onButtonPressed: _onButtonPressed,
+                                isEnabled: _isSessionActive,
                               ),
                             ),
                           ),
@@ -464,7 +467,7 @@ class _ActionButton extends StatelessWidget {
     this.textSize,
     this.textColor,
     this.flex,
-    this.isEnabled = true,
+    this.isEnabled = false,
   });
 
   @override
@@ -805,10 +808,16 @@ class _PlayersPanel extends StatelessWidget {
                   isEnabled: isEnabled,
                 ),
                 Padding(
-                  // Wrap in Padding to match the _ActionButton style
                   padding: const EdgeInsets.all(1.0),
                   child: ElevatedButton(
-                    onPressed: () => _showSubstitutionDialog(context),
+                    // --- THIS IS THE FIX ---
+                    // If widget.isEnabled is true, assign the _showSubstitutionDialog function.
+                    // If widget.isEnabled is false, assign null.
+                    // Flutter automatically disables the button when onPressed is null.
+                    onPressed: isEnabled
+                        ? () => _showSubstitutionDialog(context)
+                        : null,
+
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -885,6 +894,7 @@ class _ControlPanel extends StatelessWidget {
                   text: 'START',
                   color: Colors.green,
                   onPressed: onButtonPressed,
+                  isEnabled: true,
                 ),
               ],
             ),
@@ -956,7 +966,8 @@ class _ControlPanel extends StatelessWidget {
 
 class _OutcomePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _OutcomePanel({required this.onButtonPressed});
+  final bool isEnabled;
+  const _OutcomePanel({required this.onButtonPressed, required this.isEnabled});
 
   Widget buildHeader(String text) => Text(
     text,
@@ -987,16 +998,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: 'Lay Up',
                   color: Colors.orangeAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Shot',
                   color: Colors.orangeAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
                 _ActionButton(
                   text: 'Turnover',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ),
@@ -1047,7 +1061,8 @@ class _OutcomePanel extends StatelessWidget {
 
 class _ShootPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _ShootPanel({required this.onButtonPressed});
+  final bool isEnabled;
+  const _ShootPanel({required this.onButtonPressed, required this.isEnabled});
 
   @override
   Widget build(BuildContext context) {
@@ -1072,16 +1087,19 @@ class _ShootPanel extends StatelessWidget {
                     text: '1',
                     color: Colors.green,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                   _ActionButton(
                     text: '2',
                     color: Colors.orangeAccent,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                   _ActionButton(
                     text: '3',
                     color: Colors.red,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                 ],
               ),
@@ -1092,21 +1110,25 @@ class _ShootPanel extends StatelessWidget {
                     text: '< 4s',
                     color: Colors.blueGrey,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                   _ActionButton(
                     text: '4-8s',
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                   _ActionButton(
                     text: '8-14s',
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                   _ActionButton(
                     text: '14-20s',
                     color: Colors.indigo,
                     onPressed: onButtonPressed,
+                    isEnabled: isEnabled,
                   ),
                 ],
               ),
@@ -1120,7 +1142,9 @@ class _ShootPanel extends StatelessWidget {
 
 class _OffRebPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  const _OffRebPanel({required this.onButtonPressed});
+  final bool isEnabled; // Add the isEnabled flag
+
+  const _OffRebPanel({required this.onButtonPressed, required this.isEnabled});
 
   @override
   Widget build(BuildContext context) {
@@ -1156,16 +1180,19 @@ class _OffRebPanel extends StatelessWidget {
                           text: '0',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                         _ActionButton(
                           text: '1',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                         _ActionButton(
                           text: '2',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                       ],
                     ), // TableRow
@@ -1175,16 +1202,19 @@ class _OffRebPanel extends StatelessWidget {
                           text: '3',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                         _ActionButton(
                           text: '4',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                         _ActionButton(
                           text: '5',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
+                          isEnabled: isEnabled,
                         ),
                       ],
                     ), // TableRow
@@ -1199,6 +1229,7 @@ class _OffRebPanel extends StatelessWidget {
                   text: 'Yes',
                   color: Colors.green,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ), // TableRow
@@ -1208,6 +1239,7 @@ class _OffRebPanel extends StatelessWidget {
                   text: 'No',
                   color: Colors.red,
                   onPressed: onButtonPressed,
+                  isEnabled: isEnabled,
                 ),
               ],
             ), // TableRow
