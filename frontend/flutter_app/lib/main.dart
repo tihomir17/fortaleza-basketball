@@ -29,6 +29,7 @@ import 'features/authentication/presentation/cubit/auth_state.dart';
 import 'features/teams/presentation/cubit/team_cubit.dart';
 import 'features/teams/presentation/cubit/team_detail_cubit.dart';
 import 'features/plays/presentation/cubit/playbook_cubit.dart';
+import 'features/plays/presentation/cubit/play_category_cubit.dart';
 import 'features/competitions/presentation/cubit/competition_cubit.dart';
 import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 
@@ -76,6 +77,7 @@ void setupServiceLocator() {
     ),
   );
 
+  sl.registerLazySingleton<PlayCategoryCubit>(() => PlayCategoryCubit(playRepository: sl<PlayRepository>()));
   // Factories for screen-specific state
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
@@ -87,7 +89,7 @@ void setupServiceLocator() {
     () => GameDetailCubit(gameRepository: sl<GameRepository>()),
   );
 
-  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);
+  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);  
 }
 
 Future<void> main() async {
@@ -126,6 +128,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => sl<CompetitionCubit>()),
         BlocProvider(create: (context) => sl<GameCubit>()),
         BlocProvider(create: (context) => sl<CalendarCubit>()),
+        BlocProvider(create: (context) => sl<PlayCategoryCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {

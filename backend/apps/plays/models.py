@@ -5,47 +5,45 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 
+class PlayCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "Play Categories"
+
+    def __str__(self):
+        return self.name
+
+
 class PlayDefinition(models.Model):
     """
     Stores the definition of an offensive or defensive play.
     """
 
-    class Category(models.TextChoices):
-        OFFENSE = "OFFENSE", _("Offense")
-        OFFENSE_HALF_COURT = "OFFENSE_HALF_COURT", _("Offense Half Court")
-        DEFENSE = "DEFENSE", _("Defense")
-        PLAYERS = "PLAYERS", _("Players")
-        CONTROL = "CONTROL", _("Control")
-        OUTCOME = "OUTCOME", _("Outcome")
-        SHOOT = "SHOOT", _("Shoot")
-        TAGOFFREB = "TAGOFFREB", _("TagOffReb")
-        ADVANCE = "ADVANCED", _("Advanced")
-        OTHER = "OTHER", _("Other")
-
     name = models.CharField(_("Play Name"), max_length=255)
     description = models.TextField(_("Description"), blank=True, null=True)
     play_type = models.CharField(
-        _("Play Type"), max_length=50, choices=Category.choices
+        _("Play Type"),
+        max_length=50,
+        choices=[("OFFENSIVE", "Offensive"), ("DEFENSIVE", "Defensive")],
     )
     team = models.ForeignKey(
-        "teams.Team",
-        on_delete=models.CASCADE,
-        related_name="plays",
-        help_text=_("The team this play belongs to."),
+        "teams.Team", on_delete=models.CASCADE, related_name="plays"
     )
     parent = models.ForeignKey(
-        "self",  # This makes the relationship point to the same model
-        on_delete=models.CASCADE,  # If a parent is deleted, its children are also deleted
-        null=True,  # A play can have no parent (it's a top-level category)
-        blank=True,  # It's optional in the Django admin
-        related_name="children",  # How we can find children from a parent instance
+        "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
-    category = models.CharField(
-        _("UI Category"),
-        max_length=50,
-        choices=Category.choices,
-        default=Category.OTHER,
+
+    # THIS IS THE CHANGED FIELD
+    category = models.ForeignKey(
+        PlayCategory,
+        on_delete=models.SET_NULL,  # If a category is deleted, don't delete the plays
+        related_name="plays",
+        null=True,
+        blank=True,
     )
+
     subcategory = models.CharField(
         _("UI Sub-Category"), max_length=100, blank=True, null=True
     )

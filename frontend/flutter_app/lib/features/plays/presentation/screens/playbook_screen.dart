@@ -46,10 +46,10 @@ class PlaybookScreen extends StatelessWidget {
           }
 
           final allOffensivePlays = state.plays
-              .where((p) => p.playType == 'OFFENSIVE')
+              .where((p) => p.playType == 'OFFENSE')
               .toList();
           final allDefensivePlays = state.plays
-              .where((p) => p.playType == 'DEFENSIVE')
+              .where((p) => p.playType == 'DEFENSE')
               .toList();
 
           return ListView(
@@ -88,9 +88,6 @@ class PlaybookScreen extends StatelessWidget {
   }
 }
 
-// =========================================================================
-// === THIS IS THE WIDGET WITH THE CORRECTIONS ===
-// =========================================================================
 class _PlayCategoryCard extends StatelessWidget {
   final String title;
   final List<PlayDefinition> allPlays;

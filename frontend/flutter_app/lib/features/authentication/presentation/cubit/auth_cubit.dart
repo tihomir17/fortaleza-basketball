@@ -10,6 +10,7 @@ import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../competitions/presentation/cubit/competition_cubit.dart';
 import '../../../games/presentation/cubit/game_cubit.dart';
 import '../../../calendar/presentation/cubit/calendar_cubit.dart';
+import '../../../plays/presentation/cubit/play_category_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
@@ -26,6 +27,7 @@ class AuthCubit extends Cubit<AuthState> {
     final competitionCubit = sl<CompetitionCubit>();
     final gameCubit = sl<GameCubit>();
     final calendarCubit = sl<CalendarCubit>();
+    final playCategoryCubit = sl<PlayCategoryCubit>();
 
     // Tell each cubit to fetch its essential data using the new token.
     // We don't need to await these; they can run in parallel.
@@ -33,6 +35,7 @@ class AuthCubit extends Cubit<AuthState> {
     competitionCubit.fetchCompetitions(token: token);
     gameCubit.fetchGames(token: token);
     calendarCubit.fetchCalendarData(token: token);
+    playCategoryCubit.fetchCategories(token: token);
 
     // Finally, emit the authenticated state. The UI will react to this,
     // and the other cubits will be updating their own states in the background.
@@ -85,5 +88,6 @@ class AuthCubit extends Cubit<AuthState> {
     await sl.resetLazySingleton<CompetitionCubit>();
     await sl.resetLazySingleton<GameCubit>();
     await sl.resetLazySingleton<CalendarCubit>();
+    await sl.resetLazySingleton<PlayCategoryCubit>();
   }
 }

@@ -1,5 +1,7 @@
 // lib/features/plays/data/models/play_definition_model.dart
 
+import 'play_category_model.dart';
+
 class PlayDefinition {
   final int id;
   final String name;
@@ -9,6 +11,7 @@ class PlayDefinition {
   final String? diagramUrl;
   final String? videoUrl;
   final int? parentId;
+  final PlayCategory? category;
 
   PlayDefinition({
     required this.id,
@@ -19,6 +22,7 @@ class PlayDefinition {
     this.diagramUrl,
     this.videoUrl,
     this.parentId,
+    this.category,
   });
 
   factory PlayDefinition.fromJson(Map<String, dynamic> json) {
@@ -31,6 +35,9 @@ class PlayDefinition {
       diagramUrl: json['diagram_url'],
       videoUrl: json['video_url'],
       parentId: json['parent'],
+      category: json['category'] != null
+          ? PlayCategory.fromJson(json['category'])
+          : null,
     );
   }
 }

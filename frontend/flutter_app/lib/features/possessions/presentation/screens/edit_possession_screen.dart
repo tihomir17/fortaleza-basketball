@@ -226,8 +226,7 @@ class _EditPossessionScreenState extends State<EditPossessionScreen> {
                 DropdownMenuItem(value: 2, child: Text('2nd Quarter')),
                 DropdownMenuItem(value: 3, child: Text('3rd Quarter')),
                 DropdownMenuItem(value: 4, child: Text('4th Quarter')),
-                DropdownMenuItem(value: 5, child: Text('Overtime 1')),
-                DropdownMenuItem(value: 6, child: Text('Overtime 2')),
+                DropdownMenuItem(value: 5, child: Text('Overtime')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _selectedQuarter = v);

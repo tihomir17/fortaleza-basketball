@@ -1,6 +1,7 @@
 // lib/features/plays/data/repositories/play_repository.dart
 
 import 'dart:convert';
+import 'package:flutter_app/features/plays/data/models/play_category_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/play_definition_model.dart';
@@ -81,7 +82,6 @@ class PlayRepository {
     }
   }
 
-  // ADD THIS DELETE METHOD
   Future<void> deletePlay({required String token, required int playId}) async {
     final url = Uri.parse('${ApiClient.baseUrl}/plays/$playId/');
     try {
@@ -98,7 +98,6 @@ class PlayRepository {
     }
   }
 
-  // ADD THIS UPDATE METHOD
   Future<PlayDefinition> updatePlay({
     required String token,
     required int playId, // The ID of the play to update
@@ -146,4 +145,22 @@ class PlayRepository {
       throw Exception('An error occurred while updating the play: $e');
     }
   }
+  
+  Future<List<PlayCategory>> getAllCategories(String token) async {
+  final url = Uri.parse('${ApiClient.baseUrl}/play-categories/');
+  try {
+    final response = await _client.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> body = json.decode(response.body);
+      return body.map((json) => PlayCategory.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load play categories');
+    }
+  } catch (e) {
+    throw Exception('Error fetching play categories: $e');
+  }
+}  
 }
