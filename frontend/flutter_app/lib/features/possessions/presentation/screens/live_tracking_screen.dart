@@ -2,8 +2,10 @@
 
 // ignore_for_file: unused_import, unused_element_parameter
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -11,6 +13,8 @@ import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
+import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -152,6 +156,9 @@ class __LiveTrackingStatefulWrapperState
   List<String> _sequence = [];
   bool _isSessionActive = false;
 
+  // True for home team, false for away team. Null if not determined.
+  bool? _isHomeTeamPossession;
+
   void _onButtonPressed(String action) {
     // --- SPECIAL BUTTON LOGIC ---
     if (action == 'Turnover') {
@@ -167,25 +174,162 @@ class __LiveTrackingStatefulWrapperState
       _showSubstitutionDialog(context);
     }
 
+    Future<void> savePossessionToDatabase(
+      Team team,
+      Team opponent,
+      String sequence,
+    ) async {
+      final token = context.read<AuthCubit>().state.token;
+      if (token == null) return;
+
+      // TODO: Extract outcome, start time, and duration from the sequence or dedicated state variables
+      final outcome = _sequence.lastWhere(
+        (s) =>
+            s.startsWith('MADE_') ||
+            s.startsWith('MISSED_') ||
+            s.startsWith('TO_'),
+        orElse: () => 'OTHER', // Default if no outcome was logged
+      );
+
+      try {
+        await sl<PossessionRepository>().createPossession(
+          token: token,
+          gameId: widget.game.id,
+          teamId: team.id,
+          opponentId: opponent.id,
+          startTime: "00:00", // Placeholder
+          duration: 10, // Placeholder
+          quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
+          outcome: outcome
+              .replaceAll(' ', '_')
+              .toUpperCase(), // Convert to backend format
+          offensiveSequence: _isHomeTeamPossession! ? sequence : '',
+          defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
+        );
+
+        if (kDebugMode) {
+          print("--- SAVING POSSESSION ---");
+          print("Game ID: ${widget.game.id}");
+          print("Sequence: ${_sequence.join(' / ')}");
+          print("-------------------------");
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Possession Saved!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Clear the sequence for the next one
+          setState(() => _sequence = []);
+          // Notify other screens to refresh
+          sl<RefreshSignal>().notify();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+
+    // --- SAVE POSSESSION LOGIC ---
+    void showSaveConfirmationDialog() {
+      final game = context.read<GameDetailCubit>().state.game;
+      if (game == null) return;
+
+      // Determine which team had the ball and which was the opponent
+      if (_isHomeTeamPossession == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please select 'Off' or 'Def' to assign possession."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final teamWithBall = _isHomeTeamPossession!
+          ? game.homeTeam
+          : game.awayTeam;
+      final opponentTeam = _isHomeTeamPossession!
+          ? game.awayTeam
+          : game.homeTeam;
+      final sequenceString = _sequence.join(' / ');
+
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Save Possession for ${teamWithBall.name}?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Sequence:",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(sequenceString),
+                const SizedBox(height: 16),
+                // TODO: Add outcome and other details to this summary
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Call the repository method on confirm
+                savePossessionToDatabase(
+                  teamWithBall,
+                  opponentTeam,
+                  sequenceString,
+                );
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    }
+
     setState(() {
       if (action == 'START') {
         _isSessionActive = true;
         _sequence = [widget.currentPeriod];
-
-        return; // Do not add "START" to the sequence list
-      }
-
-      if (action == 'END') {
-        _isSessionActive = false;
-        // Optionally, you could add "END" to the sequence here if you want
-        // TODO: Trigger the save possession logic
-        _sequence = [];
+        // Reset possession team at the start of a new sequence
+        _isHomeTeamPossession = null;
         return;
       }
 
-      if (!_isSessionActive) return;
+      // NEW: Logic to determine possession
+      if (action == 'Off') {
+        _isHomeTeamPossession = true;
+        // Don't add 'Off' to the sequence, it just sets the state
+        return;
+      }
+      if (action == 'Def') {
+        _isHomeTeamPossession = false;
+        // Don't add 'Def' to the sequence
+        return;
+      }
 
-      if (action == "UNDO" && _sequence.isNotEmpty) {
+      if (action == 'END') {
+        _sequence.add(action);
+        // Call the new confirmation dialog
+        showSaveConfirmationDialog();
+        _isSessionActive = false; // End the session
+        return;
+      }
+
+      if (action == "UNDO" && _sequence.length > 1) {
         _sequence.removeLast();
       } else if (action != "UNDO") {
         _sequence.add(action);
@@ -264,6 +408,24 @@ class __LiveTrackingStatefulWrapperState
   }
 
   void _showTurnoverMenu() {
+    if (!_isSessionActive) return;
+
+    // Create a map to link the user-friendly text to the backend enum value
+    final Map<String, String> turnoverTypes = {
+      'Out of bounds': 'TO_OUT_OF_BOUNDS',
+      'Travelling': 'TO_TRAVEL',
+      'Offensive foul': 'TO_OFFENSIVE_FOUL',
+      '3 seconds in key': 'TO_3_SECONDS',
+      '5 seconds violation':
+          'TO_5_SECONDS', // NOTE: Add this to your Django model if needed
+      '8 seconds violation': 'TO_8_SECONDS',
+      'Shot clock violation': 'TO_SHOT_CLOCK',
+      'Bad pass':
+          'TO_BAD_PASS', // NOTE: Add this to your Django model if needed
+      'Technical foul':
+          'TO_TECHNICAL_FOUL', // NOTE: Add this to your Django model if needed
+    };
+
     showModalBottomSheet(
       context: context,
       builder: (ctx) => ListView(
@@ -274,22 +436,12 @@ class __LiveTrackingStatefulWrapperState
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          ...[
-            'Out of bounds',
-            'Travelling',
-            'Offensive foul',
-            '3 seconds in key',
-            '5 seconds violation',
-            '8 seconds violation',
-            'Shot clock violation',
-            'Bad pass',
-            'Technical foul',
-          ].map(
-            (type) => ListTile(
-              title: Text(type),
+          ...turnoverTypes.entries.map(
+            (entry) => ListTile(
+              title: Text(entry.key), // Show the user-friendly key
               onTap: () {
-                // Add the specific turnover type to the sequence
-                _onButtonPressed('TO: $type');
+                // Send the backend-friendly value to the sequence
+                _onButtonPressed(entry.value);
                 Navigator.of(ctx).pop();
               },
             ),
@@ -300,6 +452,7 @@ class __LiveTrackingStatefulWrapperState
   }
 
   void _showFreeThrowMenu() {
+    if (!_isSessionActive) return;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Column(
@@ -307,17 +460,20 @@ class __LiveTrackingStatefulWrapperState
         children: [
           ListTile(
             leading: const Icon(Icons.check_circle, color: Colors.green),
-            title: const Text('Made'),
+            title: const Text('Made Free Throw(s)'),
             onTap: () {
-              _onButtonPressed('FT Made');
+              // THIS IS THE FIX:
+              // Use the exact value from the Django model's choices.
+              _onButtonPressed('MADE_FT');
               Navigator.of(ctx).pop();
             },
           ),
           ListTile(
             leading: const Icon(Icons.cancel, color: Colors.red),
-            title: const Text('Missed'),
+            title: const Text('Missed Free Throw(s)'),
             onTap: () {
-              _onButtonPressed('FT Miss');
+              // THIS IS THE FIX:
+              _onButtonPressed('MISSED_FT');
               Navigator.of(ctx).pop();
             },
           ),

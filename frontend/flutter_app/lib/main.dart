@@ -77,7 +77,9 @@ void setupServiceLocator() {
     ),
   );
 
-  sl.registerLazySingleton<PlayCategoryCubit>(() => PlayCategoryCubit(playRepository: sl<PlayRepository>()));
+  sl.registerLazySingleton<PlayCategoryCubit>(
+    () => PlayCategoryCubit(playRepository: sl<PlayRepository>()),
+  );
   // Factories for screen-specific state
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
@@ -89,7 +91,7 @@ void setupServiceLocator() {
     () => GameDetailCubit(gameRepository: sl<GameRepository>()),
   );
 
-  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);  
+  sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);
 }
 
 Future<void> main() async {

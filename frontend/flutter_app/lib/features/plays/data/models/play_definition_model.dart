@@ -12,6 +12,7 @@ class PlayDefinition {
   final String? videoUrl;
   final int? parentId;
   final PlayCategory? category;
+  final PlayCategory? subcategory;
 
   PlayDefinition({
     required this.id,
@@ -23,6 +24,7 @@ class PlayDefinition {
     this.videoUrl,
     this.parentId,
     this.category,
+    this.subcategory,
   });
 
   factory PlayDefinition.fromJson(Map<String, dynamic> json) {
