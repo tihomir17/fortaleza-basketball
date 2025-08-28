@@ -10,39 +10,36 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("possessions", "0001_initial"),
+        ("events", "0001_initial"),
         ("teams", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name="possession",
-            name="logged_by",
-            field=models.ForeignKey(
+            model_name="calendarevent",
+            name="attendees",
+            field=models.ManyToManyField(
                 blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="individual_events",
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
         migrations.AddField(
-            model_name="possession",
-            name="opponent",
+            model_name="calendarevent",
+            name="created_by",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+            ),
+        ),
+        migrations.AddField(
+            model_name="calendarevent",
+            name="team",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name="opponent_for_possessions",
-                to="teams.team",
-            ),
-        ),
-        migrations.AddField(
-            model_name="possession",
-            name="team",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="team_possessions",
+                related_name="team_events",
                 to="teams.team",
             ),
         ),

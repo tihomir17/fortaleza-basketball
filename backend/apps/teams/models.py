@@ -28,5 +28,7 @@ class Team(models.Model):
         blank=True,
     )
 
+    logo_url = models.URLField(blank=True, null=True)
+
     def __str__(self):
         return self.name

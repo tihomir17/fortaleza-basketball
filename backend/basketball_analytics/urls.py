@@ -23,7 +23,7 @@ router.register(r"possessions", PossessionViewSet, basename="possession")
 router.register(r"competitions", CompetitionViewSet, basename="competition")
 router.register(r"games", GameViewSet, basename="game")
 router.register(r"events", CalendarEventViewSet, basename="event")
-router.register(r'play-categories', PlayCategoryViewSet, basename='playcategory') 
+router.register(r"play-categories", PlayCategoryViewSet, basename="playcategory")
 
 urlpatterns = [
     # The Django admin site

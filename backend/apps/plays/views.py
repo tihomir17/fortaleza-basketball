@@ -5,13 +5,16 @@ from rest_framework.exceptions import PermissionDenied
 from .serializers import PlayDefinitionSerializer, PlayCategory, PlayCategorySerializer
 from apps.users.models import User
 
+
 class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     A simple ViewSet for listing all PlayCategories, ordered by their ID.
     """
-    queryset = PlayCategory.objects.all().order_by('id')
+
+    queryset = PlayCategory.objects.all().order_by("id")
     serializer_class = PlayCategorySerializer
     permission_classes = [permissions.IsAuthenticated]
+
 
 class PlayDefinitionViewSet(viewsets.ModelViewSet):
     serializer_class = PlayDefinitionSerializer

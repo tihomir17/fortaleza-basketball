@@ -21,6 +21,21 @@ class PlayDefinition(models.Model):
     Stores the definition of an offensive or defensive play.
     """
 
+    # --- THIS IS THE NEW ENUM FOR BUTTON BEHAVIOR ---
+    class ActionType(models.TextChoices):
+        NORMAL = "NORMAL", _("Normal Button")
+        STARTS_POSSESSION = "STARTS_POSSESSION", _(
+            "Starts a New Possession (e.g., START)"
+        )
+        ENDS_POSSESSION = "ENDS_POSSESSION", _("Ends a Possession (e.g., END)")
+        TRIGGERS_SHOT_RESULT = "TRIGGERS_SHOT_RESULT", _(
+            "Triggers Shot Result (e.g., 2pt, 3pt)"
+        )
+        IS_SHOT_RESULT = "IS_SHOT_RESULT", _("Is a Shot Result (e.g., Made, Miss)")
+        OPENS_TURNOVER_MENU = "OPENS_TURNOVER_MENU", _("Opens Turnover Sub-Menu")
+        OPENS_FT_MENU = "OPENS_FT_MENU", _("Opens Free Throw Sub-Menu")
+        # Add other special types as needed
+
     name = models.CharField(_("Play Name"), max_length=255)
     description = models.TextField(_("Description"), blank=True, null=True)
     play_type = models.CharField(
@@ -35,10 +50,9 @@ class PlayDefinition(models.Model):
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
 
-    # THIS IS THE CHANGED FIELD
     category = models.ForeignKey(
         PlayCategory,
-        on_delete=models.SET_NULL,  # If a category is deleted, don't delete the plays
+        on_delete=models.SET_NULL,
         related_name="plays",
         null=True,
         blank=True,
@@ -47,16 +61,23 @@ class PlayDefinition(models.Model):
     subcategory = models.CharField(
         _("UI Sub-Category"), max_length=100, blank=True, null=True
     )
-    # Optional: A diagram or video link for the play
+
+    # --- THIS IS THE NEW FIELD TO CONTROL UI BEHAVIOR ---
+    action_type = models.CharField(
+        _("UI Action Type"),
+        max_length=50,
+        choices=ActionType.choices,
+        default=ActionType.NORMAL,
+        help_text="Defines the button's special behavior in the live tracking UI.",
+    )
+
     diagram_url = models.URLField(blank=True, null=True)
     video_url = models.URLField(blank=True, null=True)
 
     class Meta:
-        # A team should not have two plays with the same name
         unique_together = ("name", "team")
 
     def __str__(self):
-        # A nice string representation for the admin
         if self.parent:
             return f"{self.parent.name} -> {self.name}"
         return self.name

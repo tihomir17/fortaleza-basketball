@@ -1,0 +1,147 @@
+[
+  {
+    "category": "Offense",
+    "plays": [
+      {"name": "Set 1", "subcategory": "Set"},
+      {"name": "Set 2", "subcategory": "Set"},
+      {"name": "Set 3", "subcategory": "Set"},
+      {"name": "Set 4", "subcategory": "Set"},
+      {"name": "Set 5", "subcategory": "Set"},
+      {"name": "Set 6", "subcategory": "Set"},
+      {"name": "Set 7", "subcategory": "Set"},
+      {"name": "Set 8", "subcategory": "Set"},
+      {"name": "Set 9", "subcategory": "Set"},
+      {"name": "Set 10", "subcategory": "Set"},
+      {"name": "Set 11", "subcategory": "Set"},
+      {"name": "Set 12", "subcategory": "Set"},
+      {"name": "Set 13", "subcategory": "Set"},
+      {"name": "Set 14", "subcategory": "Set"},
+      {"name": "Set 15", "subcategory": "Set"},
+      {"name": "Set 16", "subcategory": "Set"},
+      {"name": "Set 17", "subcategory": "Set"},
+      {"name": "Set 18", "subcategory": "Set"},
+      {"name": "Set 19", "subcategory": "Set"},
+      {"name": "Set 20", "subcategory": "Set"},
+      {"name": "FastBreak", "subcategory": "Transition"},
+      {"name": "Transit", "subcategory": "Transition"},
+      {"name": "<14s", "subcategory": "Transition"},
+      {"name": "BoB 1", "subcategory": "Transition"},
+      {"name": "BoB 2", "subcategory": "Transition"},
+      {"name": "SoB 1", "subcategory": "Transition"},
+      {"name": "SoB 2", "subcategory": "Transition"},
+      {"name": "Special 1", "subcategory": "Transition"},
+      {"name": "Special 2", "subcategory": "Transition"},
+      {"name": "ATO Spec", "subcategory": "Transition"}
+    ]
+  },
+  {
+    "category": "Offense Half Court",
+    "plays": [
+      {"name": "PnR", "subcategory": "Left"},
+      {"name": "Score", "subcategory": "Left"},
+      {"name": "Big Guy", "subcategory": "Left"},
+      {"name": "3rd Guy", "subcategory": "Left"},
+      {"name": "ISO", "subcategory": "Left"},
+      {"name": "HighPost", "subcategory": "Left"},
+      {"name": "LowPost", "subcategory": "Left"},
+      {"name": "Attack CloseOut", "subcategory": "Right"},
+      {"name": "After Kick Out", "subcategory": "Right"},
+      {"name": "After Ext Pass", "subcategory": "Right"},
+      {"name": "Cuts", "subcategory": "Right"},
+      {"name": "After Off Reb", "subcategory": "Right"},
+      {"name": "After HandOff", "subcategory": "Right"},
+      {"name": "After OffScreen", "subcategory": "Right"}
+    ]
+  },
+  {
+    "category": "Defense",
+    "plays": [
+      {"name": "SWITCH", "subcategory": "PnR"},
+      {"name": "DROP", "subcategory": "PnR"},
+      {"name": "HEDGE", "subcategory": "PnR"},
+      {"name": "TRAP", "subcategory": "PnR"},
+      {"name": "ICE", "subcategory": "PnR"},
+      {"name": "FLAT", "subcategory": "PnR"},
+      {"name": "WEAK", "subcategory": "PnR"},
+      {"name": "2-3", "subcategory": "Zone"},
+      {"name": "3-2", "subcategory": "Zone"},
+      {"name": "1-3-1", "subcategory": "Zone"},
+      {"name": "1-2-2", "subcategory": "Zone"},
+      {"name": "zone", "subcategory": "Zone"},
+      {"name": "Full court press", "subcategory": "Zone Press"},
+      {"name": "3/4 court press", "subcategory": "Zone Press"},
+      {"name": "Half court press", "subcategory": "Zone Press"},
+      {"name": "ISO", "subcategory": "Other"}
+    ]
+  },
+  {
+    "category": "Players",
+    "plays": [
+      {"name": "BoxOut -1", "subcategory": "Actions"},
+      {"name": "DefReb +1", "subcategory": "Actions"},
+      {"name": "OffReb -1", "subcategory": "Actions"},
+      {"name": "Substitution", "subcategory": "Actions"},
+      {"name": "Recover -1", "subcategory": "Actions"}
+    ]
+  },
+  {
+    "category": "Control",
+    "plays": [
+      {"name": "START", "subcategory": "Top", "action_type": "STARTS_POSSESSION"},
+      {"name": "Off", "subcategory": "Middle"},
+      {"name": "Def", "subcategory": "Middle"},
+      {"name": "UNDO", "subcategory": "Middle"},
+      {"name": "END", "subcategory": "Bottom", "action_type": "ENDS_POSSESSION"}
+    ]
+  },
+  {
+    "category": "Outcome",
+    "plays": [
+      {"name": "Lay Up", "subcategory": "Shot Type"},
+      {"name": "Shot", "subcategory": "Shot Type"},
+      {"name": "Turnover", "subcategory": "Result", "action_type": "OPENS_TURNOVER_MENU"},
+      {"name": "2pt", "subcategory": "Shot Type", "action_type": "TRIGGERS_SHOT_RESULT"},
+      {"name": "3pt", "subcategory": "Shot Type", "action_type": "TRIGGERS_SHOT_RESULT"},
+      {"name": "Foul", "subcategory": "Result"},
+      {"name": "Made", "subcategory": "Result", "action_type": "IS_SHOT_RESULT"},
+      {"name": "Miss", "subcategory": "Result", "action_type": "IS_SHOT_RESULT"},
+      {"name": "Free Throw", "subcategory": "Result", "action_type": "OPENS_FT_MENU"}
+    ]
+  },
+  {
+    "category": "Shoot",
+    "plays": [
+      {"name": "1", "subcategory": "ShotQuality"},
+      {"name": "2", "subcategory": "ShotQuality"},
+      {"name": "3", "subcategory": "ShotQuality"},
+      {"name": "< 4s", "subcategory": "Shot time"},
+      {"name": "4-7s", "subcategory": "Shot time"},
+      {"name": "8-14s", "subcategory": "Shot time"},
+      {"name": "15-20s", "subcategory": "Shot time"}
+    ]
+  },
+  {
+    "category": "Tag Offensive Rebound",
+    "plays": [
+      {"name": "OR_0", "subcategory": "Number"},
+      {"name": "OR_1", "subcategory": "Number"},
+      {"name": "OR_2", "subcategory": "Number"},
+      {"name": "OR_3", "subcategory": "Number"},
+      {"name": "OR_4", "subcategory": "Number"},
+      {"name": "OR_5", "subcategory": "Number"},
+      {"name": "OR_Yes", "subcategory": "Confirmation"},
+      {"name": "OR_No", "subcategory": "Confirmation"}
+    ]
+  },
+  {
+    "category": "Advanced",
+    "plays": [
+      {"name": "Paint Touch", "subcategory": "Offense"},
+      {"name": "Kick Out", "subcategory": "Offense"},
+      {"name": "Extra Pass", "subcategory": "Offense"},
+      {"name": "Steal", "subcategory": "Defense"},
+      {"name": "Deny / +1", "subcategory": "Defense"},
+      {"name": "After TO", "subcategory": "Defense"}
+    ]
+  }
+]
