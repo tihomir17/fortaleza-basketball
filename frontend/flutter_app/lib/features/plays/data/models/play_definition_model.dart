@@ -47,4 +47,16 @@ class PlayDefinition {
       actionTypeString: json['action_type'] as String? ?? 'NORMAL', // <-- FIX 2
     );
   }
+
+  PlayDefinition.empty(this.name)
+      : id = 0,
+        description = null,
+        playType = 'ACTION',
+        teamId = 0,
+        diagramUrl = null,
+        videoUrl = null,
+        parentId = null,
+        category = null,
+        subcategory = null,
+        actionTypeString = 'NORMAL';
 }

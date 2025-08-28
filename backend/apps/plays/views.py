@@ -1,6 +1,6 @@
 # apps/plays/views.py
+
 from .models import PlayDefinition
-from rest_framework.exceptions import PermissionDenied
 from .serializers import PlayDefinitionSerializer, PlayCategory, PlayCategorySerializer
 from apps.teams.models import Team
 from rest_framework import viewsets, permissions, status
@@ -39,20 +39,21 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
         # Filter plays to only those belonging to the user's teams
         return PlayDefinition.objects.filter(team_id__in=member_of_teams_ids)
 
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=['get'])
     def templates(self, request):
         """
-        An endpoint to get all generic play definitions that are part of the
-        "Default Play Templates" team. This is a public resource for all logged-in users.
+        Returns the master list of all generic play definitions used for the
+        live tracking screen buttons.
         """
         try:
-            # We find the default team by name, which is more robust than using ID=1
-            default_team = Team.objects.get(name="Default Play Templates")
-            templates = PlayDefinition.objects.filter(team=default_team)
-            serializer = self.get_serializer(templates, many=True)
+            # Find the template team by its specific name
+            template_team = Team.objects.get(name="Default Play Templates")
+            # Filter plays belonging only to that team
+            template_plays = PlayDefinition.objects.filter(team=template_team)
+            serializer = self.get_serializer(template_plays, many=True)
             return Response(serializer.data)
         except Team.DoesNotExist:
             return Response(
-                {"error": "Default play templates team not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"error": "The 'Default Play Templates' team was not found in the database."},
+                status=status.HTTP_404_NOT_FOUND
             )

@@ -187,4 +187,22 @@ class PlayRepository {
       throw Exception('Error fetching generic plays: $e');
     }
   }
+
+  Future<List<PlayDefinition>> getPlayTemplates(String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/plays/templates/');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(response.body);
+        return body.map((json) => PlayDefinition.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load play templates');
+      }
+    } catch (e) {
+      throw Exception('Error fetching play templates: $e');
+    }
+  }
 }
