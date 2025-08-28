@@ -145,22 +145,46 @@ class PlayRepository {
       throw Exception('An error occurred while updating the play: $e');
     }
   }
-  
+
   Future<List<PlayCategory>> getAllCategories(String token) async {
-  final url = Uri.parse('${ApiClient.baseUrl}/play-categories/');
-  try {
-    final response = await _client.get(
-      url,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode == 200) {
-      final List<dynamic> body = json.decode(response.body);
-      return body.map((json) => PlayCategory.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load play categories');
+    final url = Uri.parse('${ApiClient.baseUrl}/play-categories/');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(response.body);
+        return body.map((json) => PlayCategory.fromJson(json)).toList();
+      } else {
+        throw Exception(
+          'Failed to load play categories. Status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error fetching play categories: $e');
     }
-  } catch (e) {
-    throw Exception('Error fetching play categories: $e');
   }
-}  
+
+  Future<List<PlayDefinition>> getGenericPlayTemplates(String token) async {
+    // This points to our new, dedicated endpoint
+    final url = Uri.parse('${ApiClient.baseUrl}/plays/templates/');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(response.body);
+        return body.map((json) => PlayDefinition.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load generic play templates');
+      }
+    } catch (e) {
+      throw Exception('Error fetching generic plays: $e');
+    }
+  }
 }

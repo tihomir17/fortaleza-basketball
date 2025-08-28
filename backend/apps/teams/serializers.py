@@ -30,17 +30,15 @@ class TeamReadSerializer(serializers.ModelSerializer):
         # Start with the default representation (for fields like 'id' and 'name')
         representation = super().to_representation(instance)
 
-        print(f"Instance: {instance}")
+        # print(f"Instance: {instance}")
 
         # Manually fetch all coaches and players from the database for this team instance
         coaches_queryset = instance.coaches.all()
         players_queryset = instance.players.all()
 
-        print(f"\n--- Inside CORRECTED Serializer ---")
-        print(f"Serializing team: {instance.name}")
-        print(f"Coaches found MANUALLY: {list(coaches_queryset)}")
-        print(f"Players found MANUALLY: {list(players_queryset)}")
-        print("--- End Serializer Debug ---")
+        # print(f"Serializing team: {instance.name}")
+        # print(f"Coaches found MANUALLY: {list(coaches_queryset)}")
+        # print(f"Players found MANUALLY: {list(players_queryset)}")
 
         # Serialize the querysets using the UserSerializer
         representation["coaches"] = UserSerializer(coaches_queryset, many=True).data

@@ -161,7 +161,7 @@ class _LiveTrackingStatefulWrapper extends StatefulWidget {
 class __LiveTrackingStatefulWrapperState
     extends State<_LiveTrackingStatefulWrapper> {
   List<String> _sequence = [];
-  bool _isSessionActive = false;
+  final bool _isSessionActive = false;
 
   PossessionLoggingPhase _phase = PossessionLoggingPhase.inactive;
 

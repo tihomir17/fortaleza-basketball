@@ -66,7 +66,7 @@ class AppRouter {
                 },
                 routes: [
                   GoRoute(
-                    path: 'plays',
+                    path: 'play-categories',
                     builder: (context, state) {
                       final teamId =
                           int.tryParse(state.pathParameters['teamId'] ?? '') ??
@@ -74,7 +74,7 @@ class AppRouter {
                       final teamName = state.extra as String? ?? 'Team';
                       return BlocProvider(
                         create: (context) => sl<PlaybookCubit>()
-                          ..fetchPlays(
+                          ..fetchPlaysForTeam(
                             token: authCubit.state.token!,
                             teamId: teamId,
                           ),
@@ -125,7 +125,14 @@ class AppRouter {
           ),
           GoRoute(
             path: '/playbook',
-            builder: (context, state) => const PlaybookHubScreen(),
+            builder: (context, state) {
+              // This is better than a global one because it ensures the state is fresh
+              // every time the user navigates to the playbook hub.
+              return BlocProvider(
+                create: (context) => sl<PlaybookCubit>(),
+                child: const PlaybookHubScreen(),
+              );
+            },
           ),
           GoRoute(
             path: '/calendar',

@@ -76,7 +76,7 @@ class PlaybookScreen extends StatelessWidget {
             MaterialPageRoute(builder: (_) => CreatePlayScreen(teamId: teamId)),
           );
           if (result == true && context.mounted && token != null) {
-            context.read<PlaybookCubit>().fetchPlays(
+            context.read<PlaybookCubit>().fetchPlaysForTeam(
               token: token,
               teamId: teamId,
             );
@@ -102,7 +102,7 @@ class _PlayCategoryCard extends StatelessWidget {
     if (result == true && context.mounted) {
       final token = context.read<AuthCubit>().state.token;
       if (token != null) {
-        context.read<PlaybookCubit>().fetchPlays(
+        context.read<PlaybookCubit>().fetchPlaysForTeam(
           token: token,
           teamId: play.teamId,
         );
@@ -254,7 +254,7 @@ class _DeletePlayButton extends StatelessWidget {
                   );
                   Navigator.of(dialogContext).pop();
                   final teamId = play.teamId;
-                  context.read<PlaybookCubit>().fetchPlays(
+                  context.read<PlaybookCubit>().fetchPlaysForTeam(
                     token: token,
                     teamId: teamId,
                   );

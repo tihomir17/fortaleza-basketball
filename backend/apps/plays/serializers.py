@@ -9,29 +9,18 @@ class PlayCategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "description"]
 
 
+# The PlayDefinitionSerializer is likely already correct
 class PlayDefinitionSerializer(serializers.ModelSerializer):
-    # When we READ a play, we want to see the full category object
+    # This ensures the nested category object is serialized correctly
     category = PlayCategorySerializer(read_only=True)
-    # When we WRITE a play, we'll send the integer ID for the category
+    
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=PlayCategory.objects.all(),
-        source="category",
-        write_only=True,
-        required=False,
-        allow_null=True,
+        queryset=PlayCategory.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
 
     class Meta:
         model = PlayDefinition
-        # Add the new fields to the list
         fields = [
-            "id",
-            "name",
-            "description",
-            "play_type",
-            "team",
-            "parent",
-            "category",
-            "subcategory",
-            "category_id",
+            'id', 'name', 'description', 'play_type', 'team',
+            'parent', 'category', 'subcategory', 'action_type', 'category_id'
         ]
