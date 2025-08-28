@@ -117,10 +117,19 @@ class _TeamDisplay extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            child: Text(
-              team!.name.isNotEmpty ? team!.name[0] : 'T',
-              style: const TextStyle(fontSize: 24),
-            ),
+            backgroundColor: Theme.of(context).cardColor,
+            backgroundImage: team!.logoUrl != null
+                ? NetworkImage(team!.logoUrl!)
+                : null,
+            child: team!.logoUrl == null
+                ? Text(
+                    team!.name.isNotEmpty ? team!.name[0] : 'T',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(height: 8),
           Text(

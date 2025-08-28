@@ -7,6 +7,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response  # Make sure this is imported
 
+
 class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     A simple ViewSet for listing all PlayCategories, ordered by their ID.
@@ -38,7 +39,7 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
         # Filter plays to only those belonging to the user's teams
         return PlayDefinition.objects.filter(team_id__in=member_of_teams_ids)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def templates(self, request):
         """
         An endpoint to get all generic play definitions that are part of the
@@ -51,4 +52,7 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(templates, many=True)
             return Response(serializer.data)
         except Team.DoesNotExist:
-            return Response({"error": "Default play templates team not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Default play templates team not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )

@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from .models import Game
 from apps.teams.models import Team
 from .serializers import GameReadSerializer, GameWriteSerializer
-from django.db.models import Q # Import Q
+from django.db.models import Q  # Import Q
+
 
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.all().order_by("-game_date")
@@ -24,7 +25,7 @@ class GameViewSet(viewsets.ModelViewSet):
         Superusers can see all games.
         """
         user = self.request.user
-        
+
         # Superusers see everything
         if user.is_superuser:
             return self.queryset
@@ -33,11 +34,10 @@ class GameViewSet(viewsets.ModelViewSet):
         member_of_teams = Team.objects.filter(
             Q(players=user) | Q(coaches=user)
         ).distinct()
-        
+
         # Filter games where one of the user's teams was either home or away
         return self.queryset.filter(
-            Q(home_team__in=member_of_teams) |
-            Q(away_team__in=member_of_teams)
+            Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
         ).distinct()
 
     def create(self, request, *args, **kwargs):

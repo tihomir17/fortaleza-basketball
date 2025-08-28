@@ -13,6 +13,9 @@ import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
+import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_cubit.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_state.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/main.dart';
@@ -223,7 +226,7 @@ class __LiveTrackingStatefulWrapperState
       if (_phase == PossessionLoggingPhase.inactive) return;
 
       // For 2pt/3pt, enter the special "awaiting shot result" phase
-      if (action == '2pt' || action == '3pt') {
+      if (action == '2pts' || action == '3pts') {
         _phase = PossessionLoggingPhase.awaitingShotResult;
         _shotType = action;
         _sequence.add(action);
@@ -486,7 +489,6 @@ class __LiveTrackingStatefulWrapperState
             leading: const Icon(Icons.check_circle, color: Colors.green),
             title: const Text('Made Free Throw(s)'),
             onTap: () {
-              // THIS IS THE FIX:
               // Use the exact value from the Django model's choices.
               _onButtonPressed('MADE_FT');
               Navigator.of(ctx).pop();
@@ -1076,13 +1078,13 @@ class _ControlPanel extends StatelessWidget {
               children: [
                 _ActionButton(
                   text: 'Off',
-                  color: Colors.grey,
+                  color: Colors.blueAccent,
                   onPressed: onButtonPressed,
                   isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
                 ),
                 _ActionButton(
                   text: 'Def',
-                  color: Colors.grey,
+                  color: Colors.green,
                   onPressed: onButtonPressed,
                   isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
                 ),
