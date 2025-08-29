@@ -1,18 +1,18 @@
 # apps/users/views.py
 
 from django.contrib.auth import get_user_model  # pyright: ignore[reportMissingImports]
-from rest_framework import (
+from rest_framework import (  # pyright: ignore[reportMissingImports]
     generics,
     permissions,
 )  # pyright: ignore[reportMissingImports]
-from django_filters.rest_framework import (
+from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
 from .serializers import RegisterSerializer, UserSerializer, CoachUpdateSerializer
 from .filters import UserFilter
 from django.db.models import Q  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
-from rest_framework import (
+from rest_framework import (  # pyright: ignore[reportMissingImports]
     viewsets,
     permissions,
 )  # <-- Add viewsets  # pyright: ignore[reportMissingImports]

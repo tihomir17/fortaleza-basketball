@@ -4,17 +4,17 @@ from .models import PlayDefinition
 from .serializers import PlayDefinitionSerializer, PlayCategory, PlayCategorySerializer
 from apps.teams.models import Team
 from apps.users.models import User
-from django.db.models import Q
-from rest_framework import (
+from django.db.models import Q  # pyright: ignore[reportMissingImports]
+from rest_framework import (  # pyright: ignore[reportMissingImports]
     viewsets,
     permissions,
     status,
 )  # pyright: ignore[reportMissingImports]
 from rest_framework.decorators import action  # pyright: ignore[reportMissingImports]
-from rest_framework.response import (
+from rest_framework.response import (  # pyright: ignore[reportMissingImports]
     Response,
 )  # Make sure this is imported  # pyright: ignore[reportMissingImports]
-from django_filters.rest_framework import (
+from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
 from .filters import PlayCategoryFilter, PlayDefinitionFilter

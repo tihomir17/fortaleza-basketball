@@ -1,9 +1,9 @@
 # apps/competitions/views.py
-from rest_framework import (
+from rest_framework import (  # pyright: ignore[reportMissingImports]
     viewsets,
     permissions,
 )  # pyright: ignore[reportMissingImports]
-from django_filters.rest_framework import (
+from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
 from .models import Competition

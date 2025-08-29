@@ -1,56 +1,33 @@
 // lib/features/possessions/presentation/screens/live_tracking_screen.dart
 
-// ignore_for_file: unused_element_parameter
+// ignore_for_file: unused_import, unused_element_parameter
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
+import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
 import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
-import 'package:flutter_app/features/plays/data/repositories/play_repository.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_cubit.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_state.dart';
+import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/main.dart';
-import '../../data/repositories/possession_repository.dart';
-
-// Enums must match the ActionType choices in your Django model
-enum ActionType {
-  normal,
-  startsPossession,
-  endsPossession,
-  triggersShotResult,
-  isShotResult,
-  opensTurnoverMenu,
-  opensFtMenu,
-}
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum PossessionLoggingPhase {
   inactive,
   awaitingTeam,
+  homeTeamPossesion,
+  awayTeamPossesion,
   active,
   awaitingShotResult,
-}
-
-ActionType _getActionType(PlayDefinition play) {
-  switch (play.actionTypeString) {
-    case 'STARTS_POSSESSION':
-      return ActionType.startsPossession;
-    case 'ENDS_POSSESSION':
-      return ActionType.endsPossession;
-    case 'TRIGGERS_SHOT_RESULT':
-      return ActionType.triggersShotResult;
-    case 'IS_SHOT_RESULT':
-      return ActionType.isShotResult;
-    case 'OPENS_TURNOVER_MENU':
-      return ActionType.opensTurnoverMenu;
-    case 'OPENS_FT_MENU':
-      return ActionType.opensFtMenu;
-    default:
-      return ActionType.normal;
-  }
 }
 
 class LiveTrackingScreen extends StatefulWidget {
@@ -62,209 +39,302 @@ class LiveTrackingScreen extends StatefulWidget {
 }
 
 class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
-  // --- STATE VARIABLES ---
-  Game? _game;
-  List<PlayDefinition> _allPlays = [];
-  bool _isLoading = true;
-  String? _error;
-
+  // Local UI state for the screen
   String _currentPeriod = "Q1";
-  List<PlayDefinition> _sequence = [];
-  PossessionLoggingPhase _phase = PossessionLoggingPhase.inactive;
-  String? _shotType;
-  bool? _isHomeTeamPossession;
-  double _durationInSeconds = 12.0;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchInitialData();
-  }
-
-  // Future<void> _fetchInitialData() async {
-  //   final token = context.read<AuthCubit>().state.token;
-  //   if (token == null) {
-  //     setState(() {
-  //       _isLoading = false;
-  //       _error = "Authentication error.";
-  //     });
-  //     return;
-  //   }
-  //   try {
-  //     final results = await Future.wait([
-  //       sl<GameRepository>().getGameDetails(
-  //         token: token,
-  //         gameId: widget.gameId,
-  //       ),
-  //       sl<PlayRepository>().getPlaysForTeam(
-  //         token: token,
-  //         teamId: 1,
-  //       ), // Generic plays
-  //     ]);
-  //     if (mounted) {
-  //       setState(() {
-  //         _game = results[0] as Game;
-  //         _allPlays = results[1] as List<PlayDefinition>;
-  //         _isLoading = false;
-  //       });
-  //     }
-  //   } catch (e) {
-  //     if (mounted) {
-  //       setState(() {
-  //         _isLoading = false;
-  //         _error = e.toString();
-  //       });
-  //     }
-  //   }
-  // }
-  Future<void> _fetchInitialData() async {
-    final token = context.read<AuthCubit>().state.token;
-    if (token == null) {
-      /* handle error */
-      return;
-    }
-
-    try {
-      // Fetch both game details and the generic play templates in parallel
-      final results = await Future.wait([
-        sl<GameRepository>().getGameDetails(
-          token: token,
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => sl<GameDetailCubit>()
+        ..fetchGameDetails(
+          token: context.read<AuthCubit>().state.token!,
           gameId: widget.gameId,
         ),
-        sl<PlayRepository>().getPlayTemplates(token), // <-- USE THE NEW METHOD
-      ]);
-      if (mounted) {
-        setState(() {
-          _game = results[0] as Game;
-          _allPlays = results[1] as List<PlayDefinition>;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _error = e.toString();
-        });
-      }
-    }
+      child: BlocBuilder<GameDetailCubit, GameDetailState>(
+        builder: (context, state) {
+          // Determine the AppBar title based on the state
+          final game = state.game;
+          final String appBarTitle = game != null
+              ? '${game.homeTeam.name} vs ${game.awayTeam.name}'
+              : 'Loading Session...';
+
+          return Scaffold(
+            appBar: UserProfileAppBar(
+              title: appBarTitle,
+              actions: [
+                // Only show the period selector if the game has loaded
+                if (state.status == GameDetailStatus.success && game != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: PopupMenuButton<String>(
+                      onSelected: (newPeriod) {
+                        // setState is available here because we are in a StatefulWidget
+                        setState(() {
+                          _currentPeriod = newPeriod;
+                        });
+                      },
+                      child: Chip(
+                        backgroundColor: Colors.red,
+                        label: Text(
+                          _currentPeriod,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'Q1',
+                          child: Text('1st Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q2',
+                          child: Text('2nd Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q3',
+                          child: Text('3rd Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'Q4',
+                          child: Text('4th Quarter'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'OT',
+                          child: Text('Overtime'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            body: SafeArea(
+              child: _buildBody(state), // Pass the state to the body builder
+            ),
+          );
+        },
+      ),
+    );
   }
 
-  void _onButtonPressed(PlayDefinition play) {
-    final actionType = _getActionType(play);
-    if (actionType == ActionType.opensTurnoverMenu) {
-      if (_phase == PossessionLoggingPhase.active) _showTurnoverMenu();
+  Widget _buildBody(GameDetailState state) {
+    if (state.status == GameDetailStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.status == GameDetailStatus.failure || state.game == null) {
+      return Center(
+        child: Text(state.errorMessage ?? "Could not load game data."),
+      );
+    }
+    // If data is loaded, build the main view
+    return _LiveTrackingView(game: state.game!, currentPeriod: _currentPeriod);
+  }
+}
+
+// The main UI view, which is now stateless as its state is passed in
+class _LiveTrackingView extends StatelessWidget {
+  final Game game;
+  final String currentPeriod;
+
+  const _LiveTrackingView({required this.game, required this.currentPeriod});
+
+  // This StatefulWidget holds the local state for the sequence
+  @override
+  Widget build(BuildContext context) {
+    return _LiveTrackingStatefulWrapper(
+      game: game,
+      currentPeriod: currentPeriod,
+    );
+  }
+}
+
+class _LiveTrackingStatefulWrapper extends StatefulWidget {
+  final Game game;
+  final String currentPeriod;
+
+  const _LiveTrackingStatefulWrapper({
+    required this.game,
+    required this.currentPeriod,
+  });
+
+  @override
+  __LiveTrackingStatefulWrapperState createState() =>
+      __LiveTrackingStatefulWrapperState();
+}
+
+class __LiveTrackingStatefulWrapperState
+    extends State<_LiveTrackingStatefulWrapper> {
+  List<String> _sequence = [];
+
+  PossessionLoggingPhase _phase = PossessionLoggingPhase.inactive;
+
+  double _durationInSeconds = 12.0;
+
+  String? _finalOutcome; // To hold outcomes like 'MADE_2PT', 'TO_TRAVEL', etc.
+  String? _shotType; // To track if '2pts' or '3pts' was pressed
+  bool? _isHomeTeamPossession; // To determine which team had the ball
+
+  void _onButtonPressed(String action) {
+    if (action.startsWith('TO_') ||
+        action.startsWith('MADE_') ||
+        action.startsWith('MISSED_')) {
+      setState(() => _finalOutcome = action);
+      // We still add it to the sequence for the user to see
+    }
+    // --- SPECIAL BUTTON LOGIC ---
+    if (action == 'Turnover') {
+      _showTurnoverMenu();
       return;
     }
-    if (actionType == ActionType.opensFtMenu) {
-      if (_phase == PossessionLoggingPhase.active) _showFreeThrowMenu();
-      return;
-    }
-    if (play.name == 'Substitution') {
-      if (_phase != PossessionLoggingPhase.inactive) _showSubstitutionDialog();
+    if (action == 'Free Throw') {
+      _showFreeThrowMenu();
       return;
     }
 
+    if (action == 'Substitution') {
+      _showSubstitutionDialog(context);
+    }
     setState(() {
-      switch (actionType) {
-        case ActionType.startsPossession:
-          if (_phase == PossessionLoggingPhase.inactive) {
-            _phase = PossessionLoggingPhase.awaitingTeam;
-            _sequence = [
-              PlayDefinition(
-                id: 0,
-                name: _currentPeriod,
-                playType: '',
-                teamId: 0,
-                actionTypeString: 'NORMAL',
-              ),
-            ];
-            _shotType = null;
-            _isHomeTeamPossession = null;
-          }
-          break;
-        case ActionType.endsPossession:
-          if (_phase != PossessionLoggingPhase.inactive) {
-            _sequence.add(play);
-            _showSaveConfirmationDialog();
-          }
-          break;
-        case ActionType.triggersShotResult:
-          if (_phase == PossessionLoggingPhase.active) {
-            _phase = PossessionLoggingPhase.awaitingShotResult;
-            _shotType = play.name;
-            _sequence.add(play);
-          }
-          break;
-        case ActionType.isShotResult:
-          if (_phase == PossessionLoggingPhase.awaitingShotResult) {
-            final outcomeName = '${play.name} ${_shotType ?? ""}';
-            _sequence.add(play);
-            final finalOutcome = _allPlays.firstWhere(
-              (p) => p.name == outcomeName,
-              orElse: () => play,
-            );
-            _sequence.add(finalOutcome);
-            _phase = PossessionLoggingPhase.active;
-          }
-          break;
-        default:
-          if (play.name == 'Off') {
-            if (_phase == PossessionLoggingPhase.awaitingTeam) {
-              _isHomeTeamPossession = true;
-              _phase = PossessionLoggingPhase.active;
-            }
-          } else if (play.name == 'Def') {
-            if (_phase == PossessionLoggingPhase.awaitingTeam) {
-              _isHomeTeamPossession = false;
-              _phase = PossessionLoggingPhase.active;
-            }
-          } else if (play.name == 'UNDO') {
-            if (_sequence.length > 1) {
-              final removed = _sequence.removeLast();
-              if (_getActionType(removed) == ActionType.triggersShotResult) {
-                _phase = PossessionLoggingPhase.active;
-                _shotType = null;
-              }
-            }
-          } else if (_phase == PossessionLoggingPhase.active) {
-            _sequence.add(play);
-          }
+      if (action == 'START') {
+        _phase = PossessionLoggingPhase.awaitingTeam;
+        _sequence = [widget.currentPeriod];
+        _finalOutcome = null;
+        _shotType = null;
+        _isHomeTeamPossession = null;
+        return;
       }
+
+      if (action == 'Off' || action == 'Def') {
+        _isHomeTeamPossession = (action == 'Off');
+        _phase = PossessionLoggingPhase.active; // All buttons now become active
+        return; // Don't add to sequence
+      }
+
+      // If we are awaiting a shot result, only allow Made or Miss
+      if (_phase == PossessionLoggingPhase.awaitingShotResult) {
+        if (action == 'Made' || action == 'Missed') {
+          _finalOutcome =
+              '${action.toUpperCase()}_$_shotType'; // e.g., MADE_2PT
+          _sequence.add(action);
+          _phase =
+              PossessionLoggingPhase.active; // Return to normal active state
+        }
+        return; // Ignore all other buttons
+      }
+
+      // If the session is totally inactive, ignore all other buttons
+      if (_phase == PossessionLoggingPhase.inactive) return;
+
+      // For 2pt/3pt, enter the special "awaiting shot result" phase
+      if (action == '2pts' || action == '3pts') {
+        _phase = PossessionLoggingPhase.awaitingShotResult;
+        _shotType = action.toUpperCase();
+        _sequence.add(action);
+        return;
+      }
+
+      if (action == 'END') {
+        showSaveConfirmationDialog();
+        _phase = PossessionLoggingPhase.inactive;
+        _sequence.add(action);
+        return;
+      }
+
+      // Standard UNDO logic (simplified for now)
+      if (action == "UNDO") {
+        if (_sequence.length > 1) _sequence.removeLast();
+        _phase =
+            PossessionLoggingPhase.active; // Always return to active after undo
+        return;
+      }
+
+      _sequence.add(action);
     });
   }
 
-  void _showSaveConfirmationDialog() {
+  Future<void> savePossessionToDatabase(
+    Team team,
+    Team opponent,
+    String sequence,
+  ) async {
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) return;
+
+    try {
+      await sl<PossessionRepository>().createPossession(
+        token: token,
+        gameId: widget.game.id,
+        teamId: team.id,
+        opponentId: opponent.id,
+        startTime: "00:00", // Placeholder
+        duration: 10, // Placeholder
+        quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
+        outcome: _finalOutcome!,
+        offensiveSequence: _isHomeTeamPossession! ? sequence : '',
+        defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Possession Saved!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Clear the sequence for the next one
+        setState(() => _sequence = []);
+        // Notify other screens to refresh
+        sl<RefreshSignal>().notify();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  // --- SAVE POSSESSION LOGIC ---
+  void showSaveConfirmationDialog() {
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) return;
+
+    // Determine which team had the ball and which was the opponent
     if (_isHomeTeamPossession == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please select 'Off' or 'Def' to assign possession."),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
     }
-    final finalOutcome = _sequence.lastWhere(
-      (p) => p.actionTypeString != 'NORMAL' && p.actionTypeString.isNotEmpty,
-      orElse: () => _sequence.firstWhere(
-        (p) => p.category?.name == 'Outcome',
-        orElse: () => PlayDefinition(
-          id: 0,
-          name: 'OTHER',
-          playType: '',
-          teamId: 0,
-          actionTypeString: 'NORMAL',
-        ),
-      ),
-    );
-    final teamWithBall = _isHomeTeamPossession!
-        ? _game!.homeTeam
-        : _game!.awayTeam;
+
+    final teamWithBall = _isHomeTeamPossession! ? game.homeTeam : game.awayTeam;
+    final opponentTeam = _isHomeTeamPossession! ? game.awayTeam : game.homeTeam;
+    final sequenceString = _sequence.join(' / ');
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Save Possession for ${teamWithBall.name}?'),
-        content: Text(_sequence.map((p) => p.name).join(' / ')),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Sequence:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(sequenceString),
+              const SizedBox(height: 16),
+              // TODO: Add outcome and other details to this summary
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -272,7 +342,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              _savePossessionToDatabase(finalOutcome);
+              // Call the repository method on confirm
+              savePossessionToDatabase(
+                teamWithBall,
+                opponentTeam,
+                sequenceString,
+              );
               Navigator.of(dialogContext).pop();
             },
             child: const Text('Save'),
@@ -282,63 +357,94 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
   }
 
-  Future<void> _savePossessionToDatabase(PlayDefinition outcomePlay) async {
-    final token = context.read<AuthCubit>().state.token;
-    if (token == null || _isHomeTeamPossession == null) return;
+  // Method to display the custom dialog for the sub
+  void _showSubstitutionDialog(BuildContext context) {
+    // Controllers for the text fields
+    final playerInController = TextEditingController();
+    final playerOutController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-    final teamWithBall = _isHomeTeamPossession!
-        ? _game!.homeTeam
-        : _game!.awayTeam;
-    final opponentTeam = _isHomeTeamPossession!
-        ? _game!.awayTeam
-        : _game!.homeTeam;
-    final sequenceString = _sequence.map((p) => p.name).join(' -> ');
-
-    try {
-      await sl<PossessionRepository>().createPossession(
-        token: token,
-        gameId: _game!.id,
-        teamId: teamWithBall.id,
-        opponentId: opponentTeam.id,
-        startTime: "00:00",
-        duration: _durationInSeconds.round(),
-        quarter: int.tryParse(_currentPeriod.replaceAll('Q', '')) ?? 1,
-        outcome: outcomePlay.name.replaceAll(' ', '_').toUpperCase(),
-        offensiveSequence: _isHomeTeamPossession! ? sequenceString : '',
-        defensiveSequence: !_isHomeTeamPossession! ? sequenceString : '',
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Possession Saved!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-        setState(() {
-          _sequence = [];
-          _phase = PossessionLoggingPhase.inactive;
-        });
-        sl<RefreshSignal>().notify();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error: ${e.toString().replaceFirst("Exception: ", "")}',
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Substitution'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Make the dialog content compact
+              children: [
+                TextFormField(
+                  controller: playerInController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player In',
+                    prefixIcon: Icon(Icons.arrow_upward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: playerOutController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Out',
+                    prefixIcon: Icon(Icons.arrow_downward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+              ],
             ),
           ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  // If the form is valid, create the action string
+                  final String subAction =
+                      'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
+                  // Call the main onPressed callback to add it to the sequence
+                  _onButtonPressed(subAction);
+                  // Close the dialog
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+            ),
+          ],
         );
-      }
-    }
+      },
+    );
   }
 
   void _showTurnoverMenu() {
-    final turnoverPlays = _allPlays
-        .where(
-          (p) => p.category?.name == 'Outcome' && p.subcategory == 'Turnover',
-        )
-        .toList();
+    // Create a map to link the user-friendly text to the backend enum value
+    final Map<String, String> turnoverTypes = {
+      'Out of bounds': 'TO_OUT_OF_BOUNDS',
+      'Travelling': 'TO_TRAVEL',
+      'Offensive foul': 'TO_OFFENSIVE_FOUL',
+      '3 seconds in key': 'TO_3_SECONDS',
+      '5 seconds violation':
+          'TO_5_SECONDS', // NOTE: Add this to your Django model if needed
+      '8 seconds violation': 'TO_8_SECONDS',
+      'Shot clock violation': 'TO_SHOT_CLOCK',
+      'Bad pass':
+          'TO_BAD_PASS', // NOTE: Add this to your Django model if needed
+      'Stolen ball': 'TO_STOLEN_BALL',
+      'Technical foul':
+          'TO_TECHNICAL_FOUL', // NOTE: Add this to your Django model if needed
+    };
+
     showModalBottomSheet(
       context: context,
       builder: (ctx) => ListView(
@@ -349,11 +455,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          ...turnoverPlays.map(
-            (play) => ListTile(
-              title: Text(play.name),
+          ...turnoverTypes.entries.map(
+            (entry) => ListTile(
+              title: Text(entry.key), // Show the user-friendly key
               onTap: () {
-                _onButtonPressed(play);
+                // Send the backend-friendly value to the sequence
+                _onButtonPressed(entry.value);
                 Navigator.of(ctx).pop();
               },
             ),
@@ -364,91 +471,27 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   }
 
   void _showFreeThrowMenu() {
-    final ftPlays = _allPlays
-        .where(
-          (p) => p.category?.name == 'Outcome' && p.subcategory == 'Free Throw',
-        )
-        .toList();
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
-        children: ftPlays
-            .map(
-              (play) => ListTile(
-                leading: Icon(
-                  play.name.contains('Made')
-                      ? Icons.check_circle
-                      : Icons.cancel,
-                  color: play.name.contains('Made') ? Colors.green : Colors.red,
-                ),
-                title: Text(play.name),
-                onTap: () {
-                  _onButtonPressed(play);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  void _showSubstitutionDialog() {
-    final playerInController = TextEditingController();
-    final playerOutController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Substitution'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: playerInController,
-                decoration: const InputDecoration(labelText: 'Player In'),
-                keyboardType: TextInputType.number,
-                maxLength: 2,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: playerOutController,
-                decoration: const InputDecoration(labelText: 'Player Out'),
-                keyboardType: TextInputType.number,
-                maxLength: 2,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-              ),
-            ],
+        children: [
+          ListTile(
+            leading: const Icon(Icons.check_circle, color: Colors.green),
+            title: const Text('Made Free Throw(s)'),
+            onTap: () {
+              // Use the exact value from the Django model's choices.
+              _onButtonPressed('MADE_FT');
+              Navigator.of(ctx).pop();
+            },
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            child: const Text('Confirm'),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                final subAction =
-                    'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
-                _onButtonPressed(
-                  PlayDefinition(
-                    id: 0,
-                    name: subAction,
-                    playType: '',
-                    teamId: 0,
-                    actionTypeString: 'NORMAL',
-                  ),
-                );
-                Navigator.of(dialogContext).pop();
-              }
+          ListTile(
+            leading: const Icon(Icons.cancel, color: Colors.red),
+            title: const Text('Missed Free Throw(s)'),
+            onTap: () {
+              // THIS IS THE FIX:
+              _onButtonPressed('MISSED_FT');
+              Navigator.of(ctx).pop();
             },
           ),
         ],
@@ -458,99 +501,36 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appBarTitle = _game != null
-        ? '${_game!.homeTeam.name} vs ${_game!.awayTeam.name}'
-        : 'Loading...';
-    return Scaffold(
-      appBar: UserProfileAppBar(
-        title: appBarTitle,
-        actions: [
-          if (_game != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: PopupMenuButton<String>(
-                onSelected: (newPeriod) =>
-                    setState(() => _currentPeriod = newPeriod),
-                child: Chip(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  label: Text(
-                    _currentPeriod,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                ),
-                itemBuilder: (ctx) => const [
-                  PopupMenuItem(value: 'Q1', child: Text('1st Quarter')),
-                  PopupMenuItem(value: 'Q2', child: Text('2nd Quarter')),
-                  PopupMenuItem(value: 'Q3', child: Text('3rd Quarter')),
-                  PopupMenuItem(value: 'Q4', child: Text('4th Quarter')),
-                  PopupMenuItem(value: 'OT', child: Text('Overtime')),
-                ],
-              ),
-            ),
-        ],
-      ),
-      backgroundColor: Colors.grey[200],
-      body: _game == null
-          ? const Center(child: CircularProgressIndicator())
-          : _buildTrackingInterface(_game!),
-    );
-  }
-
-  Widget _buildSequenceDisplay() {
-    return Container(
-      width: double.infinity,
-      color: Colors.black87,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: Text(
-        _sequence.isEmpty
-            ? "Press START to begin."
-            : _sequence.map((p) => p.name).join(' / '),
-        style: const TextStyle(
-          color: Colors.white,
-          fontFamily: 'monospace',
-          fontSize: 16,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildTrackingInterface(Game game) {
+    // The main Column that holds the content and the sequence display
     return Column(
       children: [
+        // Expanded ensures this container takes up all available space
         Expanded(
+          // The FittedBox is the magic widget. It will scale its child
+          // down to fit within the bounds of the Expanded parent.
           child: FittedBox(
-            fit: BoxFit.contain,
+            fit: BoxFit.contain, // Maintain aspect ratio, don't crop
             child: SizedBox(
-              width: 1400,
-              height: 780,
+              // We give the entire UI a fixed, ideal design size.
+              // This is the "canvas" on which we build our layout.
+              // We've chosen a common wide-screen dimension.
+              width: 1280,
+              height: 720,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
+                // Because it has a fixed size, none of the inner widgets
+                // will ever cause an overflow error.
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // --- TOP ROW (Fixed Flex) ---
-                    Expanded(
-                      flex: 2, // e.g., takes 2 units of vertical space
-                      child: _Panel(
-                        title: 'OFFENSE',
-                        child: _GenericPanel(
-                          category: 'Offense',
-                          allPlays: _allPlays,
-                          phase: _phase,
-                          onButtonPressed: _onButtonPressed,
-                        ),
+                    _Panel(
+                      title: 'OFFENSE',
+                      child: _OffensePanel(
+                        onButtonPressed: _onButtonPressed,
+                        phase: _phase,
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    // --- MIDDLE ROW (Expanded to fill) ---
-                    Expanded(
-                      flex: 5, // Takes 5 units, will be the largest
+                    IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -558,10 +538,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                             flex: 3,
                             child: _Panel(
                               title: 'OFFENSE HALF COURT',
-                              child: _OffenseHalfCourtPanel(
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _HalfCourtPanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -570,11 +549,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                             flex: 3,
                             child: _Panel(
                               title: 'DEFENSE',
-                              child: _GenericPanel(
-                                category: 'Defense',
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _DefensePanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -586,8 +563,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                               child: _PlayersPanel(
                                 onButtonPressed: _onButtonPressed,
                                 phase: _phase,
-                                game: game,
-                                onShowSubDialog: _showSubstitutionDialog,
                               ),
                             ),
                           ),
@@ -595,77 +570,67 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    // --- BOTTOM ROW (Fixed Flex) ---
-                    Expanded(
-                      flex: 3, // Takes 3 units
-                      // REMOVED IntrinsicHeight
+                    IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            flex: 2,
+                            flex: 3,
                             child: _Panel(
                               title: 'CONTROL',
-                              child: _GenericPanel(
-                                category: 'Control',
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _ControlPanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: _Panel(
                               title: 'OUTCOME',
-                              child: _GenericPanel(
-                                category: 'Outcome',
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _OutcomePanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: _Panel(
                               title: 'SHOOT',
                               child: _ShootPanel(
-                                phase: _phase,
-                                duration: _durationInSeconds,
-                                onDurationChanged: (val) =>
-                                    setState(() => _durationInSeconds = val),
-                                allPlays: _allPlays,
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
+                                currentDuration: _durationInSeconds,
+                                onDurationChanged: (newDuration) {
+                                  setState(
+                                    () => _durationInSeconds = newDuration,
+                                  );
+                                },
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 3,
+                            flex: 2,
                             child: _Panel(
                               title: 'TAG OFFENSIVE REBOUND',
-                              child: _GenericPanel(
-                                category: 'Tag Offensive Rebound',
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _OffRebPanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 3,
+                            flex: 2,
                             child: _Panel(
                               title: 'ADVANCED',
-                              child: _GenericPanel(
-                                category: 'Advanced',
-                                allPlays: _allPlays,
-                                phase: _phase,
+                              child: _AdvancePanel(
                                 onButtonPressed: _onButtonPressed,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -682,13 +647,78 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       ],
     );
   }
+
+  Widget _buildSequenceDisplay() {
+    return Container(
+      width: double.infinity,
+      color: Colors.black87,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Text(
+        _sequence.isEmpty
+            ? "Press Start for the new possession."
+            : _sequence.join(' / '),
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: 'monospace',
+          fontSize: 16,
+        ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+      ),
+    );
+  }
 }
 
-// --- PANEL & BUTTON HELPERS ---
+// The _ActionButton is now a StatelessWidget as it doesn't need flex
+class _ActionButton extends StatelessWidget {
+  final String text;
+  final Color? color;
+  final Color? textColor;
+  final ValueChanged<String> onPressed;
+  final int? flex;
+  final double? textSize;
+  final bool isEnabled;
+
+  const _ActionButton({
+    required this.text,
+    this.color,
+    required this.onPressed,
+    this.textSize,
+    this.textColor,
+    this.flex,
+    this.isEnabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(2.0),
+      child: ElevatedButton(
+        onPressed: isEnabled ? () => onPressed(text) : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color ?? Colors.lightBlue,
+          foregroundColor: textColor ?? Colors.white,
+          // Let the button fill the height provided by the TableRow
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          textStyle: TextStyle(
+            fontSize: textSize ?? 14,
+            fontWeight: FontWeight.bold,
+            height: 1.1,
+            fontFamily: 'Montserrat',
+          ),
+        ),
+        child: Text(text),
+      ),
+    );
+  }
+}
+
 class _Panel extends StatelessWidget {
   final String title;
   final Widget child;
   const _Panel({required this.title, required this.child});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -712,433 +742,756 @@ class _Panel extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          Expanded(
-            child: Padding(padding: const EdgeInsets.all(4.0), child: child),
-          ),
+          Padding(padding: const EdgeInsets.all(4.0), child: child),
         ],
       ),
     );
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final PlayDefinition play;
+class _OffensePanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
-  final ValueChanged<PlayDefinition> onPressed;
-  final Color? color;
-  final Color? textColor;
 
-  const _ActionButton({
-    super.key,
-    required this.play,
-    required this.phase,
-    required this.onPressed,
-    this.color,
-    this.textColor,
-  });
-
-  bool _getIsEnabled() {
-    final actionType = _getActionType(play);
-
-    if (actionType == ActionType.startsPossession) {
-      return phase == PossessionLoggingPhase.inactive;
-    }
-    if (actionType == ActionType.isShotResult) {
-      return phase == PossessionLoggingPhase.awaitingShotResult;
-    }
-    if (play.name == 'Off' || play.name == 'Def') {
-      return phase == PossessionLoggingPhase.awaitingTeam;
-    }
-    if (play.name == 'END' || play.name == 'UNDO') {
-      return phase != PossessionLoggingPhase.inactive;
-    }
-    return phase == PossessionLoggingPhase.active;
-  }
+  const _OffensePanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = _getIsEnabled();
-    Color buttonColor = color ?? Colors.grey[200]!;
-    if (color == null) {
-      if (play.name == 'START') buttonColor = Colors.green;
-      if (play.name == 'END') buttonColor = Colors.red;
-      if (play.name == 'Made') buttonColor = Colors.green;
-      if (play.name == 'Miss') buttonColor = Colors.red;
-    }
-    return Padding(
-      padding: const EdgeInsets.all(1.5),
-      child: ElevatedButton(
-        onPressed: isEnabled ? () => onPressed(play) : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          foregroundColor: textColor ?? Colors.black,
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            height: 1.1,
-          ),
+    final setButtonColor = Colors.green;
+    // We use a Column to stack the two rows vertically
+    return Column(
+      children: [
+        // First row
+        Row(
+          children: List.generate(20, (i) {
+            return _ActionButton(
+              text: 'Set ${i + 1}',
+              color: setButtonColor,
+              onPressed: onButtonPressed,
+              textSize: 14,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            );
+          }),
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-            child: Text(play.name),
-          ),
+        // Second row
+        Row(
+          children:
+              [
+                    'FastBreak',
+                    'Transit',
+                    '<14s',
+                    'BoB 1',
+                    'BoB 2',
+                    'SoB 1',
+                    'SoB 2',
+                    'Special 1',
+                    'Special 2',
+                    'ATO Spec',
+                  ]
+                  .map(
+                    (t) => Expanded(
+                      child: _ActionButton(
+                        text: t,
+                        color: Colors.grey[400],
+                        onPressed: onButtonPressed,
+                        isEnabled: phase == PossessionLoggingPhase.active,
+                      ),
+                    ),
+                  )
+                  .toList(),
         ),
-      ),
+        const SizedBox(height: 4), // Small gap between rows
+      ],
     );
   }
 }
 
-// --- DATA-DRIVEN & CUSTOM PANEL WIDGETS ---
-class _GenericPanel extends StatelessWidget {
-  final String category;
-  final List<PlayDefinition> allPlays;
+class _HalfCourtPanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
-  final ValueChanged<PlayDefinition> onButtonPressed;
-  const _GenericPanel({
-    required this.category,
-    required this.allPlays,
-    required this.phase,
-    required this.onButtonPressed,
-  });
+
+  const _HalfCourtPanel({required this.onButtonPressed, required this.phase});
+
   @override
   Widget build(BuildContext context) {
-    final categoryPlays = allPlays
-        .where((p) => p.category?.name == category)
-        .toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
-    final Map<String, List<PlayDefinition>> subcategorized = {};
-    for (var play in categoryPlays) {
-      final sub = play.subcategory ?? 'default';
-      if (subcategorized[sub] == null) subcategorized[sub] = [];
-      subcategorized[sub]!.add(play);
-    }
-    // Ensure stable order within each subcategory by ID
-    for (final key in subcategorized.keys) {
-      subcategorized[key]!.sort((a, b) => a.id.compareTo(b.id));
-    }
-    return Column(
-      children: subcategorized.entries.map((entry) {
-        return Row(
-          children: entry.value
-              .map(
-                (play) => Expanded(
-                  child: _ActionButton(
-                    play: play,
-                    phase: phase,
-                    onPressed: onButtonPressed,
-                  ),
-                ),
-              )
-              .toList(),
+    // Define the colors based on your design
+    final darkBlue = const Color(0xFF00008B); // A deep, solid blue
+    final teal = const Color(0xFF20B2AA); // A vibrant teal/cyan
+
+    // Data structure for the panel.
+    // We're using a list of maps to hold both the text and the color for each button.
+    final List<Map<String, dynamic>> buttonData = [
+      {'left': 'PnR', 'right': 'Attack CloseOut', 'leftColor': darkBlue},
+      {'left': 'Score', 'right': 'After Kick Out', 'leftColor': teal},
+      {'left': 'Big Guy', 'right': 'After Ext Pass', 'leftColor': teal},
+      {'left': '3rd Guy', 'right': 'Cuts', 'leftColor': teal},
+      {'left': 'ISO', 'right': 'After Off Reb', 'leftColor': darkBlue},
+      {'left': 'HighPost', 'right': 'After HandOff', 'leftColor': teal},
+      {'left': 'LowPost', 'right': 'After OffScreen', 'leftColor': teal},
+    ];
+
+    return Table(
+      columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: buttonData.map((rowData) {
+        return TableRow(
+          children: [
+            // Left column button
+            _ActionButton(
+              text: rowData['left'],
+              color: rowData['leftColor'], // Use the color from our data map
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            ),
+            // Right column button - always dark blue
+            _ActionButton(
+              text: rowData['right'],
+              color: darkBlue,
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            ),
+          ],
         );
       }).toList(),
     );
   }
 }
 
-class _OffenseHalfCourtPanel extends StatelessWidget {
-  final List<PlayDefinition> allPlays;
+class _DefensePanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
-  final ValueChanged<PlayDefinition> onButtonPressed;
-  const _OffenseHalfCourtPanel({
-    required this.allPlays,
-    required this.phase,
-    required this.onButtonPressed,
-  });
+
+  const _DefensePanel({required this.onButtonPressed, required this.phase});
+
   @override
   Widget build(BuildContext context) {
-    // Expect server to provide plays with category 'Offense Half Court'
-    final source = allPlays
-        .where((p) => p.category?.name == 'Offense Half Court')
-        .toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final defColor = Colors.red[700];
 
-    // Sort by id then split into two halves: left (first half), right (second half)
-    final List<PlayDefinition> ordered = List.of(source);
-    final mid = (ordered.length / 2).ceil();
-    final leftList = ordered.take(mid).toList();
-    final rightList = ordered.skip(mid).toList();
+    // This defines the entire layout. An empty string "" will be an empty cell.
+    const List<List<String>> layout = [
+      ['PnR', 'Zone', 'Zone Press', 'Other'], // Headers
+      ['SWITCH', '2-3', 'Full court press', 'ISO'],
+      ['DROP', '3-2', '3/4 court press', ""],
+      ['HEDGE', '1-3-1', 'Half court press', ""],
+      ['TRAP', '1-2-2', "", ""],
+      ['ICE', 'zone', "", ""],
+      ['FLAT', "", "", ""],
+      ['WEAK', "", "", ""],
+    ];
 
-    // Build rows: align left[i] with right[i]
-    List<Widget> rows = [];
-    final maxRows = leftList.length;
-    for (int i = 0; i < maxRows; i++) {
-      final left = leftList[i];
-      final PlayDefinition? right = (i < rightList.length) ? rightList[i] : null;
-      rows.add(
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                play: left,
-                phase: phase,
-                onPressed: onButtonPressed,
-              ),
-            ),
-            Expanded(
-              child: right != null
-                  ? _ActionButton(
-                      play: right,
-                      phase: phase,
-                      onPressed: onButtonPressed,                      
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      );
-    }
-    return Column(children: rows);
-  }
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(2),
+        2: FlexColumnWidth(3),
+        3: FlexColumnWidth(2),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      // Programmatically build the TableRows from our data structure
+      children: List.generate(layout.length, (rowIndex) {
+        final rowData = layout[rowIndex];
+        return TableRow(
+          children: List.generate(rowData.length, (colIndex) {
+            final text = rowData[colIndex];
 
-  Widget _buildSub(List<PlayDefinition> plays) {
-    // No longer used in the two-column chunked layout, keep for compatibility
-    if (plays.isEmpty) return const SizedBox.shrink();
-    return Row(
-      children: plays
-          .map(
-            (p) => Expanded(
-              child: _ActionButton(
-                play: p,
-                phase: phase,
-                onPressed: onButtonPressed,
-              ),
-            ),
-          )
-          .toList(),
+            // If it's the header row, build a Text widget
+            if (rowIndex == 0) {
+              return Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              );
+            }
+
+            // If the text is empty, create an empty cell
+            if (text.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            // Otherwise, build an ActionButton
+            return _ActionButton(
+              text: text,
+              color: text == 'ISO' ? Colors.red : defColor,
+              onPressed: onButtonPressed,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            );
+          }),
+        );
+      }),
     );
   }
 }
 
-class _PlayersPanel extends StatefulWidget {
-  final ValueChanged<PlayDefinition> onButtonPressed;
+class _PlayersPanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
-  final Game game;
-  final VoidCallback onShowSubDialog;
-  const _PlayersPanel({
-    required this.onButtonPressed,
-    required this.phase,
-    required this.game,
-    required this.onShowSubDialog,
-  });
 
-  @override
-  State<_PlayersPanel> createState() => _PlayersPanelState();
-}
-
-class _PlayersPanelState extends State<_PlayersPanel> {
-  late List<User> homePlayers;
-  late List<User> awayPlayers;
-
-  @override
-  void initState() {
-    super.initState();
-    homePlayers = widget.game.homeTeam.players;
-    awayPlayers = widget.game.awayTeam.players;
-  }
-
-  @override
-  void didUpdateWidget(covariant _PlayersPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.game != oldWidget.game) {
-      setState(() {
-        homePlayers = widget.game.homeTeam.players;
-        awayPlayers = widget.game.awayTeam.players;
-      });
-    }
-  }
+  const _PlayersPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
-    final bool isActionEnabled = widget.phase == PossessionLoggingPhase.active;
+    return Column(
+      // The main axis alignment can be 'start' or 'center' depending on preference
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        // --- PLAYER NUMBERS TABLE (4 rows, 6 columns) ---
+        Table(
+          // Use FixedColumnWidth to make all columns equal and prevent overflow
+          columnWidths: const {
+            0: FlexColumnWidth(1),
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(1),
+            3: FlexColumnWidth(1),
+            4: FlexColumnWidth(1),
+            5: FlexColumnWidth(1),
+          },
+          children: List.generate(4, (rowIndex) {
+            return TableRow(
+              children: List.generate(6, (colIndex) {
+                // Determine the color based on the column
+                final color = colIndex < 3 ? Colors.blue[800] : Colors.black87;
+                // You will replace "#" with real player numbers later
+                return _ActionButton(
+                  text: '#',
+                  color: color,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
+                );
+              }),
+            );
+          }),
+        ),
 
-    // Use a LayoutBuilder to get the available height for the grids
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate a good height for the player grids, leaving space for the header and action buttons
-        final gridHeight = (constraints.maxHeight - 60) / 2;
-
-        return Column(
+        const SizedBox(height: 8), // Spacer between the two tables
+        // --- ACTION BUTTONS TABLE (3 rows, 2 columns) ---
+        Table(
+          columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
           children: [
-            const Text(
-              "Home / Away",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-
-            // --- PLAYER GRIDS ---
-            SizedBox(
-              height: gridHeight * 2, // Give the Row a fixed height
-              child: Row(
-                children: [
-                  Expanded(child: _buildPlayerGrid(homePlayers, true)),
-                  Expanded(child: _buildPlayerGrid(awayPlayers, false)),
-                ],
-              ),
-            ),
-
-            // --- ACTION BUTTONS ---
-            Row(
+            TableRow(
               children: [
-                Expanded(
-                  child: _ActionButton(
-                    play: PlayDefinition.empty('BoxOut -1'),
-                    phase: widget.phase,
-                    onPressed: widget.onButtonPressed,
-                    color: Colors.purple,
-                    textColor: Colors.white,
-                  ),
+                _ActionButton(
+                  text: 'BoxOut -1',
+                  color: Colors.purple,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
-                Expanded(
-                  child: _ActionButton(
-                    play: PlayDefinition.empty('DefReb +1'),
-                    phase: widget.phase,
-                    onPressed: widget.onButtonPressed,
-                    color: Colors.purple,
-                    textColor: Colors.white,
-                  ),
+                _ActionButton(
+                  text: 'Substitution',
+                  color: Colors.black,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
-                Expanded(
-                  child: _ActionButton(
-                    play: PlayDefinition.empty('OffReb -1'),
-                    phase: widget.phase,
-                    onPressed: widget.onButtonPressed,
-                    color: Colors.purple,
-                    textColor: Colors.white,
-                  ),
+              ],
+            ),
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'DefReb +1',
+                  color: Colors.purple,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(1.5),
-                    child: ElevatedButton(
-                      onPressed: isActionEnabled
-                          ? widget.onShowSubDialog
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Sub', style: TextStyle(fontSize: 14)),
-                    ),
-                  ),
+                _ActionButton(
+                  text: 'Recover -1',
+                  color: Colors.purple,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
-                Expanded(
-                  child: _ActionButton(
-                    play: PlayDefinition.empty('Recover -1'),
-                    phase: widget.phase,
-                    onPressed: widget.onButtonPressed,
-                    color: Colors.purple,
-                    textColor: Colors.white,
-                  ),
+              ],
+            ),
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'OffReb -1',
+                  color: Colors.purple,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
+                ),
+                const SizedBox.shrink(), // Empty cell for the bottom right
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ControlPanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
+  final PossessionLoggingPhase phase;
+
+  const _ControlPanel({required this.onButtonPressed, required this.phase});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      // mainAxisAlignment: MainAxisAlignment.spaceBetween ensures space between tables
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // --- TABLE 1 (Start / Period) ---
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2), // Give START more space
+            1: FlexColumnWidth(1.5),
+          },
+          children: [
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'START',
+                  color: Colors.green,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.inactive,
                 ),
               ],
             ),
           ],
-        );
-      },
+        ),
+
+        // --- TABLE 2 (Off / Def / Undo) ---
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(1),
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(1),
+          },
+          children: [
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'Off',
+                  color: Colors.blueAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
+                ),
+                _ActionButton(
+                  text: 'Def',
+                  color: Colors.green,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
+                ),
+                _ActionButton(
+                  text: 'UNDO',
+                  color: Colors.grey,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        // --- TABLE 3 (End / Forward) ---
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2), // Give END more space
+            1: FlexColumnWidth(1.5),
+          },
+          children: [
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'END',
+                  color: Colors.red,
+                  onPressed: onButtonPressed,
+                  isEnabled:
+                      phase == PossessionLoggingPhase.active ||
+                      phase == PossessionLoggingPhase.awaitingTeam,
+                ),
+                // _ActionButton(
+                //   text: 'FORW',
+                //   color: Colors.grey,
+                //   onPressed: onButtonPressed,
+                //   isEnabled: isEnabled,
+                // ), // TODO: Implement REDO functionality for the next release.
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
+}
 
-  // Helper to build a single player grid
-  Widget _buildPlayerGrid(List<User> players, bool isHome) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        mainAxisSpacing: 6,
-        crossAxisSpacing: 6,
-        childAspectRatio: 1.4, // Wider buttons for readability
-      ),
-      itemCount: 10, // Always build 10 slots
-      physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) {
-        final player = index < players.length ? players[index] : null;
-        final playDef = PlayDefinition.empty(
-          player?.jerseyNumber?.toString() ?? '#',
-        );
-        return _ActionButton(
-          play: playDef,
-          phase: widget.phase,
-          onPressed: (p) {
-            if (player != null) {
-              final teamPrefix = isHome ? 'H' : 'A';
-              widget.onButtonPressed(
-                PlayDefinition.empty('$teamPrefix#${player.jerseyNumber}'),
-              );
-            }
-            // Optional: Show a dialog to enter a number if player is null
+class _OutcomePanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
+  final PossessionLoggingPhase phase; // Accept the enum
+
+  const _OutcomePanel({required this.onButtonPressed, required this.phase});
+
+  Widget buildHeader(String text) => Text(
+    text,
+    textAlign: TextAlign.center,
+    style: const TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 14,
+      color: Colors.black,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isAwaitingShotResult =
+        phase == PossessionLoggingPhase.awaitingShotResult;
+    final bool isActive = phase == PossessionLoggingPhase.active;
+
+    return Column(
+      // Define the relative widths of the 4 content columns
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2), // Give START more space
+            1: FlexColumnWidth(2),
+            2: FlexColumnWidth(2),
           },
-          color: isHome ? Colors.blue[800] : Colors.grey[800],
-          textColor: Colors.white,
-        );
-      },
+          children: [
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'Lay Up',
+                  color: Colors.orangeAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+                _ActionButton(
+                  text: 'Shot',
+                  color: Colors.orangeAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+                _ActionButton(
+                  text: 'Turnover',
+                  color: Colors.redAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+              ],
+            ),
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: '2pts',
+                  color: Colors.deepOrangeAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+                _ActionButton(
+                  text: '3pts',
+                  color: Colors.deepOrangeAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+                _ActionButton(
+                  text: 'Foul',
+                  color: Colors.redAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+              ],
+            ),
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'Made',
+                  color: Colors.green,
+                  onPressed: onButtonPressed,
+                  isEnabled: isAwaitingShotResult,
+                ),
+                _ActionButton(
+                  text: 'Missed',
+                  color: Colors.red,
+                  onPressed: onButtonPressed,
+                  isEnabled: isAwaitingShotResult,
+                ),
+                _ActionButton(
+                  text: 'Free Throw',
+                  color: Colors.redAccent,
+                  onPressed: onButtonPressed,
+                  isEnabled: isActive,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
 class _ShootPanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
-  final double duration;
+  final double currentDuration;
   final ValueChanged<double> onDurationChanged;
-  final ValueChanged<PlayDefinition> onButtonPressed;
-  final List<PlayDefinition> allPlays;
+
   const _ShootPanel({
-    required this.phase,
-    required this.duration,
-    required this.onDurationChanged,
-    required this.allPlays,
     required this.onButtonPressed,
+    required this.phase,
+    required this.currentDuration,
+    required this.onDurationChanged,
   });
   @override
   Widget build(BuildContext context) {
-    final qualityPlays = allPlays
-        .where(
-          (p) => p.category?.name == 'Shoot' && p.subcategory == 'ShotQuality',
-        )
-        .toList();
-    return Column(
+    Widget buildHeader(String text) => Text(
+      text,
+      textAlign: TextAlign.left,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Shot Quality",
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        ),
+        // --- LEFT COLUMN: OffReb Tag ---
         Expanded(
-          child: Row(
-            children: qualityPlays
-                .map(
-                  (p) => Expanded(
-                    child: _ActionButton(
-                      play: p,
-                      phase: phase,
-                      onPressed: onButtonPressed,
-                    ),
+          flex: 2, // Give this section more space
+          child: Column(
+            children: [
+              buildHeader('Shoot Quality'),
+              Row(
+                children: [
+                  _ActionButton(
+                    text: 'SQ:1',
+                    color: Colors.green,
+                    onPressed: onButtonPressed,
+                    isEnabled: phase == PossessionLoggingPhase.active,
                   ),
-                )
-                .toList(),
+                  _ActionButton(
+                    text: 'SQ:2',
+                    color: Colors.orangeAccent,
+                    onPressed: onButtonPressed,
+                    isEnabled: phase == PossessionLoggingPhase.active,
+                  ),
+                  _ActionButton(
+                    text: 'SQ:3',
+                    color: Colors.red,
+                    onPressed: onButtonPressed,
+                    isEnabled: phase == PossessionLoggingPhase.active,
+                  ),
+                ],
+              ),
+              buildHeader('Shoot time'),
+              // Row(
+              //   children: [
+              //     _ActionButton(
+              //       text: '< 4s',
+              //       color: Colors.blueGrey,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '4-7s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '8-14s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '15-20s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //   ],
+              // ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    "Duration: ${currentDuration.toStringAsFixed(0)}s",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Slider(
+                    value: currentDuration,
+                    min: 1,
+                    max: 24,
+                    divisions: 23, // 23 divisions create 24 distinct steps
+                    label: currentDuration.toStringAsFixed(0),
+                    onChanged: phase == PossessionLoggingPhase.active
+                        ? onDurationChanged
+                        : null,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          "Duration",
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          "${duration.round()}s",
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-        Slider(
-          value: duration,
-          min: 1,
-          max: 24,
-          divisions: 23,
-          label: '${duration.round()}s',
-          onChanged: phase == PossessionLoggingPhase.active
-              ? onDurationChanged
-              : null,
+      ],
+    );
+  }
+}
+
+class _OffRebPanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
+  final PossessionLoggingPhase phase;
+
+  const _OffRebPanel({required this.onButtonPressed, required this.phase});
+
+  @override
+  Widget build(BuildContext context) {
+    final offRebTagColor = Colors.pink[300];
+
+    return Column(
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween, //ensures space between tables
+      children: [
+        Table(
+          // Define the relative widths of the 4 content columns
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: const {
+            0: FlexColumnWidth(2), // Give START more space
+          },
+          // Set default height for all rows
+          children: [
+            // --- HEADER ROW ---
+            TableRow(
+              children: [
+                Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(1),
+                    1: FlexColumnWidth(1),
+                    2: FlexColumnWidth(1),
+                  },
+                  // Set default height for all rows
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  children: [
+                    TableRow(
+                      children: [
+                        _ActionButton(
+                          text: 'TOR:0',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                        _ActionButton(
+                          text: 'TOR:1',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                        _ActionButton(
+                          text: 'TOR:2',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                      ],
+                    ), // TableRow
+                    TableRow(
+                      children: [
+                        _ActionButton(
+                          text: 'TOR:3',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                        _ActionButton(
+                          text: 'TOR:4',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                        _ActionButton(
+                          text: 'TOR:5',
+                          color: offRebTagColor,
+                          onPressed: onButtonPressed,
+                          isEnabled: phase == PossessionLoggingPhase.active,
+                        ),
+                      ],
+                    ), // TableRow
+                  ],
+                ),
+              ],
+            ), // TableRow
+            // --- BUTTON ROWS ---
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'Yes',
+                  color: Colors.green,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
+                ),
+              ],
+            ), // TableRow
+            TableRow(
+              children: [
+                _ActionButton(
+                  text: 'No',
+                  color: Colors.red,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
+                ),
+              ],
+            ), // TableRow
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _AdvancePanel extends StatelessWidget {
+  final ValueChanged<String> onButtonPressed;
+  final PossessionLoggingPhase phase;
+
+  const _AdvancePanel({
+    super.key,
+    required this.onButtonPressed,
+    required this.phase, // Add to constructor
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Define the colors based on your design
+    final indigoBlue = Colors.indigoAccent; // A deep, solid blue
+    final stealColor = Colors.redAccent; // A vibrant teal/cyan
+
+    // Data structure for the panel.
+    // We're using a list of maps to hold both the text and the color for each button.
+    final List<Map<String, dynamic>> buttonData = [
+      {'left': 'Paint Touch', 'right': 'Steal', 'rightColor': stealColor},
+      {'left': 'Kick Out', 'right': 'Deny / +1', 'rightColor': stealColor},
+      {'left': 'Extra Pass', 'right': 'After TO', 'leftColor': Colors.black},
+    ];
+
+    return Table(
+      columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: buttonData.map((rowData) {
+        return TableRow(
+          children: [
+            // Left column button
+            _ActionButton(
+              text: rowData['left'],
+              color: indigoBlue, // Use the color from our data map
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            ),
+            // Right column button - always dark blue
+            _ActionButton(
+              text: rowData['right'],
+              color: rowData['rightColor'], // Use the color from our data map,
+              textColor: Colors.white,
+              onPressed: onButtonPressed,
+              isEnabled: phase == PossessionLoggingPhase.active,
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 }

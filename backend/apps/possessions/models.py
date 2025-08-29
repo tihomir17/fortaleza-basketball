@@ -2,7 +2,7 @@
 
 from django.db import models  # pyright: ignore[reportMissingImports]
 from django.conf import settings  # pyright: ignore[reportMissingImports]
-from django.utils.translation import (
+from django.utils.translation import (  # pyright: ignore[reportMissingImports]
     gettext_lazy as _,
 )  # pyright: ignore[reportMissingImports]
 

@@ -2,7 +2,7 @@ import time
 import logging
 import uuid
 from typing import Callable
-from django.http import (
+from django.http import (  # pyright: ignore[reportMissingImports]
     HttpRequest,
     HttpResponse,
 )  # pyright: ignore[reportMissingImports]
