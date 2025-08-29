@@ -227,7 +227,7 @@ class __LiveTrackingStatefulWrapperState
       if (_phase == PossessionLoggingPhase.inactive) return;
 
       // For 2pt/3pt, enter the special "awaiting shot result" phase
-      if (action == '2pts' || action == '3pts') {        
+      if (action == '2pts' || action == '3pts') {
         _phase = PossessionLoggingPhase.awaitingShotResult;
         _shotType = action.toUpperCase();
         _sequence.add(action);
@@ -662,7 +662,7 @@ class __LiveTrackingStatefulWrapperState
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Text(
         _sequence.isEmpty
-            ? "Press Start for the new possesion."
+            ? "Press Start for the new possession."
             : _sequence.join(' / '),
         style: const TextStyle(
           color: Colors.white,
@@ -817,10 +817,7 @@ class _HalfCourtPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
 
-  const _HalfCourtPanel({
-    required this.onButtonPressed,
-    required this.phase,
-  });
+  const _HalfCourtPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
