@@ -1,4 +1,6 @@
 // lib/features/games/data/models/game_model.dart
+// ignore_for_file: unused_import
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 

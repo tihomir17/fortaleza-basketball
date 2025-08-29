@@ -7,6 +7,8 @@ import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart'; // Import GoRouter here
+import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 
 // Core
 import 'core/navigation/app_router.dart';
@@ -33,6 +35,18 @@ import 'features/competitions/presentation/cubit/competition_cubit.dart';
 import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 
 final sl = GetIt.instance;
+
+final Logger logger = Logger(
+  level: kReleaseMode ? Level.warning : Level.verbose,
+  printer: PrettyPrinter(
+    methodCount: 0,
+    errorMethodCount: 5,
+    lineLength: 50,
+    colors: true,
+    printEmojis: true,
+    printTime: false,
+  ),
+);
 
 final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
 
