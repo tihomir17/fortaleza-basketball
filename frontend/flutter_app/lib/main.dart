@@ -7,6 +7,7 @@ import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart'; // Import GoRouter here
+import 'package:logger/logger.dart';
 
 // Core
 import 'core/navigation/app_router.dart';
@@ -29,10 +30,23 @@ import 'features/authentication/presentation/cubit/auth_state.dart';
 import 'features/teams/presentation/cubit/team_cubit.dart';
 import 'features/teams/presentation/cubit/team_detail_cubit.dart';
 import 'features/plays/presentation/cubit/playbook_cubit.dart';
+import 'features/plays/presentation/cubit/play_category_cubit.dart';
 import 'features/competitions/presentation/cubit/competition_cubit.dart';
 import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 
 final sl = GetIt.instance;
+
+final Logger logger = Logger(
+  level: Level.error,
+  printer: PrettyPrinter(
+    methodCount: 0,
+    errorMethodCount: 5,
+    lineLength: 50,
+    colors: true,
+    printEmojis: true,
+    printTime: false,
+  ),
+);
 
 final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
 
@@ -76,6 +90,9 @@ void setupServiceLocator() {
     ),
   );
 
+  sl.registerLazySingleton<PlayCategoryCubit>(
+    () => PlayCategoryCubit(playRepository: sl<PlayRepository>()),
+  );
   // Factories for screen-specific state
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
@@ -126,6 +143,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => sl<CompetitionCubit>()),
         BlocProvider(create: (context) => sl<GameCubit>()),
         BlocProvider(create: (context) => sl<CalendarCubit>()),
+        BlocProvider(create: (context) => sl<PlayCategoryCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {

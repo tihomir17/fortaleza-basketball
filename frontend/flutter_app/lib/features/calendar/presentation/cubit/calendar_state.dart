@@ -3,6 +3,7 @@
 import 'package:equatable/equatable.dart';
 import '../../../games/data/models/game_model.dart';
 import '../../data/models/calendar_event_model.dart'; // We will create this model
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 enum CalendarStatus { initial, loading, success, failure }
 
@@ -31,6 +32,7 @@ class CalendarState extends Equatable {
     List<CalendarEvent>? events,
     String? errorMessage,
   }) {
+    logger.d('CalendarState: Copying state with status: ${status ?? this.status}, games: ${games?.length ?? this.games.length}, events: ${events?.length ?? this.events.length}');
     return CalendarState(
       status: status ?? this.status,
       games: games ?? this.games,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -19,6 +20,7 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    logger.d('UserProfileAppBar: Building app bar with title: $title');
     // These are the default action buttons that will appear on the far right.
     final List<Widget> defaultActions = [
       // IconButton(
@@ -32,8 +34,10 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
             final user = state.user!;
             return PopupMenuButton<String>(
               onSelected: (value) {
+                logger.d('UserProfileAppBar: User selected $value from menu.');
                 if (value == 'logout') {
                   context.read<AuthCubit>().logout();
+                  logger.i('UserProfileAppBar: Initiating logout.');
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -81,7 +85,10 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
           }
           return IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthCubit>().logout(),
+            onPressed: () {
+              logger.i('UserProfileAppBar: Initiating logout via button.');
+              context.read<AuthCubit>().logout();
+            },
           );
         },
       ),

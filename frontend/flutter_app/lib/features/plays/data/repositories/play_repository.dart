@@ -1,9 +1,11 @@
 // lib/features/plays/data/repositories/play_repository.dart
 
 import 'dart:convert';
+import 'package:flutter_app/features/plays/data/models/play_category_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/play_definition_model.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class PlayRepository {
   final http.Client _client = http.Client();
@@ -14,6 +16,7 @@ class PlayRepository {
   }) async {
     // Note the new nested URL structure
     final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/plays/');
+    logger.d('PlayRepository: Fetching plays for team $teamId at $url');
 
     try {
       final response = await _client.get(
@@ -29,11 +32,14 @@ class PlayRepository {
         final List<PlayDefinition> plays = body
             .map((dynamic item) => PlayDefinition.fromJson(item))
             .toList();
+        logger.i('PlayRepository: Loaded ${plays.length} plays for team $teamId.');
         return plays;
       } else {
+        logger.e('PlayRepository: Failed to load playbook. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to load playbook');
       }
     } catch (e) {
+      logger.e('PlayRepository: Error fetching playbook: $e');
       throw Exception('An error occurred while fetching the playbook: $e');
     }
   }
@@ -47,6 +53,7 @@ class PlayRepository {
     int? parentId,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/plays/');
+    logger.d('PlayRepository: Creating play "$name" at $url');
 
     try {
       // Build the request body map
@@ -70,20 +77,23 @@ class PlayRepository {
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> body = json.decode(response.body);
+        logger.i('PlayRepository: Play "$name" created successfully.');
         return PlayDefinition.fromJson(body);
       } else {
+        logger.e('PlayRepository: Failed to create play. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to create play. Server response: ${response.body}',
         );
       }
     } catch (e) {
+      logger.e('PlayRepository: Error creating play: $e');
       throw Exception('An error occurred while creating the play: $e');
     }
   }
 
-  // ADD THIS DELETE METHOD
   Future<void> deletePlay({required String token, required int playId}) async {
     final url = Uri.parse('${ApiClient.baseUrl}/plays/$playId/');
+    logger.d('PlayRepository: Deleting play $playId at $url');
     try {
       final response = await _client.delete(
         url,
@@ -91,14 +101,16 @@ class PlayRepository {
       );
       // 204 No Content is the standard success code for a DELETE request
       if (response.statusCode != 204) {
+        logger.e('PlayRepository: Failed to delete play $playId. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to delete play.');
       }
+      logger.i('PlayRepository: Play $playId deleted successfully.');
     } catch (e) {
+      logger.e('PlayRepository: Error deleting play $playId: $e');
       throw Exception('An error occurred while deleting the play: $e');
     }
   }
 
-  // ADD THIS UPDATE METHOD
   Future<PlayDefinition> updatePlay({
     required String token,
     required int playId, // The ID of the play to update
@@ -111,6 +123,7 @@ class PlayRepository {
     final url = Uri.parse(
       '${ApiClient.baseUrl}/plays/$playId/',
     ); // The detail URL
+    logger.d('PlayRepository: Updating play $playId at $url');
 
     try {
       final Map<String, dynamic> requestBody = {
@@ -119,8 +132,6 @@ class PlayRepository {
         'play_type': playType,
         'parent': parentId,
         'team': teamId,
-        // We must include the teamId, which the serializer requires
-        // We'll get it from the original object on the edit screen.
       };
 
       final response = await _client.put(
@@ -136,14 +147,109 @@ class PlayRepository {
       if (response.statusCode == 200) {
         // 200 OK is the success code for PUT
         final Map<String, dynamic> body = json.decode(response.body);
+        logger.i('PlayRepository: Play $playId updated successfully.');
         return PlayDefinition.fromJson(body);
       } else {
+        logger.e('PlayRepository: Failed to update play $playId. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to update play. Server response: ${response.body}',
         );
       }
     } catch (e) {
+      logger.e('PlayRepository: Error updating play $playId: $e');
       throw Exception('An error occurred while updating the play: $e');
+    }
+  }
+
+  Future<List<PlayCategory>> getAllCategories(String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/play-categories/');
+    logger.d('PlayRepository: Fetching all play categories at $url');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final bodyText = response.body;
+        final dynamic decoded = json.decode(bodyText);
+        List<dynamic> items;
+        if (decoded is List) {
+          items = decoded;
+          logger.d('PlayRepository: Parsed top-level List with ${items.length} items.');
+        } else if (decoded is Map<String, dynamic>) {
+          if (decoded['results'] is List) {
+            items = decoded['results'] as List<dynamic>;
+            logger.d('PlayRepository: Parsed List from "results" with ${items.length} items.');
+          } else if (decoded['categories'] is List) {
+            items = decoded['categories'] as List<dynamic>;
+            logger.d('PlayRepository: Parsed List from "categories" with ${items.length} items.');
+          } else {
+            logger.e('PlayRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}');
+            throw Exception('Unexpected categories payload shape. Expected List or keys [results|categories].');
+          }
+        } else {
+          logger.e('PlayRepository: Unexpected JSON root type: ${decoded.runtimeType}');
+          throw Exception('Unexpected categories payload type: ${decoded.runtimeType}');
+        }
+        logger.i('PlayRepository: Loaded ${items.length} categories.');
+        return items.map((json) => PlayCategory.fromJson(json)).toList();
+      } else {
+        logger.e('PlayRepository: Failed to load play categories. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception(
+          'Failed to load play categories. Status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      logger.e('PlayRepository: Error fetching play categories: $e');
+      throw Exception('Error fetching play categories: $e');
+    }
+  }
+
+  Future<List<PlayDefinition>> getGenericPlayTemplates(String token) async {
+    // This points to our new, dedicated endpoint
+    final url = Uri.parse('${ApiClient.baseUrl}/plays/templates/');
+    logger.d('PlayRepository: Fetching generic play templates at $url');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(response.body);
+        logger.i('PlayRepository: Loaded ${body.length} generic play templates.');
+        return body.map((json) => PlayDefinition.fromJson(json)).toList();
+      } else {
+        logger.e('PlayRepository: Failed to load generic play templates. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to load generic play templates');
+      }
+    } catch (e) {
+      logger.e('PlayRepository: Error fetching generic play templates: $e');
+      throw Exception('Error fetching generic plays: $e');
+    }
+  }
+
+  Future<List<PlayDefinition>> getPlayTemplates(String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/plays/templates/');
+    logger.d('PlayRepository: Fetching play templates at $url');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = json.decode(response.body);
+        logger.i('PlayRepository: Loaded ${body.length} play templates.');
+        return body.map((json) => PlayDefinition.fromJson(json)).toList();
+      } else {
+        logger.e('PlayRepository: Failed to load play templates. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to load play templates');
+      }
+    } catch (e) {
+      logger.e('PlayRepository: Error fetching play templates: $e');
+      throw Exception('Error fetching play templates: $e');
     }
   }
 }

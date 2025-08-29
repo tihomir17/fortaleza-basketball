@@ -84,8 +84,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 label: const Text('Add Possession'),
                 style: TextButton.styleFrom(
                   // Use the theme's accent color for high visibility
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.blueGrey,
                   // Add a subtle border
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -169,8 +169,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                     DropdownMenuItem(value: 2, child: Text('2nd Quarter')),
                     DropdownMenuItem(value: 3, child: Text('3rd Quarter')),
                     DropdownMenuItem(value: 4, child: Text('4th Quarter')),
-                    DropdownMenuItem(value: 5, child: Text('Overtime 1')),
-                    DropdownMenuItem(value: 6, child: Text('Overtime 2')),
+                    DropdownMenuItem(value: 5, child: Text('Overtime')),
                   ],
                   onChanged: (value) {
                     setState(() => _selectedQuarterFilter = value);
@@ -250,7 +249,6 @@ class _PossessionCard extends StatefulWidget {
 }
 
 class _PossessionCardState extends State<_PossessionCard> {
-  bool _isExpanded = false;
 
   String _formatOutcome(String outcome) {
     return outcome.replaceAll('_', ' ').replaceFirst('TO ', 'TO: ');
@@ -307,6 +305,7 @@ class _PossessionCardState extends State<_PossessionCard> {
     final possession = widget.possession;
     final game = widget.game;
     final teamWithBall = possession.team;
+
     if (teamWithBall == null) {
       return const Card(
         child: ListTile(title: Text("Data Error: Missing team")),
@@ -321,18 +320,22 @@ class _PossessionCardState extends State<_PossessionCard> {
     final bool wasScore = possession.outcome.startsWith('MADE_');
     final Color outcomeColor = wasScore
         ? Colors.green.shade700
-        : (wasTurnover ? Colors.red.shade700 : Colors.grey.shade600);
+        : (wasTurnover ? theme.colorScheme.error : const Color.fromARGB(255, 173, 97, 97));
 
     return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      elevation: 1,
+      clipBehavior: Clip
+          .antiAlias, // Ensures the background color respects the border radius
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: theme.colorScheme.primary.withAlpha(50),
+          backgroundColor: Colors.indigoAccent,
           child: Text(
             teamWithBall.name.isNotEmpty
                 ? teamWithBall.name[0].toUpperCase()
                 : '?',
             style: TextStyle(
-              color: theme.colorScheme.secondary,
+              color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -345,41 +348,35 @@ class _PossessionCardState extends State<_PossessionCard> {
           'Q${possession.quarter} at ${possession.startTimeInGame}',
           style: theme.textTheme.bodySmall,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Chip(
-              label: Text(
-                _formatOutcome(possession.outcome),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                ),
-              ),
-              backgroundColor: outcomeColor,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+        // --- REDESIGNED TRAILING WIDGET ---
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: outcomeColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            _formatOutcome(possession.outcome),
+            style: TextStyle(
+              color: outcomeColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
-            const SizedBox(width: 8),
-            RotationTransition(
-              turns: AlwaysStoppedAnimation(_isExpanded ? 0.25 : 0),
-              child: const Icon(Icons.keyboard_arrow_down),
-            ),
-          ],
+          ),
         ),
+
+        // --- END OF REDESIGN ---
         onExpansionChanged: (bool expanded) {
-          setState(() => _isExpanded = expanded);
         },
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ).copyWith(top: 0),
+          // --- STYLED DETAILS SECTION ---
+          Container(
+            color: Colors.black.withOpacity(0.03),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Divider(),
                 if (possession.offensiveSequence.isNotEmpty) ...[
                   Text(
                     'Offensive Sequence:',
@@ -388,16 +385,9 @@ class _PossessionCardState extends State<_PossessionCard> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      possession.offensiveSequence,
-                      style: const TextStyle(fontFamily: 'monospace'),
-                    ),
+                  Text(
+                    possession.offensiveSequence,
+                    style: const TextStyle(fontFamily: 'monospace'),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -409,16 +399,9 @@ class _PossessionCardState extends State<_PossessionCard> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      possession.defensiveSequence,
-                      style: const TextStyle(fontFamily: 'monospace'),
-                    ),
+                  Text(
+                    possession.defensiveSequence,
+                    style: const TextStyle(fontFamily: 'monospace'),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -434,6 +417,8 @@ class _PossessionCardState extends State<_PossessionCard> {
               ],
             ),
           ),
+
+          // --- END OF STYLING ---
           const Divider(height: 1, indent: 16, endIndent: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
@@ -458,13 +443,11 @@ class _PossessionCardState extends State<_PossessionCard> {
                   icon: Icon(
                     Icons.delete_outline,
                     size: 16,
-                    color: Theme.of(context).colorScheme.error,
+                    color: theme.colorScheme.error,
                   ),
                   label: Text(
                     'Delete',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
                   onPressed: () => _showDeleteConfirmation(context, possession),
                 ),

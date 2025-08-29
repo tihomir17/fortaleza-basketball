@@ -200,6 +200,9 @@ class _TeamCardState extends State<TeamCard>
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: theme.colorScheme.primary.withAlpha(50),
+                    backgroundImage: widget.team.logoUrl != null
+                      ? NetworkImage(widget.team.logoUrl!)
+                      : null,                    
                     child: Text(
                       widget.team.name.isNotEmpty
                           ? widget.team.name[0].toUpperCase()
