@@ -4,6 +4,7 @@ import 'package:flutter_app/features/possessions/data/models/possession_model.da
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/game_repository.dart';
 import 'game_detail_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class GameDetailCubit extends Cubit<GameDetailState> {
   final GameRepository _gameRepository;
@@ -17,6 +18,7 @@ class GameDetailCubit extends Cubit<GameDetailState> {
     required int gameId,
   }) async {
     emit(state.copyWith(status: GameDetailStatus.loading));
+    logger.d('GameDetailCubit: fetchGameDetails started for game $gameId.');
     try {
       final game = await _gameRepository.getGameDetails(
         token: token,
@@ -39,6 +41,7 @@ class GameDetailCubit extends Cubit<GameDetailState> {
           filteredPossessions: possessions,
         ),
       );
+      logger.i('GameDetailCubit: fetchGameDetails succeeded for game $gameId with ${possessions.length} possessions.');
     } catch (e) {
       emit(
         state.copyWith(
@@ -46,6 +49,7 @@ class GameDetailCubit extends Cubit<GameDetailState> {
           errorMessage: e.toString(),
         ),
       );
+      logger.e('GameDetailCubit: fetchGameDetails failed for game $gameId: $e');
     }
   }
 }

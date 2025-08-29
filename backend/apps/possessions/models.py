@@ -15,10 +15,10 @@ class Possession(models.Model):
         OT2 = 6, _("Overtime 2")
 
     class OutcomeChoices(models.TextChoices):
-        MADE_2PT = "MADE_2PT", _("Made 2-Point Shot")
-        MISSED_2PT = "MISSED_2PT", _("Missed 2-Point Shot")
-        MADE_3PT = "MADE_3PT", _("Made 3-Point Shot")
-        MISSED_3PT = "MISSED_3PT", _("Missed 3-Point Shot")
+        MADE_2PT = "MADE_2PTS", _("Made 2-Point Shot")
+        MISSED_2PT = "MISSED_2PTS", _("Missed 2-Point Shot")
+        MADE_3PT = "MADE_3PTS", _("Made 3-Point Shot")
+        MISSED_3PT = "MISSED_3PTS", _("Missed 3-Point Shot")
         MADE_FT = "MADE_FT", _("Made Free Throw(s)")
         MISSED_FT = "MISSED_FT", _("Missed Free Throw(s)")
         TURNOVER_OFFENSIVE_FOUL = "TO_OFFENSIVE_FOUL", _("Turnover: Offensive Foul")
@@ -27,6 +27,7 @@ class Possession(models.Model):
         TURNOVER_SHOT_CLOCK = "TO_SHOT_CLOCK", _("Turnover: Shot Clock")
         TURNOVER_8_SECONDS = "TO_8_SECONDS", _("Turnover: 8 Seconds")
         TURNOVER_3_SECONDS = "TO_3_SECONDS", _("Turnover: 3 Seconds")
+        TURNOVER_STOLEN_BALL = "TO_STOLEN_BALL", _("Turnover: Stolen ball")
         OTHER = "OTHER", _("Other")
 
     game = models.ForeignKey(

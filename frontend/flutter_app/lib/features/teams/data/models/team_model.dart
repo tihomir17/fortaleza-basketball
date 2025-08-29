@@ -8,6 +8,7 @@ class Team {
   final List<User> players;
   final List<User> coaches;
   final int? competitionId;
+  final String? logoUrl;
 
   Team({
     required this.id,
@@ -16,6 +17,7 @@ class Team {
     required this.players,
     required this.coaches,
     this.competitionId,
+    this.logoUrl,
   });
 
   factory Team.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class Team {
           .map((c) => User.fromJson(c as Map<String, dynamic>))
           .toList(),
       competitionId: compId,
+      logoUrl: json['logo_url'],
     );
   }
 }

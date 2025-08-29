@@ -2,8 +2,10 @@
 
 // ignore_for_file: unused_import, unused_element_parameter
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -11,8 +13,22 @@ import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
+import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_cubit.dart';
+import 'package:flutter_app/features/plays/presentation/cubit/playbook_state.dart';
+import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+enum PossessionLoggingPhase {
+  inactive,
+  awaitingTeam,
+  homeTeamPossesion,
+  awayTeamPossesion,
+  active,
+  awaitingShotResult,
+}
 
 class LiveTrackingScreen extends StatefulWidget {
   final int gameId;
@@ -150,9 +166,22 @@ class _LiveTrackingStatefulWrapper extends StatefulWidget {
 class __LiveTrackingStatefulWrapperState
     extends State<_LiveTrackingStatefulWrapper> {
   List<String> _sequence = [];
-  bool _isSessionActive = false;
+
+  PossessionLoggingPhase _phase = PossessionLoggingPhase.inactive;
+
+  double _durationInSeconds = 12.0;
+
+  String? _finalOutcome; // To hold outcomes like 'MADE_2PT', 'TO_TRAVEL', etc.
+  String? _shotType; // To track if '2pts' or '3pts' was pressed
+  bool? _isHomeTeamPossession; // To determine which team had the ball
 
   void _onButtonPressed(String action) {
+    if (action.startsWith('TO_') ||
+        action.startsWith('MADE_') ||
+        action.startsWith('MISSED_')) {
+      setState(() => _finalOutcome = action);
+      // We still add it to the sequence for the user to see
+    }
     // --- SPECIAL BUTTON LOGIC ---
     if (action == 'Turnover') {
       _showTurnoverMenu();
@@ -163,33 +192,259 @@ class __LiveTrackingStatefulWrapperState
       return;
     }
 
+    if (action == 'Substitution') {
+      _showSubstitutionDialog(context);
+    }
     setState(() {
       if (action == 'START') {
-        _isSessionActive = true;
+        _phase = PossessionLoggingPhase.awaitingTeam;
         _sequence = [widget.currentPeriod];
-
-        return; // Do not add "START" to the sequence list
-      }
-
-      if (action == 'END') {
-        _isSessionActive = false;
-        // Optionally, you could add "END" to the sequence here if you want
-        // TODO: Trigger the save possession logic
-        _sequence = [];
+        _finalOutcome = null;
+        _shotType = null;
+        _isHomeTeamPossession = null;
         return;
       }
 
-      if (!_isSessionActive) return;
-
-      if (action == "UNDO" && _sequence.isNotEmpty) {
-        _sequence.removeLast();
-      } else if (action != "UNDO") {
-        _sequence.add(action);
+      if (action == 'Off' || action == 'Def') {
+        _isHomeTeamPossession = (action == 'Off');
+        _phase = PossessionLoggingPhase.active; // All buttons now become active
+        return; // Don't add to sequence
       }
+
+      // If we are awaiting a shot result, only allow Made or Miss
+      if (_phase == PossessionLoggingPhase.awaitingShotResult) {
+        if (action == 'Made' || action == 'Missed') {
+          _finalOutcome =
+              '${action.toUpperCase()}_$_shotType'; // e.g., MADE_2PT
+          _sequence.add(action);
+          _phase =
+              PossessionLoggingPhase.active; // Return to normal active state
+        }
+        return; // Ignore all other buttons
+      }
+
+      // If the session is totally inactive, ignore all other buttons
+      if (_phase == PossessionLoggingPhase.inactive) return;
+
+      // For 2pt/3pt, enter the special "awaiting shot result" phase
+      if (action == '2pts' || action == '3pts') {
+        _phase = PossessionLoggingPhase.awaitingShotResult;
+        _shotType = action.toUpperCase();
+        _sequence.add(action);
+        return;
+      }
+
+      if (action == 'END') {
+        showSaveConfirmationDialog();
+        _phase = PossessionLoggingPhase.inactive;
+        _sequence.add(action);
+        return;
+      }
+
+      // Standard UNDO logic (simplified for now)
+      if (action == "UNDO") {
+        if (_sequence.length > 1) _sequence.removeLast();
+        _phase =
+            PossessionLoggingPhase.active; // Always return to active after undo
+        return;
+      }
+
+      _sequence.add(action);
     });
   }
 
+  Future<void> savePossessionToDatabase(
+    Team team,
+    Team opponent,
+    String sequence,
+  ) async {
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) return;
+
+    try {
+      await sl<PossessionRepository>().createPossession(
+        token: token,
+        gameId: widget.game.id,
+        teamId: team.id,
+        opponentId: opponent.id,
+        startTime: "00:00", // Placeholder
+        duration: 10, // Placeholder
+        quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
+        outcome: _finalOutcome!,
+        offensiveSequence: _isHomeTeamPossession! ? sequence : '',
+        defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Possession Saved!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Clear the sequence for the next one
+        setState(() => _sequence = []);
+        // Notify other screens to refresh
+        sl<RefreshSignal>().notify();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  // --- SAVE POSSESSION LOGIC ---
+  void showSaveConfirmationDialog() {
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) return;
+
+    // Determine which team had the ball and which was the opponent
+    if (_isHomeTeamPossession == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select 'Off' or 'Def' to assign possession."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final teamWithBall = _isHomeTeamPossession! ? game.homeTeam : game.awayTeam;
+    final opponentTeam = _isHomeTeamPossession! ? game.awayTeam : game.homeTeam;
+    final sequenceString = _sequence.join(' / ');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Save Possession for ${teamWithBall.name}?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Sequence:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(sequenceString),
+              const SizedBox(height: 16),
+              // TODO: Add outcome and other details to this summary
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Call the repository method on confirm
+              savePossessionToDatabase(
+                teamWithBall,
+                opponentTeam,
+                sequenceString,
+              );
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Method to display the custom dialog for the sub
+  void _showSubstitutionDialog(BuildContext context) {
+    // Controllers for the text fields
+    final playerInController = TextEditingController();
+    final playerOutController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Substitution'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Make the dialog content compact
+              children: [
+                TextFormField(
+                  controller: playerInController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player In',
+                    prefixIcon: Icon(Icons.arrow_upward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: playerOutController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Out',
+                    prefixIcon: Icon(Icons.arrow_downward),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  // If the form is valid, create the action string
+                  final String subAction =
+                      'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
+                  // Call the main onPressed callback to add it to the sequence
+                  _onButtonPressed(subAction);
+                  // Close the dialog
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showTurnoverMenu() {
+    // Create a map to link the user-friendly text to the backend enum value
+    final Map<String, String> turnoverTypes = {
+      'Out of bounds': 'TO_OUT_OF_BOUNDS',
+      'Travelling': 'TO_TRAVEL',
+      'Offensive foul': 'TO_OFFENSIVE_FOUL',
+      '3 seconds in key': 'TO_3_SECONDS',
+      '5 seconds violation':
+          'TO_5_SECONDS', // NOTE: Add this to your Django model if needed
+      '8 seconds violation': 'TO_8_SECONDS',
+      'Shot clock violation': 'TO_SHOT_CLOCK',
+      'Bad pass':
+          'TO_BAD_PASS', // NOTE: Add this to your Django model if needed
+      'Stolen ball': 'TO_STOLEN_BALL',
+      'Technical foul':
+          'TO_TECHNICAL_FOUL', // NOTE: Add this to your Django model if needed
+    };
+
     showModalBottomSheet(
       context: context,
       builder: (ctx) => ListView(
@@ -200,22 +455,12 @@ class __LiveTrackingStatefulWrapperState
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          ...[
-            'Out of bounds',
-            'Travelling',
-            'Offensive foul',
-            '3 seconds in key',
-            '5 seconds violation',
-            '8 seconds violation',
-            'Shot clock violation',
-            'Bad pass',
-            'Technical foul',
-          ].map(
-            (type) => ListTile(
-              title: Text(type),
+          ...turnoverTypes.entries.map(
+            (entry) => ListTile(
+              title: Text(entry.key), // Show the user-friendly key
               onTap: () {
-                // Add the specific turnover type to the sequence
-                _onButtonPressed('TO: $type');
+                // Send the backend-friendly value to the sequence
+                _onButtonPressed(entry.value);
                 Navigator.of(ctx).pop();
               },
             ),
@@ -233,17 +478,19 @@ class __LiveTrackingStatefulWrapperState
         children: [
           ListTile(
             leading: const Icon(Icons.check_circle, color: Colors.green),
-            title: const Text('Made'),
+            title: const Text('Made Free Throw(s)'),
             onTap: () {
-              _onButtonPressed('FT Made');
+              // Use the exact value from the Django model's choices.
+              _onButtonPressed('MADE_FT');
               Navigator.of(ctx).pop();
             },
           ),
           ListTile(
             leading: const Icon(Icons.cancel, color: Colors.red),
-            title: const Text('Missed'),
+            title: const Text('Missed Free Throw(s)'),
             onTap: () {
-              _onButtonPressed('FT Miss');
+              // THIS IS THE FIX:
+              _onButtonPressed('MISSED_FT');
               Navigator.of(ctx).pop();
             },
           ),
@@ -279,7 +526,7 @@ class __LiveTrackingStatefulWrapperState
                       title: 'OFFENSE',
                       child: _OffensePanel(
                         onButtonPressed: _onButtonPressed,
-                        isEnabled: _isSessionActive,
+                        phase: _phase,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -293,7 +540,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'OFFENSE HALF COURT',
                               child: _HalfCourtPanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -304,7 +551,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'DEFENSE',
                               child: _DefensePanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -315,7 +562,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'PLAYERS',
                               child: _PlayersPanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -333,7 +580,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'CONTROL',
                               child: _ControlPanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -344,7 +591,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'OUTCOME',
                               child: _OutcomePanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -355,7 +602,13 @@ class __LiveTrackingStatefulWrapperState
                               title: 'SHOOT',
                               child: _ShootPanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
+                                currentDuration: _durationInSeconds,
+                                onDurationChanged: (newDuration) {
+                                  setState(
+                                    () => _durationInSeconds = newDuration,
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -366,7 +619,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'TAG OFFENSIVE REBOUND',
                               child: _OffRebPanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -377,7 +630,7 @@ class __LiveTrackingStatefulWrapperState
                               title: 'ADVANCED',
                               child: _AdvancePanel(
                                 onButtonPressed: _onButtonPressed,
-                                isEnabled: _isSessionActive,
+                                phase: _phase,
                               ),
                             ),
                           ),
@@ -402,7 +655,7 @@ class __LiveTrackingStatefulWrapperState
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Text(
         _sequence.isEmpty
-            ? "Press Start for the new possesion."
+            ? "Press Start for the new possession."
             : _sequence.join(' / '),
         style: const TextStyle(
           color: Colors.white,
@@ -411,41 +664,6 @@ class __LiveTrackingStatefulWrapperState
         ),
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final String title;
-  final Widget child;
-  const _Panel({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black87, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4.0),
-            color: Colors.black87,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Padding(padding: const EdgeInsets.all(4.0), child: child),
-        ],
       ),
     );
   }
@@ -487,6 +705,7 @@ class _ActionButton extends StatelessWidget {
             fontSize: textSize ?? 14,
             fontWeight: FontWeight.bold,
             height: 1.1,
+            fontFamily: 'Montserrat',
           ),
         ),
         child: Text(text),
@@ -495,11 +714,46 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+class _Panel extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _Panel({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black87, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4.0),
+            color: Colors.black87,
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Padding(padding: const EdgeInsets.all(4.0), child: child),
+        ],
+      ),
+    );
+  }
+}
+
 class _OffensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
+  final PossessionLoggingPhase phase;
 
-  const _OffensePanel({required this.onButtonPressed, required this.isEnabled});
+  const _OffensePanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -507,7 +761,7 @@ class _OffensePanel extends StatelessWidget {
     // We use a Column to stack the two rows vertically
     return Column(
       children: [
-        // --- First ROW ---
+        // First row
         Row(
           children: List.generate(20, (i) {
             return _ActionButton(
@@ -515,11 +769,11 @@ class _OffensePanel extends StatelessWidget {
               color: setButtonColor,
               onPressed: onButtonPressed,
               textSize: 14,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             );
           }),
         ),
-        // --- Second row ---
+        // Second row
         Row(
           children:
               [
@@ -540,7 +794,7 @@ class _OffensePanel extends StatelessWidget {
                         text: t,
                         color: Colors.grey[400],
                         onPressed: onButtonPressed,
-                        isEnabled: isEnabled, // <-- PASS THE STATE
+                        isEnabled: phase == PossessionLoggingPhase.active,
                       ),
                     ),
                   )
@@ -554,12 +808,9 @@ class _OffensePanel extends StatelessWidget {
 
 class _HalfCourtPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
+  final PossessionLoggingPhase phase;
 
-  const _HalfCourtPanel({
-    required this.onButtonPressed,
-    required this.isEnabled,
-  });
+  const _HalfCourtPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -591,7 +842,7 @@ class _HalfCourtPanel extends StatelessWidget {
               color: rowData['leftColor'], // Use the color from our data map
               textColor: Colors.white,
               onPressed: onButtonPressed,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             ),
             // Right column button - always dark blue
             _ActionButton(
@@ -599,7 +850,7 @@ class _HalfCourtPanel extends StatelessWidget {
               color: darkBlue,
               textColor: Colors.white,
               onPressed: onButtonPressed,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             ),
           ],
         );
@@ -610,9 +861,9 @@ class _HalfCourtPanel extends StatelessWidget {
 
 class _DefensePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
+  final PossessionLoggingPhase phase;
 
-  const _DefensePanel({required this.onButtonPressed, required this.isEnabled});
+  const _DefensePanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -667,7 +918,7 @@ class _DefensePanel extends StatelessWidget {
               text: text,
               color: text == 'ISO' ? Colors.red : defColor,
               onPressed: onButtonPressed,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             );
           }),
         );
@@ -678,86 +929,9 @@ class _DefensePanel extends StatelessWidget {
 
 class _PlayersPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
+  final PossessionLoggingPhase phase;
 
-  const _PlayersPanel({required this.onButtonPressed, required this.isEnabled});
-
-  // Method to display the custom dialog for the sub
-  void _showSubstitutionDialog(BuildContext context) {
-    // Controllers for the text fields
-    final playerInController = TextEditingController();
-    final playerOutController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    if (isEnabled) {
-      showDialog(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Substitution'),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize:
-                    MainAxisSize.min, // Make the dialog content compact
-                children: [
-                  TextFormField(
-                    controller: playerInController,
-                    decoration: const InputDecoration(
-                      labelText: 'Player In',
-                      prefixIcon: Icon(Icons.arrow_upward),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 2,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: playerOutController,
-                    decoration: const InputDecoration(
-                      labelText: 'Player Out',
-                      prefixIcon: Icon(Icons.arrow_downward),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 2,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Required' : null,
-                  ),
-                ],
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.of(dialogContext).pop(),
-              ),
-              ElevatedButton(
-                child: const Text('Confirm'),
-                onPressed: () {
-                  if (formKey.currentState!.validate()) {
-                    // If the form is valid, create the action string
-                    final String subAction =
-                        'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
-                    // Call the main onPressed callback to add it to the sequence
-                    onButtonPressed(subAction);
-                    // Close the dialog
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-              ),
-            ],
-          );
-        },
-      );
-    } else {
-      Center(
-        child: Text("Logging is inactive. Press start to log new possession."),
-      );
-    }
-  }
+  const _PlayersPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -786,7 +960,7 @@ class _PlayersPanel extends StatelessWidget {
                   text: '#',
                   color: color,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 );
               }),
             );
@@ -804,32 +978,13 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'BoxOut -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(1.0),
-                  child: ElevatedButton(
-                    // If isEnabled is true, assign the _showSubstitutionDialog function.
-                    // If isEnabled is false, assign null.
-                    // Flutter automatically disables the button when onPressed is null.
-                    onPressed: isEnabled
-                        ? () => _showSubstitutionDialog(context)
-                        : null,
-
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(32),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    child: const Text('Substitution'),
-                  ),
+                _ActionButton(
+                  text: 'Substitution',
+                  color: Colors.black,
+                  onPressed: onButtonPressed,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
               ],
             ),
@@ -839,13 +994,13 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'DefReb +1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
                 _ActionButton(
                   text: 'Recover -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
               ],
             ),
@@ -855,7 +1010,7 @@ class _PlayersPanel extends StatelessWidget {
                   text: 'OffReb -1',
                   color: Colors.purple,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
                 const SizedBox.shrink(), // Empty cell for the bottom right
               ],
@@ -869,9 +1024,9 @@ class _PlayersPanel extends StatelessWidget {
 
 class _ControlPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
+  final PossessionLoggingPhase phase;
 
-  const _ControlPanel({required this.onButtonPressed, required this.isEnabled});
+  const _ControlPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -892,7 +1047,7 @@ class _ControlPanel extends StatelessWidget {
                   text: 'START',
                   color: Colors.green,
                   onPressed: onButtonPressed,
-                  isEnabled: true,
+                  isEnabled: phase == PossessionLoggingPhase.inactive,
                 ),
               ],
             ),
@@ -911,21 +1066,21 @@ class _ControlPanel extends StatelessWidget {
               children: [
                 _ActionButton(
                   text: 'Off',
-                  color: Colors.grey,
+                  color: Colors.blueAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
                 ),
                 _ActionButton(
                   text: 'Def',
-                  color: Colors.grey,
+                  color: Colors.green,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.awaitingTeam,
                 ),
                 _ActionButton(
                   text: 'UNDO',
                   color: Colors.grey,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled, // TODO: UNDO MUST BE ALWAYS ACTIVE!
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
               ],
             ),
@@ -945,7 +1100,9 @@ class _ControlPanel extends StatelessWidget {
                   text: 'END',
                   color: Colors.red,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled:
+                      phase == PossessionLoggingPhase.active ||
+                      phase == PossessionLoggingPhase.awaitingTeam,
                 ),
                 // _ActionButton(
                 //   text: 'FORW',
@@ -964,8 +1121,9 @@ class _ControlPanel extends StatelessWidget {
 
 class _OutcomePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
-  const _OutcomePanel({required this.onButtonPressed, required this.isEnabled});
+  final PossessionLoggingPhase phase; // Accept the enum
+
+  const _OutcomePanel({required this.onButtonPressed, required this.phase});
 
   Widget buildHeader(String text) => Text(
     text,
@@ -979,6 +1137,10 @@ class _OutcomePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isAwaitingShotResult =
+        phase == PossessionLoggingPhase.awaitingShotResult;
+    final bool isActive = phase == PossessionLoggingPhase.active;
+
     return Column(
       // Define the relative widths of the 4 content columns
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -996,19 +1158,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: 'Lay Up',
                   color: Colors.orangeAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
                 _ActionButton(
                   text: 'Shot',
                   color: Colors.orangeAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
                 _ActionButton(
                   text: 'Turnover',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
               ],
             ),
@@ -1018,19 +1180,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: '2pts',
                   color: Colors.deepOrangeAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
                 _ActionButton(
                   text: '3pts',
                   color: Colors.deepOrangeAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
                 _ActionButton(
                   text: 'Foul',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
               ],
             ),
@@ -1040,19 +1202,19 @@ class _OutcomePanel extends StatelessWidget {
                   text: 'Made',
                   color: Colors.green,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isAwaitingShotResult,
                 ),
                 _ActionButton(
-                  text: 'Miss',
+                  text: 'Missed',
                   color: Colors.red,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isAwaitingShotResult,
                 ),
                 _ActionButton(
                   text: 'Free Throw',
                   color: Colors.redAccent,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: isActive,
                 ),
               ],
             ),
@@ -1065,9 +1227,16 @@ class _OutcomePanel extends StatelessWidget {
 
 class _ShootPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled;
-  const _ShootPanel({required this.onButtonPressed, required this.isEnabled});
+  final PossessionLoggingPhase phase;
+  final double currentDuration;
+  final ValueChanged<double> onDurationChanged;
 
+  const _ShootPanel({
+    required this.onButtonPressed,
+    required this.phase,
+    required this.currentDuration,
+    required this.onDurationChanged,
+  });
   @override
   Widget build(BuildContext context) {
     Widget buildHeader(String text) => Text(
@@ -1088,51 +1257,71 @@ class _ShootPanel extends StatelessWidget {
               Row(
                 children: [
                   _ActionButton(
-                    text: '1',
+                    text: 'SQ:1',
                     color: Colors.green,
                     onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
+                    isEnabled: phase == PossessionLoggingPhase.active,
                   ),
                   _ActionButton(
-                    text: '2',
+                    text: 'SQ:2',
                     color: Colors.orangeAccent,
                     onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
+                    isEnabled: phase == PossessionLoggingPhase.active,
                   ),
                   _ActionButton(
-                    text: '3',
+                    text: 'SQ:3',
                     color: Colors.red,
                     onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
+                    isEnabled: phase == PossessionLoggingPhase.active,
                   ),
                 ],
               ),
               buildHeader('Shoot time'),
-              Row(
+              // Row(
+              //   children: [
+              //     _ActionButton(
+              //       text: '< 4s',
+              //       color: Colors.blueGrey,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '4-7s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '8-14s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //     _ActionButton(
+              //       text: '15-20s',
+              //       color: Colors.indigo,
+              //       onPressed: onButtonPressed,
+              //       isEnabled: isEnabled,
+              //     ),
+              //   ],
+              // ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ActionButton(
-                    text: '< 4s',
-                    color: Colors.blueGrey,
-                    onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
+                  Text(
+                    "Duration: ${currentDuration.toStringAsFixed(0)}s",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  _ActionButton(
-                    text: '4-7s',
-                    color: Colors.indigo,
-                    onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
-                  ),
-                  _ActionButton(
-                    text: '8-14s',
-                    color: Colors.indigo,
-                    onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
-                  ),
-                  _ActionButton(
-                    text: '15-20s',
-                    color: Colors.indigo,
-                    onPressed: onButtonPressed,
-                    isEnabled: isEnabled,
+                  Slider(
+                    value: currentDuration,
+                    min: 1,
+                    max: 24,
+                    divisions: 23, // 23 divisions create 24 distinct steps
+                    label: currentDuration.toStringAsFixed(0),
+                    onChanged: phase == PossessionLoggingPhase.active
+                        ? onDurationChanged
+                        : null,
                   ),
                 ],
               ),
@@ -1146,9 +1335,9 @@ class _ShootPanel extends StatelessWidget {
 
 class _OffRebPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled; // Add the isEnabled flag
+  final PossessionLoggingPhase phase;
 
-  const _OffRebPanel({required this.onButtonPressed, required this.isEnabled});
+  const _OffRebPanel({required this.onButtonPressed, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -1181,44 +1370,44 @@ class _OffRebPanel extends StatelessWidget {
                     TableRow(
                       children: [
                         _ActionButton(
-                          text: '0',
+                          text: 'TOR:0',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                         _ActionButton(
-                          text: '1',
+                          text: 'TOR:1',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                         _ActionButton(
-                          text: '2',
+                          text: 'TOR:2',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                       ],
                     ), // TableRow
                     TableRow(
                       children: [
                         _ActionButton(
-                          text: '3',
+                          text: 'TOR:3',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                         _ActionButton(
-                          text: '4',
+                          text: 'TOR:4',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                         _ActionButton(
-                          text: '5',
+                          text: 'TOR:5',
                           color: offRebTagColor,
                           onPressed: onButtonPressed,
-                          isEnabled: isEnabled,
+                          isEnabled: phase == PossessionLoggingPhase.active,
                         ),
                       ],
                     ), // TableRow
@@ -1233,7 +1422,7 @@ class _OffRebPanel extends StatelessWidget {
                   text: 'Yes',
                   color: Colors.green,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
               ],
             ), // TableRow
@@ -1243,7 +1432,7 @@ class _OffRebPanel extends StatelessWidget {
                   text: 'No',
                   color: Colors.red,
                   onPressed: onButtonPressed,
-                  isEnabled: isEnabled,
+                  isEnabled: phase == PossessionLoggingPhase.active,
                 ),
               ],
             ), // TableRow
@@ -1256,12 +1445,12 @@ class _OffRebPanel extends StatelessWidget {
 
 class _AdvancePanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
-  final bool isEnabled; // Add the isEnabled flag
+  final PossessionLoggingPhase phase;
 
   const _AdvancePanel({
     super.key,
     required this.onButtonPressed,
-    required this.isEnabled, // Add to constructor
+    required this.phase, // Add to constructor
   });
 
   @override
@@ -1290,7 +1479,7 @@ class _AdvancePanel extends StatelessWidget {
               color: indigoBlue, // Use the color from our data map
               textColor: Colors.white,
               onPressed: onButtonPressed,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             ),
             // Right column button - always dark blue
             _ActionButton(
@@ -1298,7 +1487,7 @@ class _AdvancePanel extends StatelessWidget {
               color: rowData['rightColor'], // Use the color from our data map,
               textColor: Colors.white,
               onPressed: onButtonPressed,
-              isEnabled: isEnabled,
+              isEnabled: phase == PossessionLoggingPhase.active,
             ),
           ],
         );

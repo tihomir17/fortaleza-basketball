@@ -98,11 +98,6 @@ class _GamesScreenState extends State<GamesScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/log-possession'),
-        tooltip: 'Log New Possession',
-        child: const Icon(Icons.add_chart),
-      ),
     );
   }
 }

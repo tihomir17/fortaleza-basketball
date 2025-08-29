@@ -26,6 +26,7 @@ class _EditCoachScreenState extends State<EditCoachScreen> {
   @override
   void initState() {
     super.initState();
+    logger.d('EditCoachScreen: initState for coach: ${widget.coach.username}');
     _firstNameController = TextEditingController(text: widget.coach.firstName);
     _lastNameController = TextEditingController(text: widget.coach.lastName);
     _selectedCoachType = widget.coach.coachType ?? 'ASSISTANT_COACH';
@@ -36,19 +37,27 @@ class _EditCoachScreenState extends State<EditCoachScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
+    logger.d('EditCoachScreen: dispose called.');
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    logger.d('EditCoachScreen: Submit form called.');
+    if (!_formKey.currentState!.validate()) {
+      logger.w('EditCoachScreen: Form validation failed.');
+      return;
+    }
     setState(() => _isLoading = true);
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
       /* handle error */
+      setState(() => _isLoading = false);
+      logger.e('EditCoachScreen: Authentication token is null during form submission.');
       return;
     }
 
     try {
       // We will create this repository method next
+      logger.i('EditCoachScreen: Attempting to update coach ${widget.coach.id}.');
       await sl<UserRepository>().updateCoach(
         token: token,
         userId: widget.coach.id,
@@ -59,8 +68,10 @@ class _EditCoachScreenState extends State<EditCoachScreen> {
       if (mounted) {
         sl<RefreshSignal>().notify();
         Navigator.of(context).pop();
+        logger.i('EditCoachScreen: Coach ${widget.coach.id} updated successfully.');
       }
     } catch (e) {
+      logger.e('EditCoachScreen: Error updating coach ${widget.coach.id}: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -111,6 +122,7 @@ class _EditCoachScreenState extends State<EditCoachScreen> {
                 ),
               ],
               onChanged: (value) {
+                logger.d('EditCoachScreen: Coach type changed to $value.');
                 if (value != null) setState(() => _selectedCoachType = value);
               },
               decoration: const InputDecoration(labelText: 'Coach Type'),

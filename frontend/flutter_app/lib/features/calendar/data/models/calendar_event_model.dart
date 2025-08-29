@@ -1,3 +1,5 @@
+import 'package:flutter_app/main.dart'; // Import for global logger
+
 // lib/features/calendar/data/models/calendar_event_model.dart
 
 class CalendarEvent {
@@ -22,6 +24,7 @@ class CalendarEvent {
   });
 
   factory CalendarEvent.fromJson(Map<String, dynamic> json) {
+    logger.d('CalendarEvent.fromJson: Creating CalendarEvent object from JSON.');
     return CalendarEvent(
       id: json['id'],
       title: json['title'],

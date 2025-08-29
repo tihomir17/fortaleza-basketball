@@ -12,9 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Ensure logs directory exists
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -42,6 +47,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "django_filters",
+    "drf_spectacular",
     # Our apps
     "apps.users.apps.UsersConfig",
     "apps.teams.apps.TeamsConfig",
@@ -61,6 +68,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Custom logging middlewares
+    "basketball_analytics.middleware.ExceptionLoggingMiddleware",
+    "basketball_analytics.middleware.RequestLoggingMiddleware",
+    "basketball_analytics.middleware.SlowQueryLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "basketball_analytics.urls"
@@ -141,9 +152,6 @@ AUTH_USER_MODEL = "users.User"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",  # Example for a standard frontend dev server
     "http://127.0.0.1:8080",
-    # The port for flutter web can be random, so it's often easier
-    # in development to allow all origins.
-    # For production, you MUST restrict this to your actual domain.
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  #
@@ -158,27 +166,20 @@ CORS_ALLOW_HEADERS = [
 ]
 
 REST_FRAMEWORK = {
-    # Use Django's standard permissions by default.
-    # We can override this on a per-view basis.
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    # This is the most critical part.
-    # It tells every DRF view to first try and authenticate using JWT.
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=60
-    ),  # Set a longer lifetime for easier debugging
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    # This ensures Django's SECRET_KEY is used to sign the tokens.
-    # A mismatch here would cause authentication to fail.
     "SIGNING_KEY": SECRET_KEY,
-    # Defines the header type. 'Bearer' is the standard.
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
@@ -189,3 +190,91 @@ SIMPLE_JWT = {
     "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
     "JTI_CLAIM": "jti",
 }
+
+# Centralized logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s | %(levelname)s | %(name)s | %(process)d | %(thread)d | %(message)s",
+        },
+        "concise": {
+            "format": "%(levelname)s %(name)s: %(message)s",
+        },
+        "request": {
+            "format": "%(asctime)s | %(levelname)s | %(name)s | method=%(method)s path=%(path)s user=%(user)s status=%(status)s duration_ms=%(duration_ms)s ip=%(ip)s ua=%(ua)s referer=%(referer)s origin=%(origin)s req_id=%(request_id)s",
+        },
+        "slow_query": {
+            "format": "%(asctime)s | %(levelname)s | %(name)s | duration_ms=%(duration_ms)s sql=%(sql)s params=%(params)s",
+        },
+        "json": {
+            "()": "basketball_analytics.logging_formatters.JsonFormatter",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+        "request_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+        "slow_query_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+        "request_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "requests.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 3,
+            "formatter": "json",
+        },
+        "app_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "app.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 3,
+            "formatter": "json",
+        },
+        "slow_query_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "slow_queries.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 3,
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "app_file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["console", "app_file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "app": {
+            "handlers": ["console", "app_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "request": {
+            "handlers": ["request_console", "request_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "db.slow": {
+            "handlers": ["slow_query_console", "slow_query_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+# Slow query threshold in milliseconds
+SLOW_QUERY_MS = 100  # tuned threshold

@@ -3,6 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/competition_repository.dart';
 import 'competition_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class CompetitionCubit extends Cubit<CompetitionState> {
   final CompetitionRepository _competitionRepository;
@@ -20,10 +21,12 @@ class CompetitionCubit extends Cubit<CompetitionState> {
           errorMessage: "Not authenticated.",
         ),
       );
+      logger.w('CompetitionCubit: fetchCompetitions blocked due to empty token.');
       return;
     }
 
     emit(state.copyWith(status: CompetitionStatus.loading));
+    logger.d('CompetitionCubit: fetchCompetitions started.');
     try {
       final competitions = await _competitionRepository.getAllCompetitions(
         token,
@@ -34,6 +37,7 @@ class CompetitionCubit extends Cubit<CompetitionState> {
           competitions: competitions,
         ),
       );
+      logger.i('CompetitionCubit: fetchCompetitions succeeded with ${competitions.length} items.');
     } catch (e) {
       emit(
         state.copyWith(
@@ -41,6 +45,7 @@ class CompetitionCubit extends Cubit<CompetitionState> {
           errorMessage: e.toString(),
         ),
       );
+      logger.e('CompetitionCubit: fetchCompetitions failed: $e');
     }
   }
 }

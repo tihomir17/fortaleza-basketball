@@ -1,3 +1,5 @@
+import 'package:flutter_app/main.dart'; // Import for global logger
+
 // lib/features/authentication/data/models/user_model.dart
 
 class User {
@@ -29,6 +31,7 @@ class User {
 
   // A factory constructor for creating a new User instance from a map.
   factory User.fromJson(Map<String, dynamic> json) {
+    logger.d('User.fromJson: Creating User object from JSON.');
     return User(
       id: json['id'],
       username: json['username'],

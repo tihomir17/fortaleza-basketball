@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/auth_cubit.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,23 +19,35 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    logger.d('LoginScreen: initState called.');
+  }
+
+  @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+    logger.d('LoginScreen: dispose called.');
   }
 
   void _login() {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
+      logger.d('LoginScreen: Login button pressed. Username: ${_usernameController.text.trim()}');
       context
           .read<AuthCubit>()
           .login(_usernameController.text.trim(), _passwordController.text)
           .whenComplete(() {
             if (mounted) {
               setState(() => _isLoading = false);
+              logger.d('LoginScreen: Login attempt completed.');
             }
           });
+    }
+    else {
+      logger.w('LoginScreen: Login form validation failed.');
     }
   }
 

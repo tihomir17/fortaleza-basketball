@@ -9,13 +9,16 @@ class CoachScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    logger.d('CoachScaffold: Building scaffold.');
     // ValueListenableBuilder listens to our global notifier and rebuilds when it changes.
     return ValueListenableBuilder<bool>(
       valueListenable: isSidebarVisible,
       builder: (context, sidebarVisible, _) {
+        logger.d('CoachScaffold: Sidebar visibility changed to $sidebarVisible.');
         // Use LayoutBuilder to handle responsive design (mobile vs. web)
         return LayoutBuilder(
           builder: (context, constraints) {
+            logger.d('CoachScaffold: Layout rebuilt. Max width: ${constraints.maxWidth}');
             // --- WIDE SCREEN (Web/Tablet) ---
             if (constraints.maxWidth > 768) {
               return Scaffold(
@@ -54,6 +57,7 @@ class CoachScaffold extends StatelessWidget {
                           child: InkWell(
                             onTap: () {
                               isSidebarVisible.value = !isSidebarVisible.value;
+                              logger.i('CoachScaffold: Toggled sidebar visibility to ${isSidebarVisible.value}');
                             },
                             borderRadius: BorderRadius.circular(30),
                             child: Container(

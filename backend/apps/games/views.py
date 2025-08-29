@@ -1,12 +1,19 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Game
+from apps.teams.models import Team
 from .serializers import GameReadSerializer, GameWriteSerializer
+from .filters import GameFilter
+from django.db.models import Q  # Import Q
+from apps.users.permissions import IsTeamScopedObject  # New import
 
 
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.all().order_by("-game_date")
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = GameFilter
 
     def get_serializer_class(self):
         """
@@ -16,6 +23,27 @@ class GameViewSet(viewsets.ModelViewSet):
         if self.action in ["create", "update", "partial_update"]:
             return GameWriteSerializer
         return GameReadSerializer
+
+    def get_queryset(self):
+        """
+        Filters games to only show those involving teams the user is a member of.
+        Superusers can see all games.
+        """
+        user = self.request.user
+
+        # Superusers see everything
+        if user.is_superuser:
+            return self.queryset.select_related('competition', 'home_team', 'away_team')
+
+        # Get all teams the user is a member of
+        member_of_teams = Team.objects.filter(
+            Q(players=user) | Q(coaches=user)
+        ).distinct()
+
+        # Filter games where one of the user's teams was either home or away
+        return self.queryset.filter(
+            Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
+        ).distinct().select_related('competition', 'home_team', 'away_team')
 
     def create(self, request, *args, **kwargs):
         """

@@ -29,25 +29,12 @@ class Game {
   });
 
   factory Game.fromJson(Map<String, dynamic> json) {
-    if (kDebugMode) {
-      print("\n--- INSIDE Game.fromJson ---");
-      print("Parsing game with ID: ${json['id']}");
-      // Log the raw data for the 'possessions' key BEFORE we try to parse it.
-      print("Raw 'possessions' data received: ${json['possessions']}");
-      print("Type of 'possessions' data: ${json['possessions'].runtimeType}");
-      print("--- END OF LOGS ---\n");
-    }
-
     // Safely get the list of possessions from the JSON
     final possessionListData = json['possessions'] as List<dynamic>? ?? [];
     // Correctly parse the raw list into a List<Possession>
     final List<Possession> parsedPossessions = possessionListData
         .map((p) => Possession.fromJson(p as Map<String, dynamic>))
         .toList();
-
-    if (kDebugMode) {
-      print(parsedPossessions);
-    }
 
     // Safely parse the competition ID, which might be a Map or an int
     int? compId;

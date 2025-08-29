@@ -27,6 +27,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
   @override
   void initState() {
     super.initState();
+    logger.d('EditUserScreen: initState for user: ${widget.user.username}');
     _firstNameController = TextEditingController(text: widget.user.firstName);
     _lastNameController = TextEditingController(text: widget.user.lastName);
     _numberController = TextEditingController(
@@ -40,19 +41,26 @@ class _EditUserScreenState extends State<EditUserScreen> {
     _lastNameController.dispose();
     _numberController.dispose();
     super.dispose();
+    logger.d('EditUserScreen: dispose called.');
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    logger.d('EditUserScreen: Submit form called.');
+    if (!_formKey.currentState!.validate()) {
+      logger.w('EditUserScreen: Form validation failed.');
+      return;
+    }
     setState(() => _isLoading = true);
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
       // Handle error: show snackbar, set loading to false
       setState(() => _isLoading = false);
+      logger.e('EditUserScreen: Authentication token is null during form submission.');
       return;
     }
 
     try {
+      logger.i('EditUserScreen: Attempting to update user ${widget.user.id}.');
       await sl<UserRepository>().updateUser(
         token: token,
         userId: widget.user.id,
@@ -63,8 +71,10 @@ class _EditUserScreenState extends State<EditUserScreen> {
       if (mounted) {
         sl<RefreshSignal>().notify(); // Fire global refresh
         Navigator.of(context).pop(); // Pop this screen
+        logger.i('EditUserScreen: User ${widget.user.id} updated successfully.');
       }
     } catch (e) {
+      logger.e('EditUserScreen: Error updating user ${widget.user.id}: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
