@@ -1,7 +1,7 @@
 # apps/games/models.py
 from django.db import models
 from django.conf import settings
-from django.db.models import CheckConstraint, Q
+from django.db.models import CheckConstraint, Q, F
 
 
 class Game(models.Model):
@@ -24,7 +24,7 @@ class Game(models.Model):
         ordering = ["-game_date"]  # Show most recent games first
         constraints = [
             CheckConstraint(
-                check=~Q(home_team=models.F("away_team")),
+                check=~Q(home_team=F("away_team")),
                 name="home_team_different_from_away_team",
             )
         ]

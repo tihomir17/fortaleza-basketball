@@ -37,7 +37,7 @@ import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: Level.verbose,
+  level: Level.error,
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,

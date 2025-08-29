@@ -29,7 +29,7 @@ class TeamRepository {
 
       final status = response.statusCode;
       final bodyText = response.body;
-      logger.d('TeamRepository: Response status=$status, body=${bodyText.length > 800 ? bodyText.substring(0, 800) + '...<truncated>' : bodyText}');
+      logger.d('TeamRepository: Response status=$status, body=${bodyText.length > 800 ? '${bodyText.substring(0, 800)}...<truncated>' : bodyText}');
 
       if (status == 200) {
         final dynamic decoded = json.decode(bodyText);

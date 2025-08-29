@@ -275,13 +275,6 @@ class __LiveTrackingStatefulWrapperState
         defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
       );
 
-      if (kDebugMode) {
-        print("--- SAVING POSSESSION ---");
-        print("Game ID: ${widget.game.id}");
-        print("Sequence: ${_sequence.join(' / ')}");
-        print("-------------------------");
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
