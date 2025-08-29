@@ -3,10 +3,20 @@
 from .models import PlayDefinition
 from .serializers import PlayDefinitionSerializer, PlayCategory, PlayCategorySerializer
 from apps.teams.models import Team
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response  # Make sure this is imported
-from django_filters.rest_framework import DjangoFilterBackend
+from apps.users.models import User
+from django.db.models import Q
+from rest_framework import (
+    viewsets,
+    permissions,
+    status,
+)  # pyright: ignore[reportMissingImports]
+from rest_framework.decorators import action  # pyright: ignore[reportMissingImports]
+from rest_framework.response import (
+    Response,
+)  # Make sure this is imported  # pyright: ignore[reportMissingImports]
+from django_filters.rest_framework import (
+    DjangoFilterBackend,
+)  # pyright: ignore[reportMissingImports]
 from .filters import PlayCategoryFilter, PlayDefinitionFilter
 from apps.users.permissions import IsTeamScopedObject  # New import
 
@@ -26,27 +36,40 @@ class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
 class PlayDefinitionViewSet(viewsets.ModelViewSet):
     queryset = PlayDefinition.objects.all()
     serializer_class = PlayDefinitionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = PlayDefinitionFilter
+    permission_classes = [permissions.IsAuthenticated]
 
+    # THIS IS THE CORRECTED METHOD
     def get_queryset(self):
-        """
-        This queryset ensures that a user can only ever see, edit, or delete
-        plays that belong to a team they are a member of.
-        """
         user = self.request.user
-        # Get IDs of all teams the user is a member of (as player or coach)
-        member_of_teams_ids = (
-            user.player_on_teams.all()
-            .values_list("id", flat=True)
-            .union(user.coach_on_teams.all().values_list("id", flat=True))
-        )
 
-        # Filter plays to only those belonging to the user's teams
-        return PlayDefinition.objects.filter(team_id__in=member_of_teams_ids).select_related('team', 'category', 'parent')
+        if not user.is_authenticated:
+            return PlayDefinition.objects.none()
 
-    @action(detail=False, methods=['get'])
+        # Superusers can see/edit everything
+        if user.is_superuser:
+            return self.queryset
+
+        # --- NEW PERMISSION LOGIC ---
+        # 1. Get all teams the user is a member of.
+        user_teams = Team.objects.filter(Q(coaches=user) | Q(players=user))
+
+        # 2. Get the "Default Play Templates" team.
+        try:
+            default_team = Team.objects.get(name="Default Play Templates")
+        except Team.DoesNotExist:
+            default_team = None
+
+        # 3. Build the final query.
+        # A user can see plays that belong to their teams.
+        allowed_plays_query = Q(team__in=user_teams)
+
+        # If the user is a COACH, they can ALSO see the default templates.
+        if user.role == User.Role.COACH and default_team:
+            allowed_plays_query |= Q(team=default_team)
+
+        return self.queryset.filter(allowed_plays_query).distinct()
+
+    @action(detail=False, methods=["get"])
     def templates(self, request):
         """
         Returns the master list of all generic play definitions used for the
@@ -61,6 +84,8 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Team.DoesNotExist:
             return Response(
-                {"error": "The 'Default Play Templates' team was not found in the database."},
-                status=status.HTTP_404_NOT_FOUND
+                {
+                    "error": "The 'Default Play Templates' team was not found in the database."
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )

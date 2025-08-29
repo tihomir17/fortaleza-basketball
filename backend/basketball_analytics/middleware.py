@@ -2,9 +2,12 @@ import time
 import logging
 import uuid
 from typing import Callable
-from django.http import HttpRequest, HttpResponse
-from django.conf import settings
-from django.db import connection
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+)  # pyright: ignore[reportMissingImports]
+from django.conf import settings  # pyright: ignore[reportMissingImports]
+from django.db import connection  # pyright: ignore[reportMissingImports]
 
 request_logger = logging.getLogger("request")
 slow_logger = logging.getLogger("db.slow")

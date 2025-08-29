@@ -33,7 +33,7 @@ class GameViewSet(viewsets.ModelViewSet):
 
         # Superusers see everything
         if user.is_superuser:
-            return self.queryset.select_related('competition', 'home_team', 'away_team')
+            return self.queryset.select_related("competition", "home_team", "away_team")
 
         # Get all teams the user is a member of
         member_of_teams = Team.objects.filter(
@@ -41,9 +41,13 @@ class GameViewSet(viewsets.ModelViewSet):
         ).distinct()
 
         # Filter games where one of the user's teams was either home or away
-        return self.queryset.filter(
-            Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
-        ).distinct().select_related('competition', 'home_team', 'away_team')
+        return (
+            self.queryset.filter(
+                Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
+            )
+            .distinct()
+            .select_related("competition", "home_team", "away_team")
+        )
 
     def create(self, request, *args, **kwargs):
         """

@@ -1,8 +1,13 @@
 # backend/apps/possessions/views.py
 
-from django.db.models import Q
-from rest_framework import viewsets, permissions
-from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q  # pyright: ignore[reportMissingImports]
+from rest_framework import (
+    viewsets,
+    permissions,
+)  # pyright: ignore[reportMissingImports]
+from django_filters.rest_framework import (
+    DjangoFilterBackend,
+)  # pyright: ignore[reportMissingImports]
 
 # We do not need status or Response for this simple fix
 from .models import Possession
@@ -38,7 +43,7 @@ class PossessionViewSet(viewsets.ModelViewSet):
         base_queryset = super().get_queryset()
 
         if user.is_superuser:
-            return base_queryset.select_related('game', 'team', 'opponent', 'logged_by')
+            return base_queryset.select_related("game", "team", "opponent", "logged_by")
 
         member_of_teams_ids = (
             user.player_on_teams.all()
@@ -46,9 +51,14 @@ class PossessionViewSet(viewsets.ModelViewSet):
             .union(user.coach_on_teams.all().values_list("id", flat=True))
         )
 
-        return base_queryset.filter(
-            Q(team_id__in=member_of_teams_ids) | Q(opponent_id__in=member_of_teams_ids)
-        ).distinct().select_related('game', 'team', 'opponent', 'logged_by')
+        return (
+            base_queryset.filter(
+                Q(team_id__in=member_of_teams_ids)
+                | Q(opponent_id__in=member_of_teams_ids)
+            )
+            .distinct()
+            .select_related("game", "team", "opponent", "logged_by")
+        )
 
     # The custom 'create' method is NOT needed. The default mixin works correctly.
     # def create(self, request, *args, **kwargs): ...

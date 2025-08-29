@@ -1,5 +1,6 @@
 // lib/main.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
@@ -37,7 +38,7 @@ import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: kReleaseMode ? Level.warning : Level.verbose,
+  level: Level.error,
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,

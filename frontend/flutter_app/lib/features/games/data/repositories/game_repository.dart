@@ -1,4 +1,7 @@
 // lib/features/games/data/repositories/game_repository.dart
+
+// ignore_for_file: unused_import
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -19,14 +22,18 @@ class GameRepository {
       );
       final status = response.statusCode;
       final bodyText = response.body;
-      logger.d('GameRepository: Response status=$status, body=${bodyText.length > 800 ? bodyText.substring(0, 800) + '...<truncated>' : bodyText}');
+      logger.d(
+        'GameRepository: Response status=$status, body=${bodyText.length > 800 ? '${bodyText.substring(0, 800)}...<truncated>' : bodyText}',
+      );
       if (status == 200) {
         final dynamic decoded = json.decode(bodyText);
         List<dynamic> items;
         String fromKey = '<top-level>';
         if (decoded is List) {
           items = decoded;
-          logger.d('GameRepository: Parsed top-level List with ${items.length} items.');
+          logger.d(
+            'GameRepository: Parsed top-level List with ${items.length} items.',
+          );
         } else if (decoded is Map<String, dynamic>) {
           if (decoded['results'] is List) {
             items = decoded['results'] as List<dynamic>;
@@ -43,16 +50,28 @@ class GameRepository {
             if (listEntry.key != '#none') {
               items = (listEntry.value as List).cast<dynamic>();
               fromKey = listEntry.key;
-              logger.w('GameRepository: Using fallback list at key "$fromKey" with ${items.length} items. Keys=${decoded.keys.toList()}');
+              logger.w(
+                'GameRepository: Using fallback list at key "$fromKey" with ${items.length} items. Keys=${decoded.keys.toList()}',
+              );
             } else {
-              logger.e('GameRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}');
-              throw Exception('Unexpected games payload shape. Expected List or a List under a map key.');
+              logger.e(
+                'GameRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}',
+              );
+              throw Exception(
+                'Unexpected games payload shape. Expected List or a List under a map key.',
+              );
             }
           }
-          logger.d('GameRepository: Parsed List from "$fromKey" with ${items.length} items.');
+          logger.d(
+            'GameRepository: Parsed List from "$fromKey" with ${items.length} items.',
+          );
         } else {
-          logger.e('GameRepository: Unexpected JSON root type: ${decoded.runtimeType}');
-          throw Exception('Unexpected games payload type: ${decoded.runtimeType}');
+          logger.e(
+            'GameRepository: Unexpected JSON root type: ${decoded.runtimeType}',
+          );
+          throw Exception(
+            'Unexpected games payload type: ${decoded.runtimeType}',
+          );
         }
         final games = items
             .map((jsonItem) => Game.fromJson(jsonItem as Map<String, dynamic>))
@@ -60,7 +79,9 @@ class GameRepository {
         logger.i('GameRepository: Loaded ${games.length} games.');
         return games;
       } else {
-        logger.e('GameRepository: Failed to load games. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e(
+          'GameRepository: Failed to load games. Status: ${response.statusCode}, Body: ${response.body}',
+        );
         throw Exception('Failed to load games');
       }
     } catch (e) {
@@ -84,7 +105,9 @@ class GameRepository {
         logger.i('GameRepository: Game $gameId details loaded.');
         return Game.fromJson(json.decode(response.body));
       } else {
-        logger.e('GameRepository: Failed to load game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e(
+          'GameRepository: Failed to load game $gameId. Status: ${response.statusCode}, Body: ${response.body}',
+        );
         throw Exception('Failed to load game details');
       }
     } catch (e) {
@@ -122,7 +145,9 @@ class GameRepository {
         logger.i('GameRepository: Game created successfully.');
         return Game.fromJson(json.decode(response.body));
       } else {
-        logger.e('GameRepository: Failed to schedule game. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e(
+          'GameRepository: Failed to schedule game. Status: ${response.statusCode}, Body: ${response.body}',
+        );
         throw Exception(
           'Failed to schedule game. Server response: ${response.body}',
         );
@@ -161,7 +186,9 @@ class GameRepository {
         logger.i('GameRepository: Game $gameId updated successfully.');
         return Game.fromJson(json.decode(response.body));
       } else {
-        logger.e('GameRepository: Failed to update game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e(
+          'GameRepository: Failed to update game $gameId. Status: ${response.statusCode}, Body: ${response.body}',
+        );
         throw Exception('Failed to update game.');
       }
     } catch (e) {
@@ -178,7 +205,9 @@ class GameRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 204) {
-      logger.e('GameRepository: Failed to delete game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+      logger.e(
+        'GameRepository: Failed to delete game $gameId. Status: ${response.statusCode}, Body: ${response.body}',
+      );
       throw Exception('Failed to delete game.');
     }
     logger.i('GameRepository: Game $gameId deleted successfully.');

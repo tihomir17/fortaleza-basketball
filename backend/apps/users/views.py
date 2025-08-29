@@ -1,13 +1,21 @@
 # apps/users/views.py
 
-from django.contrib.auth import get_user_model
-from rest_framework import generics, permissions
-from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth import get_user_model  # pyright: ignore[reportMissingImports]
+from rest_framework import (
+    generics,
+    permissions,
+)  # pyright: ignore[reportMissingImports]
+from django_filters.rest_framework import (
+    DjangoFilterBackend,
+)  # pyright: ignore[reportMissingImports]
 from .serializers import RegisterSerializer, UserSerializer, CoachUpdateSerializer
 from .filters import UserFilter
-from django.db.models import Q
+from django.db.models import Q  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
-from rest_framework import viewsets, permissions  # <-- Add viewsets
+from rest_framework import (
+    viewsets,
+    permissions,
+)  # <-- Add viewsets  # pyright: ignore[reportMissingImports]
 from apps.users.permissions import IsTeamScopedObject  # New import
 
 User = get_user_model()
@@ -78,7 +86,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # If the user is a superuser, return all users without filtering.
         if user.is_superuser:
-            return User.objects.all().prefetch_related('player_on_teams', 'coach_on_teams')
+            return User.objects.all().prefetch_related(
+                "player_on_teams", "coach_on_teams"
+            )
 
         # Step 1: Get all teams the current user is a member of.
         my_teams = Team.objects.filter(Q(players=user) | Q(coaches=user))
@@ -103,7 +113,9 @@ class UserViewSet(viewsets.ModelViewSet):
         print(f"Allowed to edit user IDs: {list(allowed_ids)}")
         print(f"--- END --- \n")
 
-        return User.objects.filter(id__in=allowed_ids).prefetch_related('player_on_teams', 'coach_on_teams')
+        return User.objects.filter(id__in=allowed_ids).prefetch_related(
+            "player_on_teams", "coach_on_teams"
+        )
 
     def get_serializer_class(self):
         """

@@ -7,11 +7,18 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 User = get_user_model()
 
+
 class TeamPermissionsTests(APITestCase):
     def setUp(self):
-        self.admin = User.objects.create_user(username="admin", password="pwd", is_superuser=True)
-        self.coach = User.objects.create_user(username="coach", password="pwd", role=User.Role.COACH)
-        self.player = User.objects.create_user(username="player", password="pwd", role=User.Role.PLAYER)
+        self.admin = User.objects.create_user(
+            username="admin", password="pwd", is_superuser=True
+        )
+        self.coach = User.objects.create_user(
+            username="coach", password="pwd", role=User.Role.COACH
+        )
+        self.player = User.objects.create_user(
+            username="player", password="pwd", role=User.Role.PLAYER
+        )
         self.other_user = User.objects.create_user(username="other", password="pwd")
 
         self.team = Team.objects.create(name="Alpha", created_by=self.coach)
@@ -38,12 +45,18 @@ class TeamPermissionsTests(APITestCase):
 
     def test_coach_can_update_team(self):
         self.auth(self.coach)
-        res = self.client.patch(self.team_detail_url, {"name": "AlphaUpdated"}, format="json")
+        res = self.client.patch(
+            self.team_detail_url, {"name": "AlphaUpdated"}, format="json"
+        )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.team.refresh_from_db()
         self.assertEqual(self.team.name, "AlphaUpdated")
 
     def test_player_cannot_update_team(self):
         self.auth(self.player)
-        res = self.client.patch(self.team_detail_url, {"name": "NotAllowed"}, format="json")
-        self.assertIn(res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+        res = self.client.patch(
+            self.team_detail_url, {"name": "NotAllowed"}, format="json"
+        )
+        self.assertIn(
+            res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND)
+        )

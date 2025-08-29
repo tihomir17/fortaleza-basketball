@@ -1,8 +1,10 @@
 # backend/apps/possessions/models.py
 
-from django.db import models
-from django.conf import settings
-from django.utils.translation import gettext_lazy as _
+from django.db import models  # pyright: ignore[reportMissingImports]
+from django.conf import settings  # pyright: ignore[reportMissingImports]
+from django.utils.translation import (
+    gettext_lazy as _,
+)  # pyright: ignore[reportMissingImports]
 
 
 class Possession(models.Model):

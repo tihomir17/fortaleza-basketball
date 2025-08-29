@@ -5,6 +5,7 @@ from apps.teams.models import Team
 
 User = get_user_model()
 
+
 class IsTeamScopedObject(BasePermission):
     message = "You do not have permission to access this resource."
 
@@ -56,11 +57,16 @@ class IsTeamScopedObject(BasePermission):
                     Q(players=obj) | Q(coaches=obj), id__in=coach_teams.values("id")
                 ).exists()
             # For reads, allow if they share a team
-            return Team.objects.filter(Q(players=user) | Q(coaches=user), Q(players=obj) | Q(coaches=obj)).exists()
+            return Team.objects.filter(
+                Q(players=user) | Q(coaches=user), Q(players=obj) | Q(coaches=obj)
+            ).exists()
 
         # Competition objects: only creator can modify; reads allowed to authenticated users
         try:
-            from apps.competitions.models import Competition  # local import to avoid cycles
+            from apps.competitions.models import (
+                Competition,
+            )  # local import to avoid cycles
+
             if isinstance(obj, Competition):
                 return is_safe or (obj.created_by_id == user.id)
         except Exception:
@@ -69,15 +75,19 @@ class IsTeamScopedObject(BasePermission):
         # Derive related team ids for generic team-scoped objects
         team_ids = set()
         # Common relations
-        if hasattr(obj, 'team_id') and obj.team_id:
+        if hasattr(obj, "team_id") and obj.team_id:
             team_ids.add(obj.team_id)
-        if hasattr(obj, 'team') and getattr(obj, 'team', None) is not None and hasattr(obj.team, 'id'):
+        if (
+            hasattr(obj, "team")
+            and getattr(obj, "team", None) is not None
+            and hasattr(obj.team, "id")
+        ):
             team_ids.add(obj.team.id)
-        if hasattr(obj, 'home_team_id') and obj.home_team_id:
+        if hasattr(obj, "home_team_id") and obj.home_team_id:
             team_ids.add(obj.home_team_id)
-        if hasattr(obj, 'away_team_id') and obj.away_team_id:
+        if hasattr(obj, "away_team_id") and obj.away_team_id:
             team_ids.add(obj.away_team_id)
-        if hasattr(obj, 'opponent_id') and obj.opponent_id:
+        if hasattr(obj, "opponent_id") and obj.opponent_id:
             team_ids.add(obj.opponent_id)
 
         if not team_ids:
@@ -85,7 +95,8 @@ class IsTeamScopedObject(BasePermission):
             return is_safe
 
         is_member = Team.objects.filter(
-            Q(id__in=team_ids) & (Q(players=user) | Q(coaches=user) | Q(created_by=user))
+            Q(id__in=team_ids)
+            & (Q(players=user) | Q(coaches=user) | Q(created_by=user))
         ).exists()
 
         if not is_member:

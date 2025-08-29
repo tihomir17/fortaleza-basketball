@@ -7,10 +7,15 @@ from apps.teams.models import Team
 
 User = get_user_model()
 
+
 class UserPermissionsTests(APITestCase):
     def setUp(self):
-        self.coach = User.objects.create_user(username="coach", password="pwd", role=User.Role.COACH)
-        self.player = User.objects.create_user(username="player", password="pwd", role=User.Role.PLAYER)
+        self.coach = User.objects.create_user(
+            username="coach", password="pwd", role=User.Role.COACH
+        )
+        self.player = User.objects.create_user(
+            username="player", password="pwd", role=User.Role.PLAYER
+        )
         self.other = User.objects.create_user(username="other", password="pwd")
         self.team = Team.objects.create(name="A", created_by=self.coach)
         self.team.coaches.add(self.coach)
@@ -37,4 +42,6 @@ class UserPermissionsTests(APITestCase):
         self.auth(self.other)
         detail = reverse("user-detail", args=[self.player.id])
         res = self.client.patch(detail, {"first_name": "X"}, format="json")
-        self.assertIn(res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+        self.assertIn(
+            res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND)
+        )
