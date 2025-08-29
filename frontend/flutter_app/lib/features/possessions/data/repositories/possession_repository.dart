@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/possession_model.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class PossessionRepository {
   final http.Client _client = http.Client();
@@ -21,6 +21,7 @@ class PossessionRepository {
     required String defensiveSequence,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/');
+    logger.d('PossessionRepository: Creating possession for game $gameId at $url');
     try {
       final response = await _client.post(
         url,
@@ -41,23 +42,17 @@ class PossessionRepository {
         }),
       );
 
-      // --- START OF DEBUGGING LOGS ---
-      if (kDebugMode) {
-        // Only print in debug mode
-        print("\n--- POSSESSION CREATE RESPONSE ---");
-        print("Status Code: ${response.statusCode}");
-        print("Raw JSON Body: ${response.body}");
-        print("--- END RESPONSE ---\n");
-      }
-
       if (response.statusCode == 201) {
+        logger.i('PossessionRepository: Possession created successfully for game $gameId.');
         return Possession.fromJson(json.decode(response.body));
       } else {
+        logger.e('PossessionRepository: Failed to create possession. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to create possession. Server response: ${response.body}',
         );
       }
     } catch (e) {
+      logger.e('PossessionRepository: Error creating possession: $e');
       throw Exception('An error occurred while creating possession: $e');
     }
   }
@@ -77,6 +72,7 @@ class PossessionRepository {
     required String defensiveSequence,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/$possessionId/');
+    logger.d('PossessionRepository: Updating possession $possessionId at $url');
     try {
       final response = await _client.put(
         // Use PUT for a full update
@@ -98,13 +94,16 @@ class PossessionRepository {
         }),
       );
       if (response.statusCode == 200) {
+        logger.i('PossessionRepository: Possession $possessionId updated successfully.');
         return Possession.fromJson(json.decode(response.body));
       } else {
+        logger.e('PossessionRepository: Failed to update possession $possessionId. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to update possession. Server response: ${response.body}',
         );
       }
     } catch (e) {
+      logger.e('PossessionRepository: Error updating possession $possessionId: $e');
       throw Exception('An error occurred while updating possession: $e');
     }
   }
@@ -115,6 +114,7 @@ class PossessionRepository {
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/$possessionId/');
 
+    logger.d('PossessionRepository: Deleting possession $possessionId at $url');
     try {
       final response = await _client.delete(
         url,
@@ -123,11 +123,14 @@ class PossessionRepository {
 
       // 204 No Content is the standard success code for a DELETE request.
       if (response.statusCode != 204) {
+        logger.e('PossessionRepository: Failed to delete possession $possessionId. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to delete possession. Server response: ${response.body}',
         );
       }
+      logger.i('PossessionRepository: Possession $possessionId deleted successfully.');
     } catch (e) {
+      logger.e('PossessionRepository: Error deleting possession $possessionId: $e');
       throw Exception('An error occurred while deleting the possession: $e');
     }
   }

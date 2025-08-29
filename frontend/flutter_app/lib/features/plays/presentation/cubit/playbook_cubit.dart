@@ -1,10 +1,10 @@
 // lib/features/plays/presentation/cubit/playbook_cubit.dart
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/play_definition_model.dart';
 import '../../data/repositories/play_repository.dart';
 import 'playbook_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class PlaybookCubit extends Cubit<PlaybookState> {
   final PlayRepository _playRepository;
@@ -18,11 +18,7 @@ class PlaybookCubit extends Cubit<PlaybookState> {
     required String token,
     required int teamId, // The specific team we are viewing
   }) async {
-    if (kDebugMode) {
-      print("\n--- PlaybookCubit: fetchPlaysForTeam ---");
-      print("  - Fetching plays for SPECIFIC Team ID: $teamId");
-      print("  - Fetching plays for GENERIC Team ID: $defaultTemplatesTeamId");
-    }
+    logger.d('PlaybookCubit: fetchPlaysForTeam started for team $teamId.');
 
     emit(state.copyWith(status: PlaybookStatus.loading));
     try {
@@ -35,24 +31,14 @@ class PlaybookCubit extends Cubit<PlaybookState> {
       final List<PlayDefinition> teamPlays = results[0];
       final List<PlayDefinition> genericPlays = results[1];
 
-      if (kDebugMode) {
-        print("  - API call successful.");
-        print("  - Received ${teamPlays.length} plays for Team ID $teamId.");
-        print("  - Received ${genericPlays.length} plays for Generic Team ID $defaultTemplatesTeamId.");
-      }
+      logger.i('PlaybookCubit: Loaded ${teamPlays.length} team plays and ${genericPlays.length} generic plays.');
       // Combine the two lists.
       // We can add logic here to prevent duplicates if needed.
       final allPlays = [...teamPlays, ...genericPlays];
-      if (kDebugMode) {
-        print("  - Total combined plays: ${allPlays.length}. Emitting success state.");
-        print("--- END PlaybookCubit ---\n");
-      }
+      logger.d('PlaybookCubit: Total combined plays: ${allPlays.length}.');
       emit(state.copyWith(status: PlaybookStatus.success, plays: allPlays));
     } catch (e) {
-      if (kDebugMode) {
-        print("  - AN ERROR OCCURRED in PlaybookCubit: $e");
-        print("--- END PlaybookCubit (WITH ERROR) ---\n");
-      }      
+      logger.e('PlaybookCubit: Error loading plays: $e');
       emit(
         state.copyWith(
           status: PlaybookStatus.failure,

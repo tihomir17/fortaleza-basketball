@@ -6,6 +6,9 @@ from apps.teams.models import Team
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response  # Make sure this is imported
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import PlayCategoryFilter, PlayDefinitionFilter
+from apps.users.permissions import IsTeamScopedObject  # New import
 
 
 class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -16,12 +19,16 @@ class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = PlayCategory.objects.all().order_by("id")
     serializer_class = PlayCategorySerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PlayCategoryFilter
 
 
 class PlayDefinitionViewSet(viewsets.ModelViewSet):
     queryset = PlayDefinition.objects.all()
     serializer_class = PlayDefinitionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PlayDefinitionFilter
 
     def get_queryset(self):
         """
@@ -37,7 +44,7 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
         )
 
         # Filter plays to only those belonging to the user's teams
-        return PlayDefinition.objects.filter(team_id__in=member_of_teams_ids)
+        return PlayDefinition.objects.filter(team_id__in=member_of_teams_ids).select_related('team', 'category', 'parent')
 
     @action(detail=False, methods=['get'])
     def templates(self, request):

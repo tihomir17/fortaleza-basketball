@@ -49,6 +49,9 @@ dependencies:
   # For dependency injection
   get_it: ^7.6.0
 
+  # For logging
+  logger: ^2.0.2+1
+
   # For formatting dates and times
   intl: ^0.18.1  
 

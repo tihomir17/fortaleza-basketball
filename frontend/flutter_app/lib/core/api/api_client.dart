@@ -1,10 +1,13 @@
+import 'package:flutter_app/main.dart'; // Import for global logger
+
 // lib/core/api/api_client.dart
 class ApiClient {
-  // Configure base URL at build time:
-  // flutter run --dart-define=API_BASE_URL=https://your.api/api
-  // Defaults to localhost for development.
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000/api',
-  );
+  // For testing with a local Django server on a mobile emulator,
+  // use 10.0.2.2 for Android and 127.0.0.1 for iOS/web.
+  static const String baseUrl = "http://127.0.0.1:8000/api";
+  // static const String baseUrl = "http://10.0.2.2:8000/api";
+
+  ApiClient() {
+    logger.d('ApiClient initialized with baseUrl: $baseUrl');
+  }
 }

@@ -3,6 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/team_repository.dart';
 import 'team_detail_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class TeamDetailCubit extends Cubit<TeamDetailState> {
   final TeamRepository _teamRepository;
@@ -16,12 +17,14 @@ class TeamDetailCubit extends Cubit<TeamDetailState> {
     required int teamId,
   }) async {
     emit(state.copyWith(status: TeamDetailStatus.loading));
+    logger.d('TeamDetailCubit: fetchTeamDetails started for team $teamId.');
     try {
       final team = await _teamRepository.getTeamDetails(
         token: token,
         teamId: teamId,
       );
       emit(state.copyWith(status: TeamDetailStatus.success, team: team));
+      logger.i('TeamDetailCubit: fetchTeamDetails succeeded for team $teamId.');
     } catch (e) {
       emit(
         state.copyWith(
@@ -29,6 +32,7 @@ class TeamDetailCubit extends Cubit<TeamDetailState> {
           errorMessage: e.toString(),
         ),
       );
+      logger.e('TeamDetailCubit: fetchTeamDetails failed for team $teamId: $e');
     }
   }
 }
