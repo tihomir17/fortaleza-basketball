@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../games/data/repositories/game_repository.dart';
 import '../../data/repositories/event_repository.dart'; // Create this repository
 import 'calendar_state.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class CalendarCubit extends Cubit<CalendarState> {
   final GameRepository _gameRepository;
@@ -20,6 +21,7 @@ class CalendarCubit extends Cubit<CalendarState> {
     if (token.isEmpty) return;
     
     emit(state.copyWith(status: CalendarStatus.loading));
+    logger.d('CalendarCubit: fetchCalendarData started.');
     try {
       // Fetch both sets of data in parallel
       final futureGames = _gameRepository.getAllGames(token);
@@ -37,8 +39,10 @@ class CalendarCubit extends Cubit<CalendarState> {
         games: List.from(games), // Cast to the correct types
         events: List.from(events),
       ));
+      logger.i('CalendarCubit: fetchCalendarData succeeded with ${games.length} games and ${events.length} events.');
     } catch (e) {
       emit(state.copyWith(status: CalendarStatus.failure, errorMessage: e.toString()));
+      logger.e('CalendarCubit: fetchCalendarData failed: $e');
     }
   }
 }

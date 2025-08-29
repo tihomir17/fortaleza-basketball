@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/calendar/presentation/cubit/calendar_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import '../data/models/calendar_event_model.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class CalendarValidators {
   static String? validateNoConflicts({
@@ -25,15 +26,21 @@ class CalendarValidators {
       DateTime existingEndTime;
 
       if (item is Game) {
+        logger.d('CalendarValidators: Checking game conflict with ${item.homeTeam.name}');
         existingStartTime = item.gameDate;
         // Assume a game lasts for a certain duration if no end time is stored
         existingEndTime = existingStartTime.add(const Duration(hours: 2));
       } else if (item is CalendarEvent) {
         // Skip the event we are currently editing
-        if (item.id == eventToIgnoreId) continue;
+        if (item.id == eventToIgnoreId) {
+          logger.d('CalendarValidators: Ignoring event ${item.id} as it is being edited.');
+          continue;
+        }
+        logger.d('CalendarValidators: Checking event conflict with ${item.title}');
         existingStartTime = item.startTime;
         existingEndTime = item.endTime;
       } else {
+        logger.w('CalendarValidators: Skipping unknown calendar item type.');
         continue; // Skip unknown types
       }
 
@@ -45,11 +52,13 @@ class CalendarValidators {
       if (newStartTime.isBefore(conflictWindowEnd) &&
           newEndTime.isAfter(conflictWindowStart)) {
         // A conflict was found!
+        logger.w('CalendarValidators: Conflict detected with existing item: $item');
         return "Scheduling conflict detected with an existing event or game.";
       }
     }
 
     // No conflicts found
+    logger.i('CalendarValidators: No scheduling conflicts detected.');
     return null;
   }
 }

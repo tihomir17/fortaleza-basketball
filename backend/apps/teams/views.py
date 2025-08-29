@@ -4,19 +4,24 @@ from django.db.models import Q
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response  # Make sure this is imported
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Team
 from .serializers import TeamReadSerializer, TeamWriteSerializer, UserSerializer
+from .filters import TeamFilter
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
 from django.shortcuts import get_object_or_404
 from apps.plays.serializers import PlayDefinitionSerializer
+from apps.users.permissions import IsTeamScopedObject  # New import
 
 User = get_user_model()  # A shortcut to the active User model
 
 
 class TeamViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
     queryset = Team.objects.all()
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = TeamFilter
 
     def get_serializer_class(self):
         """
@@ -36,11 +41,11 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Team.objects.none()
 
         if user.is_superuser:
-            return Team.objects.all()
+            return Team.objects.all().select_related('created_by', 'competition').prefetch_related('players', 'coaches')
 
         return self.queryset.filter(
             Q(coaches=user) | Q(players=user) | Q(created_by=user)
-        ).distinct()
+        ).distinct().select_related('created_by', 'competition').prefetch_related('players', 'coaches')
 
     def create(self, request, *args, **kwargs):
         print(f"Request Data Received: {request.data}")

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_app/main.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 // Import the shell and all necessary screens/cubits
 import 'coach_scaffold.dart';
@@ -28,7 +28,9 @@ import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
-  AppRouter({required this.authCubit});
+  AppRouter({required this.authCubit}) {
+    logger.d('AppRouter initialized.');
+  }
 
   late final GoRouter router = GoRouter(
     initialLocation: '/',
@@ -152,8 +154,16 @@ class AppRouter {
     redirect: (BuildContext context, GoRouterState state) {
       final bool loggedIn = authCubit.state.status == AuthStatus.authenticated;
       final bool isLoggingIn = state.matchedLocation == '/login';
-      if (!loggedIn && !isLoggingIn) return '/login';
-      if (loggedIn && isLoggingIn) return '/';
+      logger.d('AppRouter redirect: Current location ${state.matchedLocation}, LoggedIn: $loggedIn, IsLoggingIn: $isLoggingIn');
+      if (!loggedIn && !isLoggingIn) {
+        logger.i('AppRouter redirect: Not logged in, redirecting to /login');
+        return '/login';
+      }
+      if (loggedIn && isLoggingIn) {
+        logger.i('AppRouter redirect: Logged in and on login page, redirecting to /');
+        return '/';
+      }
+      logger.d('AppRouter redirect: No redirect needed.');
       return null;
     },
   );
@@ -163,5 +173,6 @@ class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
     stream.asBroadcastStream().listen((_) => notifyListeners());
+    logger.d('GoRouterRefreshStream initialized.');
   }
 }

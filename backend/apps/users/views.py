@@ -2,10 +2,13 @@
 
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
+from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RegisterSerializer, UserSerializer, CoachUpdateSerializer
+from .filters import UserFilter
 from django.db.models import Q
 from apps.teams.models import Team
 from rest_framework import viewsets, permissions  # <-- Add viewsets
+from apps.users.permissions import IsTeamScopedObject  # New import
 
 User = get_user_model()
 
@@ -62,7 +65,9 @@ class UserSearchView(generics.ListAPIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UserFilter
 
     def get_queryset(self):
         """
@@ -73,7 +78,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # If the user is a superuser, return all users without filtering.
         if user.is_superuser:
-            return User.objects.all()
+            return User.objects.all().prefetch_related('player_on_teams', 'coach_on_teams')
 
         # Step 1: Get all teams the current user is a member of.
         my_teams = Team.objects.filter(Q(players=user) | Q(coaches=user))
@@ -98,7 +103,7 @@ class UserViewSet(viewsets.ModelViewSet):
         print(f"Allowed to edit user IDs: {list(allowed_ids)}")
         print(f"--- END --- \n")
 
-        return User.objects.filter(id__in=allowed_ids)
+        return User.objects.filter(id__in=allowed_ids).prefetch_related('player_on_teams', 'coach_on_teams')
 
     def get_serializer_class(self):
         """

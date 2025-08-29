@@ -1,6 +1,7 @@
 // lib/core/theme/app_theme.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/main.dart'; // Import for global logger
 
 class AppTheme {
   // --- BRAND COLORS ---
@@ -47,6 +48,7 @@ class AppTheme {
     required Color onPrimary,
     required Color onSurface,
   }) {
+    logger.d('AppTheme: Building theme with primary: $primary, accent: $accent');
     return base.copyWith(
       primaryColor: primary,
       scaffoldBackgroundColor: background,
