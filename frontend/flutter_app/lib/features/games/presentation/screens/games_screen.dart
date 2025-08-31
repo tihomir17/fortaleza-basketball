@@ -24,12 +24,23 @@ class GamesScreen extends StatefulWidget {
 
 class _GamesScreenState extends State<GamesScreen> {
   int? _selectedTeamId;
+  String? _selectedOutcome;
+  int? _selectedQuarter;
+  bool _showOnlyUserTeamGames = false;
+  bool _showAnalytics = false;
 
   void _refreshGames() {
     final token = context.read<AuthCubit>().state.token;
     if (token != null) {
       context.read<GameCubit>().fetchGames(token: token);
     }
+  }
+
+  void _generateReport() {
+    // TODO: Implement report generation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report generation coming soon!')),
+    );
   }
 
   @override
@@ -40,33 +51,28 @@ class _GamesScreenState extends State<GamesScreen> {
       appBar: UserProfileAppBar(
         title: 'GAME ANALYSIS',
         onRefresh: _refreshGames,
+        actions: [
+          IconButton(
+            icon: Icon(_showAnalytics ? Icons.analytics : Icons.analytics_outlined),
+            onPressed: () => setState(() => _showAnalytics = !_showAnalytics),
+            tooltip: 'Toggle Analytics',
+          ),
+          IconButton(
+            icon: const Icon(Icons.summarize),
+            onPressed: _generateReport,
+            tooltip: 'Generate Report',
+          ),
+        ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-            child: DropdownButtonFormField<int?>(
-              value: _selectedTeamId,
-              hint: const Text('Filter by Team...'),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.filter_list),
-              ),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('All My Teams'),
-                ),
-                ...userTeams.map(
-                  (team) =>
-                      DropdownMenuItem(value: team.id, child: Text(team.name)),
-                ),
-              ],
-              onChanged: (teamId) {
-                setState(() => _selectedTeamId = teamId);
-                context.read<GameCubit>().filterGamesByTeam(teamId);
-              },
-            ),
-          ),
+          // Enhanced Filters Section
+          _buildFiltersSection(userTeams),
+          
+          // Analytics Summary (if enabled)
+          if (_showAnalytics) _buildAnalyticsSummary(),
+          
+          // Games List
           Expanded(
             child: BlocBuilder<GameCubit, GameState>(
               builder: (context, state) {
@@ -80,16 +86,15 @@ class _GamesScreenState extends State<GamesScreen> {
                 }
                 if (state.filteredGames.isEmpty) {
                   return const Center(
-                    child: Text('No games found for the selected team.'),
+                    child: Text('No games found for the selected filters.'),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(4.0),
                   itemCount: state.filteredGames.length,
                   itemBuilder: (context, index) {
                     final game = state.filteredGames[index];
-                    // Use our new, dedicated GameCard widget
                     return GameCard(game: game);
                   },
                 );
@@ -97,6 +102,305 @@ class _GamesScreenState extends State<GamesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFiltersSection(List<Team> userTeams) {
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+      ),
+      child: Column(
+        children: [
+          // Team Filter
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  value: _selectedTeamId,
+                  hint: const Text('Filter by Team...'),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.filter_list),
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('All Teams'),
+                    ),
+                    ...userTeams.map(
+                      (team) => DropdownMenuItem(
+                        value: team.id, 
+                        child: Text(team.name),
+                      ),
+                    ),
+                  ],
+                  onChanged: (teamId) {
+                    setState(() => _selectedTeamId = teamId);
+                    _applyFilters();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Switch(
+                value: _showOnlyUserTeamGames,
+                onChanged: (value) {
+                  setState(() => _showOnlyUserTeamGames = value);
+                  _applyFilters();
+                },
+              ),
+              const Text('My Teams Only'),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Additional Filters Row
+          Row(
+            children: [
+              // Outcome Filter
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  value: _selectedOutcome,
+                  hint: const Text('Outcome...'),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Outcomes')),
+                    const DropdownMenuItem<String?>(value: 'W', child: Text('Wins')),
+                    const DropdownMenuItem<String?>(value: 'L', child: Text('Losses')),
+                  ],
+                  onChanged: (outcome) {
+                    setState(() => _selectedOutcome = outcome);
+                    _applyFilters();
+                  },
+                ),
+              ),
+              
+              const SizedBox(width: 8),
+              
+              // Quarter Filter
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  value: _selectedQuarter,
+                  hint: const Text('Quarter...'),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Quarters')),
+                    const DropdownMenuItem<int?>(value: 1, child: Text('Q1')),
+                    const DropdownMenuItem<int?>(value: 2, child: Text('Q2')),
+                    const DropdownMenuItem<int?>(value: 3, child: Text('Q3')),
+                    const DropdownMenuItem<int?>(value: 4, child: Text('Q4')),
+                  ],
+                  onChanged: (quarter) {
+                    setState(() => _selectedQuarter = quarter);
+                    _applyFilters();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsSummary() {
+    return BlocBuilder<GameCubit, GameState>(
+      builder: (context, state) {
+        if (state.filteredGames.isEmpty) return const SizedBox();
+        
+        final games = state.filteredGames;
+        final userTeams = context.read<TeamCubit>().state.teams;
+        
+        // Calculate analytics
+        int totalGames = games.length;
+        int wins = 0;
+        int losses = 0;
+        int totalPossessions = 0;
+        int totalOffensivePossessions = 0;
+        int totalDefensivePossessions = 0;
+        double totalPossessionTime = 0;
+        
+        for (final game in games) {
+          final isFinished = game.homeTeamScore != null && game.awayTeamScore != null;
+          if (isFinished) {
+            final userTeamInGame = userTeams.firstWhere(
+              (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+              orElse: () => game.homeTeam,
+            );
+            
+            final isHomeTeam = userTeamInGame.id == game.homeTeam.id;
+            final homeWon = game.homeTeamScore! > game.awayTeamScore!;
+            final userWon = isHomeTeam ? homeWon : !homeWon;
+            
+            if (userWon) {
+              wins++;
+            } else {
+              losses++;
+            }
+          }
+          
+          totalPossessions += game.possessions.length;
+          totalOffensivePossessions += game.possessions.where((p) => p.offensiveSequence.isNotEmpty).length;
+          totalDefensivePossessions += game.possessions.where((p) => p.defensiveSequence.isNotEmpty).length;
+          totalPossessionTime += game.possessions.fold(0.0, (sum, p) => sum + p.durationSeconds);
+        }
+        
+        final winRate = totalGames > 0 ? (wins / totalGames * 100) : 0;
+        final avgPossessionTime = totalPossessions > 0 ? totalPossessionTime / totalPossessions : 0;
+        
+        return Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            border: Border(bottom: BorderSide(color: Colors.blue[200]!)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Analytics Summary',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.blue[800],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _AnalyticsCard(
+                    title: 'Games',
+                    value: totalGames.toString(),
+                    icon: Icons.sports_basketball,
+                    color: Colors.blue,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Win Rate',
+                    value: '${winRate.toStringAsFixed(1)}%',
+                    icon: Icons.trending_up,
+                    color: Colors.green,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Wins',
+                    value: wins.toString(),
+                    icon: Icons.check_circle,
+                    color: Colors.green,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Losses',
+                    value: losses.toString(),
+                    icon: Icons.cancel,
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _AnalyticsCard(
+                    title: 'Possessions',
+                    value: totalPossessions.toString(),
+                    icon: Icons.sports_basketball,
+                    color: Colors.orange,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Offensive',
+                    value: totalOffensivePossessions.toString(),
+                    icon: Icons.trending_up,
+                    color: Colors.green,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Defensive',
+                    value: totalDefensivePossessions.toString(),
+                    icon: Icons.shield,
+                    color: Colors.purple,
+                  ),
+                  _AnalyticsCard(
+                    title: 'Avg Time',
+                    value: '${avgPossessionTime.toStringAsFixed(1)}s',
+                    icon: Icons.timer,
+                    color: Colors.indigo,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _applyFilters() {
+    final userTeams = context.read<TeamCubit>().state.teams;
+    final userTeamIds = userTeams.map((team) => team.id).toList();
+    
+    context.read<GameCubit>().applyAdvancedFilters(
+      teamId: _selectedTeamId,
+      outcome: _selectedOutcome,
+      quarter: _selectedQuarter,
+      showOnlyUserTeams: _showOnlyUserTeamGames,
+      userTeamIds: userTeamIds,
+      timeRange: null, // Games screen doesn't use time range filtering
+    );
+  }
+}
+
+class _AnalyticsCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  
+  const _AnalyticsCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: color.withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
