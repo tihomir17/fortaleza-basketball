@@ -31,33 +31,35 @@ class MiddlewareTests(TestCase):
             username="testuser", password="testpass123", role=User.Role.COACH
         )
 
-    @override_settings(LOGGING={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'json': {
-                '()': 'basketball_analytics.logging_formatters.JsonFormatter',
+    @override_settings(
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": "basketball_analytics.logging_formatters.JsonFormatter",
+                },
             },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'json',
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                },
             },
-        },
-        'loggers': {
-            'request': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
+            "loggers": {
+                "request": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
+                "db.slow": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
-            'db.slow': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
-            },
-        },
-    })
+        }
+    )
     def test_request_logging_middleware(self):
         """Test that request logging middleware logs requests correctly."""
         request = self.factory.get("/api/test/")
@@ -84,28 +86,30 @@ class MiddlewareTests(TestCase):
         self.assertEqual(log_entry["referer"], "http://test.com")
         self.assertEqual(log_entry["origin"], "http://test.com")
 
-    @override_settings(LOGGING={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'json': {
-                '()': 'basketball_analytics.logging_formatters.JsonFormatter',
+    @override_settings(
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": "basketball_analytics.logging_formatters.JsonFormatter",
+                },
             },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'json',
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                },
             },
-        },
-        'loggers': {
-            'request': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
+            "loggers": {
+                "request": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
-        },
-    })
+        }
+    )
     def test_request_logging_anonymous_user(self):
         """Test request logging with anonymous user."""
         request = self.factory.get("/api/test/")
@@ -120,28 +124,30 @@ class MiddlewareTests(TestCase):
         log_entry = json.loads(logs.records[0].message)
         self.assertEqual(log_entry["user"], "anonymous")
 
-    @override_settings(LOGGING={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'json': {
-                '()': 'basketball_analytics.logging_formatters.JsonFormatter',
+    @override_settings(
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": "basketball_analytics.logging_formatters.JsonFormatter",
+                },
             },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'json',
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                },
             },
-        },
-        'loggers': {
-            'request': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
+            "loggers": {
+                "request": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
-        },
-    })
+        }
+    )
     def test_request_logging_missing_headers(self):
         """Test request logging with missing headers."""
         request = self.factory.get("/api/test/")
@@ -158,28 +164,30 @@ class MiddlewareTests(TestCase):
         self.assertEqual(log_entry["referer"], "")
         self.assertEqual(log_entry["origin"], "")
 
-    @override_settings(LOGGING={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'json': {
-                '()': 'basketball_analytics.logging_formatters.JsonFormatter',
+    @override_settings(
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": "basketball_analytics.logging_formatters.JsonFormatter",
+                },
             },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'json',
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                },
             },
-        },
-        'loggers': {
-            'db.slow': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
+            "loggers": {
+                "db.slow": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
-        },
-    })
+        }
+    )
     def test_slow_query_logging_middleware(self):
         """Test that slow query logging middleware logs slow queries."""
         request = self.factory.get("/api/test/")
@@ -200,28 +208,30 @@ class MiddlewareTests(TestCase):
             log_entry = json.loads(logs.records[0].message)
             self.assertIn("sql", log_entry)
 
-    @override_settings(LOGGING={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'json': {
-                '()': 'basketball_analytics.logging_formatters.JsonFormatter',
+    @override_settings(
+        LOGGING={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": "basketball_analytics.logging_formatters.JsonFormatter",
+                },
             },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'json',
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "json",
+                },
             },
-        },
-        'loggers': {
-            'db.slow': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
+            "loggers": {
+                "db.slow": {
+                    "handlers": ["console"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
-        },
-    })
+        }
+    )
     def test_slow_query_logging_no_slow_queries(self):
         """Test that slow query logging middleware doesn't log fast queries."""
         request = self.factory.get("/api/test/")

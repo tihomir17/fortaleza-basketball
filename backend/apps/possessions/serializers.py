@@ -73,34 +73,38 @@ class PossessionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop('players_on_court', [])
-        offensive_rebound_players_data = validated_data.pop('offensive_rebound_players', [])
-        
+        players_on_court_data = validated_data.pop("players_on_court", [])
+        offensive_rebound_players_data = validated_data.pop(
+            "offensive_rebound_players", []
+        )
+
         # Create the possession
         possession = super().create(validated_data)
-        
+
         # Add ManyToMany relationships
         if players_on_court_data:
             possession.players_on_court.set(players_on_court_data)
         if offensive_rebound_players_data:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
-        
+
         return possession
 
     def update(self, instance, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop('players_on_court', None)
-        offensive_rebound_players_data = validated_data.pop('offensive_rebound_players', None)
-        
+        players_on_court_data = validated_data.pop("players_on_court", None)
+        offensive_rebound_players_data = validated_data.pop(
+            "offensive_rebound_players", None
+        )
+
         # Update the possession
         possession = super().update(instance, validated_data)
-        
+
         # Update ManyToMany relationships if provided
         if players_on_court_data is not None:
             possession.players_on_court.set(players_on_court_data)
         if offensive_rebound_players_data is not None:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
-        
+
         return possession
 
     class Meta:

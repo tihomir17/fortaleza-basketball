@@ -87,7 +87,7 @@ class GameCubit extends Cubit<GameState> {
     // Filter by team
     if (teamId != null) {
       filteredList = filteredList.where((game) {
-        return game.homeTeam?.id == teamId || game.awayTeam?.id == teamId;
+        return game.homeTeam.id == teamId || game.awayTeam.id == teamId;
       }).toList();
       logger.d('GameCubit: After team filter: ${filteredList.length} games');
     }
@@ -95,7 +95,7 @@ class GameCubit extends Cubit<GameState> {
     // Filter by user teams only
     if (showOnlyUserTeams == true && userTeamIds != null && userTeamIds.isNotEmpty) {
       filteredList = filteredList.where((game) {
-        return userTeamIds.contains(game.homeTeam?.id) || userTeamIds.contains(game.awayTeam?.id);
+        return userTeamIds.contains(game.homeTeam.id) || userTeamIds.contains(game.awayTeam.id);
       }).toList();
       logger.d('GameCubit: After user teams filter: ${filteredList.length} games');
     }
@@ -115,7 +115,7 @@ class GameCubit extends Cubit<GameState> {
         } else if (showOnlyUserTeams == true && userTeamIds != null && userTeamIds.isNotEmpty) {
           // Find which user team is in this game
           userTeamId = userTeamIds.firstWhere(
-            (id) => game.homeTeam?.id == id || game.awayTeam?.id == id,
+            (id) => game.homeTeam.id == id || game.awayTeam.id == id,
             orElse: () => -1,
           );
           if (userTeamId == -1) return false;
@@ -124,7 +124,7 @@ class GameCubit extends Cubit<GameState> {
           return false;
         }
 
-        final isHomeTeam = game.homeTeam?.id == userTeamId;
+        final isHomeTeam = game.homeTeam.id == userTeamId;
         final homeWon = game.homeTeamScore! > game.awayTeamScore!;
         final userWon = isHomeTeam ? homeWon : !homeWon;
 
@@ -171,7 +171,7 @@ class GameCubit extends Cubit<GameState> {
       if (startDate != null) {
         filteredList = filteredList.where((game) {
           // Only include games with a valid date that's within the time range
-          return game.gameDate != null && game.gameDate!.isAfter(startDate!);
+          return game.gameDate.isAfter(startDate!);
         }).toList();
         logger.d('GameCubit: After time range filter ($timeRange): ${filteredList.length} games');
       }

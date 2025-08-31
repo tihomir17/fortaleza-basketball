@@ -20,12 +20,15 @@ class IsTeamScopedObject(BasePermission):
             return True
         if request.method in SAFE_METHODS:
             return True
-        
+
         # Check if this is a competition creation
-        if hasattr(view, 'get_queryset') and 'competition' in str(view.get_queryset().model).lower():
+        if (
+            hasattr(view, "get_queryset")
+            and "competition" in str(view.get_queryset().model).lower()
+        ):
             # For competitions, only coaches can create
             return user.role == User.Role.COACH
-            
+
         data = request.data or {}
         # Accept team or team_id
         team_id = data.get("team_id") or data.get("team")

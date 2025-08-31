@@ -12,7 +12,7 @@ from apps.users.permissions import IsTeamScopedObject  # New import
 
 class GamePagination(PageNumberPagination):
     page_size = 20
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
@@ -46,7 +46,9 @@ class GameViewSet(viewsets.ModelViewSet):
 
         # Superusers see everything
         if user.is_superuser:
-            base_queryset = self.queryset.select_related("competition", "home_team", "away_team")
+            base_queryset = self.queryset.select_related(
+                "competition", "home_team", "away_team"
+            )
         else:
             # Get all teams the user is a member of
             member_of_teams = Team.objects.filter(
