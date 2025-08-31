@@ -49,6 +49,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         ..fetchGameDetails(
           token: context.read<AuthCubit>().state.token!,
           gameId: widget.gameId,
+          loadPossessions: false, // Don't need possessions for live tracking
         ),
       child: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
@@ -563,6 +564,7 @@ class __LiveTrackingStatefulWrapperState
                               child: _PlayersPanel(
                                 onButtonPressed: _onButtonPressed,
                                 phase: _phase,
+                                game: widget.game,
                               ),
                             ),
                           ),
@@ -930,11 +932,27 @@ class _DefensePanel extends StatelessWidget {
 class _PlayersPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
+  final Game game;
 
-  const _PlayersPanel({required this.onButtonPressed, required this.phase});
+  const _PlayersPanel({
+    required this.onButtonPressed, 
+    required this.phase,
+    required this.game,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Get players from both teams and sort by jersey number
+    final homeTeamPlayers = (game.homeTeam.players ?? [])
+        .where((player) => player.jerseyNumber != null)
+        .toList()
+      ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
+    
+    final awayTeamPlayers = (game.awayTeam.players)
+        .where((player) => player.jerseyNumber != null)
+        .toList()
+      ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
+    
     return Column(
       // The main axis alignment can be 'start' or 'center' depending on preference
       mainAxisAlignment: MainAxisAlignment.start,
@@ -954,10 +972,28 @@ class _PlayersPanel extends StatelessWidget {
             return TableRow(
               children: List.generate(6, (colIndex) {
                 // Determine the color based on the column
+                // First 3 columns (0,1,2) are home team (yellow outline in image)
+                // Last 3 columns (3,4,5) are away team (green outline in image)
                 final color = colIndex < 3 ? Colors.blue[800] : Colors.black87;
-                // You will replace "#" with real player numbers later
+                
+                // Calculate player index
+                final playerIndex = rowIndex * 3 + (colIndex % 3);
+                String playerText = '#';
+                
+                if (colIndex < 3) {
+                  // Home team players (first 3 columns)
+                  if (playerIndex < homeTeamPlayers.length) {
+                    playerText = homeTeamPlayers[playerIndex].jerseyNumber?.toString() ?? '#';
+                  }
+                } else {
+                  // Away team players (last 3 columns)
+                  if (playerIndex < awayTeamPlayers.length) {
+                    playerText = awayTeamPlayers[playerIndex].jerseyNumber?.toString() ?? '#';
+                  }
+                }
+                
                 return _ActionButton(
-                  text: '#',
+                  text: playerText,
                   color: color,
                   onPressed: onButtonPressed,
                   isEnabled: phase == PossessionLoggingPhase.active,

@@ -14,7 +14,7 @@ class Game {
   final Team awayTeam;
   final DateTime gameDate;
   final int? competitionId;
-  final List<Possession> possessions; // Keep possessions for detail view
+  List<Possession> possessions; // Make mutable for dynamic loading
   final int? homeTeamScore; // <-- ADD THIS
   final int? awayTeamScore; // <-- ADD THIS
   

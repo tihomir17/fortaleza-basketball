@@ -1,10 +1,10 @@
 // lib/features/games/presentation/cubit/post_game_report_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/core/dependency_injection.dart';
+import 'package:flutter_app/main.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/game_repository.dart';
 import 'post_game_report_state.dart';
-import 'package:flutter_app/main.dart';
 
 class PostGameReportCubit extends Cubit<PostGameReportState> {
   final GameRepository _gameRepository;
@@ -23,7 +23,10 @@ class PostGameReportCubit extends Cubit<PostGameReportState> {
     logger.d('PostGameReportCubit: fetchPostGameReport started.');
 
     try {
-      final token = getIt<String>(instanceName: 'auth_token');
+      final token = sl<AuthCubit>().state.token;
+      if (token == null) {
+        throw Exception('No authentication token available');
+      }
       final report = await _gameRepository.getPostGameReport(
         token: token,
         gameId: gameId,

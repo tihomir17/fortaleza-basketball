@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/post_game_report_model.dart';
+import '../../data/repositories/game_repository.dart';
 import '../cubit/post_game_report_cubit.dart';
 import '../cubit/post_game_report_state.dart';
+import 'package:flutter_app/main.dart' as main_app;
 
 class PostGameReportScreen extends StatelessWidget {
   final int gameId;
@@ -21,7 +23,7 @@ class PostGameReportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => PostGameReportCubit(
-        gameRepository: context.read(),
+        gameRepository: main_app.sl<GameRepository>(),
       )..fetchPostGameReport(
           gameId: gameId,
           teamId: teamId,
@@ -31,16 +33,35 @@ class PostGameReportScreen extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: const Color(0xFF2D2D2D),
           foregroundColor: Colors.white,
-          title: const Text(
-            'POST GAME REPORT',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0066CC), // Blue title
-            ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0066CC),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.analytics_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'POST GAME REPORT',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontFamily: 'Roboto',
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => context.pop(),
           ),
         ),
@@ -554,14 +575,14 @@ class _PostGameReportContent extends StatelessWidget {
                 topRight: Radius.circular(4),
               ),
             ),
-            child: const Row(
-              children: [
-                Expanded(child: Text('No.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
-                Expanded(child: Text('Points', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(child: Text('Poss', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(child: Text('%', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-              ],
-            ),
+                         child: const Row(
+               children: [
+                 Expanded(child: Text('No.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
+                 Expanded(child: Text('Points', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                 Expanded(child: Text('Poss', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                 Expanded(child: Text('PPP', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+               ],
+             ),
           ),
           // Data row
           Container(
@@ -588,13 +609,15 @@ class _PostGameReportContent extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    '${report.summary.paintTouch.percentage.toStringAsFixed(1)}%',
-                    style: const TextStyle(color: Colors.white, fontSize: 10),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+                                 Expanded(
+                   child: Text(
+                     report.summary.paintTouch.possessions > 0 
+                         ? (report.summary.paintTouch.points / report.summary.paintTouch.possessions).toStringAsFixed(1)
+                         : '0.0',
+                     style: const TextStyle(color: Colors.white, fontSize: 10),
+                     textAlign: TextAlign.center,
+                   ),
+                 ),
               ],
             ),
           ),

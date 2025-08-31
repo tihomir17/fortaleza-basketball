@@ -102,7 +102,7 @@ class _GamesScreenState extends State<GamesScreen> {
             ),
           ),
         ],
-      ),
+             ),
     );
   }
 
