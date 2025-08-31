@@ -1,12 +1,19 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Game
 from apps.teams.models import Team
-from .serializers import GameReadSerializer, GameWriteSerializer
+from .serializers import GameReadSerializer, GameWriteSerializer, GameListSerializer
 from .filters import GameFilter
 from django.db.models import Q  # Import Q
 from apps.users.permissions import IsTeamScopedObject  # New import
+
+
+class GamePagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class GameViewSet(viewsets.ModelViewSet):
@@ -14,13 +21,18 @@ class GameViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
     filter_backends = [DjangoFilterBackend]
     filterset_class = GameFilter
+    pagination_class = GamePagination
 
     def get_serializer_class(self):
         """
-        Use the 'Write' serializer for creating/updating,
-        and the 'Read' serializer for viewing.
+        Use the appropriate serializer based on the action:
+        - 'list': Use lightweight GameListSerializer for performance
+        - 'create', 'update', 'partial_update': Use GameWriteSerializer
+        - 'retrieve': Use GameReadSerializer for full details
         """
-        if self.action in ["create", "update", "partial_update"]:
+        if self.action == "list":
+            return GameListSerializer
+        elif self.action in ["create", "update", "partial_update"]:
             return GameWriteSerializer
         return GameReadSerializer
 
@@ -28,26 +40,34 @@ class GameViewSet(viewsets.ModelViewSet):
         """
         Filters games to only show those involving teams the user is a member of.
         Superusers can see all games.
+        Optimizes queries based on the action.
         """
         user = self.request.user
 
         # Superusers see everything
         if user.is_superuser:
-            return self.queryset.select_related("competition", "home_team", "away_team")
+            base_queryset = self.queryset.select_related("competition", "home_team", "away_team")
+        else:
+            # Get all teams the user is a member of
+            member_of_teams = Team.objects.filter(
+                Q(players=user) | Q(coaches=user)
+            ).distinct()
 
-        # Get all teams the user is a member of
-        member_of_teams = Team.objects.filter(
-            Q(players=user) | Q(coaches=user)
-        ).distinct()
-
-        # Filter games where one of the user's teams was either home or away
-        return (
-            self.queryset.filter(
-                Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
+            # Filter games where one of the user's teams was either home or away
+            base_queryset = (
+                self.queryset.filter(
+                    Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
+                )
+                .distinct()
+                .select_related("competition", "home_team", "away_team")
             )
-            .distinct()
-            .select_related("competition", "home_team", "away_team")
-        )
+
+        # For list action, prefetch possessions to show possession statistics
+        if self.action == "list":
+            return base_queryset.prefetch_related("possessions")
+        else:
+            # For retrieve action, prefetch possessions
+            return base_queryset.prefetch_related("possessions")
 
     def create(self, request, *args, **kwargs):
         """

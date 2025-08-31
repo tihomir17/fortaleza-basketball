@@ -35,8 +35,11 @@ class GameCard extends StatelessWidget {
     final totalPossessions = game.possessions.length;
     final offensivePossessions = game.possessions.where((p) => p.offensiveSequence.isNotEmpty).length;
     final defensivePossessions = game.possessions.where((p) => p.defensiveSequence.isNotEmpty).length;
-    final avgPossessionTime = totalPossessions > 0 
-        ? game.possessions.fold(0.0, (sum, p) => sum + p.durationSeconds) / totalPossessions 
+    
+    // Calculate average offensive possession time
+    final offensivePossessionsWithTime = game.possessions.where((p) => p.offensiveSequence.isNotEmpty && p.durationSeconds > 0);
+    final avgOffensivePossessionTime = offensivePossessionsWithTime.isNotEmpty 
+        ? offensivePossessionsWithTime.fold(0.0, (sum, p) => sum + p.durationSeconds) / offensivePossessionsWithTime.length 
         : 0.0;
 
     return Card(
@@ -101,16 +104,14 @@ class GameCard extends StatelessWidget {
                 ],
               ),
               
-              // Quick stats row
-              if (totalPossessions > 0) ...[
-                const SizedBox(height: 8),
-                _QuickStatsRow(
-                  totalPossessions: totalPossessions,
-                  offensivePossessions: offensivePossessions,
-                  defensivePossessions: defensivePossessions,
-                  avgPossessionTime: avgPossessionTime,
-                ),
-              ],
+              // Quick stats row - show meaningful stats for all games
+              const SizedBox(height: 8),
+              _QuickStatsRow(
+                totalPossessions: totalPossessions,
+                offensivePossessions: offensivePossessions,
+                defensivePossessions: defensivePossessions,
+                avgOffensivePossessionTime: avgOffensivePossessionTime,
+              ),
             ],
           ),
         ),
@@ -279,13 +280,13 @@ class _QuickStatsRow extends StatelessWidget {
   final int totalPossessions;
   final int offensivePossessions;
   final int defensivePossessions;
-  final double avgPossessionTime;
+  final double avgOffensivePossessionTime;
   
   const _QuickStatsRow({
     required this.totalPossessions,
     required this.offensivePossessions,
     required this.defensivePossessions,
-    required this.avgPossessionTime,
+    required this.avgOffensivePossessionTime,
   });
 
   @override
@@ -301,6 +302,7 @@ class _QuickStatsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
+          // Possession statistics
           _StatItem(
             icon: Icons.sports_basketball,
             label: 'Total',
@@ -321,8 +323,8 @@ class _QuickStatsRow extends StatelessWidget {
           ),
           _StatItem(
             icon: Icons.timer,
-            label: 'Avg',
-            value: '${avgPossessionTime.toStringAsFixed(1)}s',
+            label: 'Avg Off',
+            value: '${avgOffensivePossessionTime.toStringAsFixed(1)}s',
             color: Colors.purple[600]!,
           ),
         ],
@@ -346,16 +348,19 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNA = value == 'N/A';
+    final displayColor = isNA ? Colors.grey[400]! : color;
+    
     return Column(
       children: [
-        Icon(icon, size: 12, color: color),
+        Icon(icon, size: 12, color: displayColor),
         const SizedBox(height: 2),
         Text(
           value,
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: displayColor,
           ),
         ),
         Text(

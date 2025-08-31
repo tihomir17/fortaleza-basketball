@@ -3,6 +3,7 @@
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:flutter/foundation.dart'; // Added for kDebugMode
 
 class Possession {
   final int id;
@@ -30,8 +31,14 @@ class Possession {
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
-    // Log the raw JSON data being parsed
-    FileLogger().logPossessionData('Possession.fromJson_raw', json);
+    // Only log in debug mode to reduce overhead
+    if (kDebugMode) {
+      FileLogger().logPossessionData('Possession.fromJson_raw', {
+        'id': json['id'],
+        'outcome': json['outcome'],
+        'quarter': json['quarter'],
+      });
+    }
     
     final possession = Possession(
       id: json['id'],
@@ -46,14 +53,16 @@ class Possession {
       defensiveSequence: json['defensive_sequence'] ?? '',
     );
     
-    // Log the parsed possession data
-    FileLogger().logPossessionData('Possession.fromJson_parsed', {
-      'id': possession.id,
-      'offensive_sequence': possession.offensiveSequence,
-      'defensive_sequence': possession.defensiveSequence,
-      'outcome': possession.outcome,
-      'quarter': possession.quarter,
-    });
+    // Only log in debug mode to reduce overhead
+    if (kDebugMode) {
+      FileLogger().logPossessionData('Possession.fromJson_parsed', {
+        'id': possession.id,
+        'offensive_sequence_length': possession.offensiveSequence.length,
+        'defensive_sequence_length': possession.defensiveSequence.length,
+        'outcome': possession.outcome,
+        'quarter': possession.quarter,
+      });
+    }
     
     return possession;
   }

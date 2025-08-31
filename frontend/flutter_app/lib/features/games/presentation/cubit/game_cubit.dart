@@ -8,6 +8,8 @@ import 'package:flutter_app/main.dart'; // Import for global logger
 
 class GameCubit extends Cubit<GameState> {
   final GameRepository _gameRepository;
+  DateTime? _lastFetchTime;
+  static const Duration _minRefreshInterval = Duration(seconds: 30);
 
   GameCubit({required GameRepository gameRepository})
     : _gameRepository = gameRepository,
@@ -15,7 +17,7 @@ class GameCubit extends Cubit<GameState> {
     logger.d('GameCubit: initialized.');
   }
 
-  Future<void> fetchGames({required String token}) async {
+  Future<void> fetchGames({required String token, bool forceRefresh = false}) async {
     if (token.isEmpty) {
       emit(
         state.copyWith(
@@ -27,10 +29,19 @@ class GameCubit extends Cubit<GameState> {
       return;
     }
 
+    // Check if we should skip the fetch (smart refresh)
+    if (!forceRefresh && _shouldSkipFetch()) {
+      logger.d('GameCubit: Skipping fetch - data is recent enough');
+      return;
+    }
+
     emit(state.copyWith(status: GameStatus.loading));
     logger.d('GameCubit: fetchGames started.');
+    
     try {
       final games = await _gameRepository.getAllGames(token);
+      _lastFetchTime = DateTime.now();
+      
       emit(
         state.copyWith(
           status: GameStatus.success,
@@ -45,6 +56,17 @@ class GameCubit extends Cubit<GameState> {
       );
       logger.e('GameCubit: fetchGames failed: $e');
     }
+  }
+
+  Future<void> refreshGames({required String token}) async {
+    // Force refresh by clearing cache and fetching again
+    GameRepository.clearCache();
+    await fetchGames(token: token, forceRefresh: true);
+  }
+
+  bool _shouldSkipFetch() {
+    if (_lastFetchTime == null) return false;
+    return DateTime.now().difference(_lastFetchTime!) < _minRefreshInterval;
   }
 
   void applyAdvancedFilters({
@@ -163,5 +185,11 @@ class GameCubit extends Cubit<GameState> {
   // Legacy method for backward compatibility
   void filterGamesByTeam(int? teamId) {
     applyAdvancedFilters(teamId: teamId);
+  }
+
+  // Clear cache when needed
+  void clearCache() {
+    GameRepository.clearCache();
+    logger.d('GameCubit: Cache cleared');
   }
 }

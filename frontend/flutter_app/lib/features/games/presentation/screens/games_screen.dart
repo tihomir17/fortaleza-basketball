@@ -32,7 +32,7 @@ class _GamesScreenState extends State<GamesScreen> {
   void _refreshGames() {
     final token = context.read<AuthCubit>().state.token;
     if (token != null) {
-      context.read<GameCubit>().fetchGames(token: token);
+      context.read<GameCubit>().refreshGames(token: token);
     }
   }
 

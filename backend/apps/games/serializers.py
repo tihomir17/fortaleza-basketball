@@ -7,6 +7,26 @@ from apps.teams.serializers import TeamReadSerializer
 from apps.possessions.nested_serializers import PossessionInGameSerializer
 
 
+# --- LIGHTWEIGHT SERIALIZER (For game lists) ---
+class GameListSerializer(serializers.ModelSerializer):
+    home_team = TeamReadSerializer(read_only=True)
+    away_team = TeamReadSerializer(read_only=True)
+    possessions = PossessionInGameSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Game
+        fields = [
+            "id",
+            "competition",
+            "home_team",
+            "away_team",
+            "game_date",
+            "home_team_score",
+            "away_team_score",
+            "possessions",
+        ]
+
+
 # --- WRITE SERIALIZER (For input) ---
 class GameWriteSerializer(serializers.ModelSerializer):
     # When creating, we expect simple integer IDs for the relationships.
