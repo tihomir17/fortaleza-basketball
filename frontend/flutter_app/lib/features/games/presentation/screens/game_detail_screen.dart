@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
@@ -70,6 +71,22 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       appBar: AppBar(
         title: const Text('Game Analysis'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.assessment),
+            onPressed: () {
+              // Get the user's team ID from the game
+              final game = context.read<GameDetailCubit>().state.game;
+              if (game != null) {
+                final userTeams = context.read<TeamCubit>().state.teams;
+                final userTeamInGame = userTeams.firstWhere(
+                  (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                  orElse: () => game.homeTeam,
+                );
+                context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+              }
+            },
+            tooltip: 'Post Game Report',
+          ),
           Padding(
             padding: const EdgeInsets.only(
               right: 8.0,

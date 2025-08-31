@@ -1,11 +1,13 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Game
 from apps.teams.models import Team
 from .serializers import GameReadSerializer, GameWriteSerializer, GameListSerializer
 from .filters import GameFilter
+from .services import GameAnalyticsService
 from django.db.models import Q  # Import Q
 from apps.users.permissions import IsTeamScopedObject  # New import
 
@@ -98,3 +100,50 @@ class GameViewSet(viewsets.ModelViewSet):
         This hook is called by 'create' and just saves the instance.
         """
         return serializer.save()
+
+    @action(detail=True, methods=['get'], url_path='post-game-report')
+    def post_game_report(self, request, pk=None):
+        """
+        Get comprehensive post-game analytics report for a specific game and team.
+        """
+        try:
+            game_id = int(pk)
+            team_id = request.query_params.get('team_id')
+            
+            if not team_id:
+                return Response(
+                    {'error': 'team_id parameter is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team_id = int(team_id)
+            
+            # Verify the team is involved in this game
+            game = self.get_object()
+            if game.home_team.id != team_id and game.away_team.id != team_id:
+                return Response(
+                    {'error': 'Team is not involved in this game'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Generate the post-game report
+            report = GameAnalyticsService.get_post_game_report(game_id, team_id)
+            
+            if report is None:
+                return Response(
+                    {'error': 'Game not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            return Response(report, status=status.HTTP_200_OK)
+            
+        except ValueError:
+            return Response(
+                {'error': 'Invalid game_id or team_id'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error generating report: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

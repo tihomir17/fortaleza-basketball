@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
@@ -19,7 +18,7 @@ class GameAnalyticsScreen extends StatefulWidget {
 class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   int? _selectedTeamId;
   String _selectedTimeRange = 'Last 30 Days';
-  String _selectedMetric = 'Win Rate';
+  final String _selectedMetric = 'Win Rate';
 
   @override
   Widget build(BuildContext context) {
@@ -459,9 +458,17 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         final userWon = isHomeTeam ? homeWon : !homeWon;
         
         if (isHomeTeam) {
-          if (userWon) homeWins++; else homeLosses++;
+          if (userWon) {
+            homeWins++;
+          } else {
+            homeLosses++;
+          }
         } else {
-          if (userWon) awayWins++; else awayLosses++;
+          if (userWon) {
+            awayWins++;
+          } else {
+            awayLosses++;
+          }
         }
       }
     }
