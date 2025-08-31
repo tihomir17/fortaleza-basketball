@@ -1,6 +1,9 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
-from django.db.models import Q
-from django.contrib.auth import get_user_model
+from rest_framework.permissions import (
+    BasePermission,
+    SAFE_METHODS,
+)  # pyright: ignore[reportMissingImports]
+from django.db.models import Q  # pyright: ignore[reportMissingImports]
+from django.contrib.auth import get_user_model  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
 
 User = get_user_model()
@@ -15,24 +18,19 @@ class IsTeamScopedObject(BasePermission):
             return False
         if user.is_superuser:
             return True
-        # Safe methods always allowed; object-level will further restrict
         if request.method in SAFE_METHODS:
             return True
-
-        # Handle create-level checks for some resources where team is in payload
         data = request.data or {}
-        # If creating a resource tied to a team, require the requester to be a coach on that team
-        team_id = data.get("team")
+        # Accept team or team_id
+        team_id = data.get("team")# or data.get("team_id")
         if team_id:
             return Team.objects.filter(id=team_id, coaches=user).exists()
-        # Game create may specify home/away teams; require coaching at least one
         home_team_id = data.get("home_team")
         away_team_id = data.get("away_team")
         if home_team_id or away_team_id:
             return Team.objects.filter(
                 Q(id=home_team_id) | Q(id=away_team_id), coaches=user
             ).exists()
-        # For other cases without object context, allow and defer to object-level checks
         return True
 
     def has_object_permission(self, request, view, obj) -> bool:
@@ -41,27 +39,33 @@ class IsTeamScopedObject(BasePermission):
             return False
         if user.is_superuser:
             return True
-
-        # Reads are allowed if user is related to the object's team(s) (checked below)
-        # Writes are limited (coach-only, or other special cases)
         is_safe = request.method in SAFE_METHODS
 
-        # User objects: allow self updates; otherwise require coach and team overlap
+        # Team objects: writes allowed to coaches/creator; reads allowed to members
+        if isinstance(obj, Team):
+            if is_safe:
+                return Team.objects.filter(
+                    Q(id=obj.id)
+                    & (Q(players=user) | Q(coaches=user) | Q(created_by=user))
+                ).exists()
+            return (
+                obj.coaches.filter(id=user.id).exists() or obj.created_by_id == user.id
+            )
+
+        # User objects
         if isinstance(obj, User):
             if obj.id == user.id:
                 return True
             if not is_safe:
-                # Must be a coach and share at least one team with the target
                 coach_teams = Team.objects.filter(coaches=user)
                 return Team.objects.filter(
                     Q(players=obj) | Q(coaches=obj), id__in=coach_teams.values("id")
                 ).exists()
-            # For reads, allow if they share a team
             return Team.objects.filter(
                 Q(players=user) | Q(coaches=user), Q(players=obj) | Q(coaches=obj)
             ).exists()
 
-        # Competition objects: only creator can modify; reads allowed to authenticated users
+        # Competition objects: only creator can modify; reads allowed
         try:
             from apps.competitions.models import (
                 Competition,
@@ -72,9 +76,7 @@ class IsTeamScopedObject(BasePermission):
         except Exception:
             pass
 
-        # Derive related team ids for generic team-scoped objects
         team_ids = set()
-        # Common relations
         if hasattr(obj, "team_id") and obj.team_id:
             team_ids.add(obj.team_id)
         if (
@@ -91,19 +93,14 @@ class IsTeamScopedObject(BasePermission):
             team_ids.add(obj.opponent_id)
 
         if not team_ids:
-            # If object doesn't relate to a team, allow safe reads only
             return is_safe
 
         is_member = Team.objects.filter(
             Q(id__in=team_ids)
             & (Q(players=user) | Q(coaches=user) | Q(created_by=user))
         ).exists()
-
         if not is_member:
             return False
-
-        # For writes, require that the user is a coach on at least one related team
         if not is_safe:
             return Team.objects.filter(id__in=team_ids, coaches=user).exists()
-
         return True

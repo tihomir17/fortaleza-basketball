@@ -1,6 +1,5 @@
 // lib/main.dart
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
@@ -52,8 +51,6 @@ final Logger logger = Logger(
 final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
 
 void setupServiceLocator() {
-  // --- SINGLETONS (Live for the entire app lifecycle) ---
-
   // Global Services
   sl.registerSingleton<AuthRepository>(AuthRepository());
   sl.registerSingleton<UserRepository>(UserRepository());

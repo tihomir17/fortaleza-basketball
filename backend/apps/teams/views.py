@@ -48,7 +48,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             )
 
         return (
-            self.queryset.filter(Q(coaches=user) | Q(players=user) | Q(created_by=user))
+            self.queryset.filter(Q(coaches=user) | Q(players=user))
             .distinct()
             .select_related("created_by", "competition")
             .prefetch_related("players", "coaches")
