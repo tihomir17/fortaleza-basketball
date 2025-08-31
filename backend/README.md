@@ -107,3 +107,83 @@ To ensure code quality and consistency, we use `flake8` for linting and `black` 
     ```bash
     black .
     ```
+
+## Cleanup and Maintenance
+
+### Automated Cleanup
+
+The project includes a cleanup script that removes temporary files, cache files, and other generated content:
+
+```bash
+python cleanup.py
+```
+
+This script will remove:
+- Python cache files (`__pycache__/`, `*.pyc`)
+- Django temporary files (`db.sqlite3`, `db.sqlite3-journal`, `logs/`)
+- Test cache files (`.pytest_cache/`, `coverage.xml`, `htmlcov/`)
+- IDE files (`.vscode/`, `.idea/`)
+- OS-specific files (`.DS_Store`, `Thumbs.db`)
+
+### Manual Cleanup
+
+If you prefer to clean up manually, you can:
+
+1. **Remove Python cache:**
+   ```bash
+   find . -type d -name "__pycache__" -exec rm -rf {} +
+   find . -name "*.pyc" -delete
+   ```
+
+2. **Remove database files:**
+   ```bash
+   rm -f db.sqlite3 db.sqlite3-journal
+   ```
+
+3. **Remove log files:**
+   ```bash
+   rm -rf logs/
+   ```
+
+4. **Remove test cache:**
+   ```bash
+   rm -rf .pytest_cache/ coverage.xml htmlcov/
+   ```
+
+### After Cleanup
+
+After running the cleanup script, you'll need to:
+
+1. **Recreate migrations:**
+   ```bash
+   python manage.py makemigrations
+   ```
+
+2. **Apply migrations:**
+   ```bash
+   python manage.py migrate
+   ```
+
+3. **Populate the database:**
+   ```bash
+   python manage.py populate_db
+   ```
+
+4. **Start the development server:**
+   ```bash
+   python manage.py runserver
+   ```
+
+## Git Ignore
+
+The project includes a comprehensive `.gitignore` file that excludes:
+- Python cache and compiled files
+- Virtual environments
+- Database files
+- Log files
+- IDE-specific files
+- OS-generated files
+- Test coverage reports
+- Temporary files
+
+This ensures that only source code and configuration files are tracked in version control.

@@ -23,7 +23,7 @@ import '../../features/games/presentation/cubit/game_detail_cubit.dart';
 import '../../features/playbook/presentation/screens/playbook_hub_screen.dart';
 import '../../features/calendar/presentation/screens/calendar_screen.dart';
 // Import the new screens
-import '../../features/scouting/presentation/screens/scouting_reports_screen.dart';
+import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';

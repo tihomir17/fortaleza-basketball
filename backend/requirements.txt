@@ -7,3 +7,4 @@ django-cors-headers
 black
 flake8
 drf-spectacular
+reportlab

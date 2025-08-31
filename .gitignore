@@ -4,4 +4,4 @@ __pycache__
 *.xml
 *cover*
 *.lock
-frontend/flutter_app/pubspec.lock
+
