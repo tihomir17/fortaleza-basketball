@@ -10,12 +10,15 @@ import 'package:intl/intl.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
+import 'package:flutter_app/core/logging/file_logger.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
+import '../../data/repositories/game_repository.dart';
 
 class GameDetailScreen extends StatefulWidget {
   final int gameId;
@@ -28,6 +31,7 @@ class GameDetailScreen extends StatefulWidget {
 class _GameDetailScreenState extends State<GameDetailScreen> {
   int? _selectedQuarterFilter;
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  bool _isLoadingMorePossessions = false;
 
   @override
   void initState() {
@@ -47,7 +51,116 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       context.read<GameDetailCubit>().fetchGameDetails(
         token: token,
         gameId: widget.gameId,
+        loadPossessions: true, // Load possessions for detail view
       );
+    }
+  }
+
+  Future<void> _loadPossessionsFromDatabase() async {
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) return;
+    
+    setState(() => _isLoadingMorePossessions = true);
+    
+    try {
+      // Load all possessions for this game from the database
+      final possessionsData = await sl<GameRepository>().getGamePossessions(
+        token: token,
+        gameId: widget.gameId,
+        page: 1,
+        pageSize: 1000, // Load a large number to get all possessions
+      );
+      
+      final allPossessions = (possessionsData['results'] as List)
+          .map((json) => Possession.fromJson(json))
+          .toList();
+      
+      // Update the game with all loaded possessions
+      final game = context.read<GameDetailCubit>().state.game;
+      if (game != null) {
+        game.possessions.clear(); // Clear existing possessions
+        game.possessions.addAll(allPossessions); // Add all loaded possessions
+        
+        // Update the cubit state
+        context.read<GameDetailCubit>().emit(
+          context.read<GameDetailCubit>().state.copyWith(
+            game: game,
+            filteredPossessions: game.possessions,
+          ),
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loaded ${allPossessions.length} possessions from database'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load possessions: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMorePossessions = false);
+      }
+    }
+  }
+
+  Future<void> _loadMorePossessions() async {
+    if (_isLoadingMorePossessions) return;
+    
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) return;
+    
+    setState(() => _isLoadingMorePossessions = true);
+    
+    try {
+      final game = context.read<GameDetailCubit>().state.game;
+      if (game != null) {
+        final currentCount = game.possessions.length;
+        final nextPage = (currentCount ~/ 50) + 1;
+        
+        final possessionsData = await sl<GameRepository>().getGamePossessions(
+          token: token,
+          gameId: widget.gameId,
+          page: nextPage,
+          pageSize: 50,
+        );
+        
+        final newPossessions = (possessionsData['results'] as List)
+            .map((json) => Possession.fromJson(json))
+            .toList();
+        
+        // Add new possessions to the game
+        game.possessions.addAll(newPossessions);
+        
+        // Update the cubit state
+        context.read<GameDetailCubit>().emit(
+          context.read<GameDetailCubit>().state.copyWith(
+            game: game,
+            filteredPossessions: game.possessions,
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle error silently or show a snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load more possessions: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMorePossessions = false);
+      }
     }
   }
 
@@ -69,6 +182,70 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       appBar: AppBar(
         title: const Text('Game Analysis'),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0066CC),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.analytics_outlined,
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: () {
+                // Get the user's team ID from the game
+                final game = context.read<GameDetailCubit>().state.game;
+                if (game != null) {
+                  final userTeams = context.read<TeamCubit>().state.teams;
+                  final userTeamInGame = userTeams.firstWhere(
+                    (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                    orElse: () => game.homeTeam,
+                  );
+                  context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+                }
+              },
+              tooltip: 'Post Game Report',
+            ),
+          ),
+                     Padding(
+             padding: const EdgeInsets.only(
+               right: 8.0,
+             ), // Add some space from the edge
+             child: Center(
+               // Use Center to vertically align the button
+               child: BlocBuilder<GameDetailCubit, GameDetailState>(
+                 builder: (context, state) {
+                   final game = state.game;
+                   final hasPossessions = game?.possessions.isNotEmpty ?? false;
+                   final isLoading = _isLoadingMorePossessions;
+                   
+                   return TextButton.icon(
+                     onPressed: isLoading ? null : _loadPossessionsFromDatabase,
+                     icon: Icon(
+                       isLoading ? Icons.hourglass_empty : Icons.download,
+                       size: 18,
+                     ),
+                     label: Text(
+                       isLoading ? 'Loading...' : (hasPossessions ? 'Reload' : 'Load Possessions'),
+                     ),
+                     style: TextButton.styleFrom(
+                       // Use different colors based on state
+                       foregroundColor: Colors.white,
+                       backgroundColor: isLoading 
+                           ? Colors.grey 
+                           : (hasPossessions ? Colors.orange : Colors.green),
+                       // Add a subtle border
+                       shape: RoundedRectangleBorder(
+                         borderRadius: BorderRadius.circular(20),
+                       ),
+                     ),
+                   );
+                 },
+               ),
+             ),
+           ),
           Padding(
             padding: const EdgeInsets.only(
               right: 8.0,
@@ -219,16 +396,44 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(8.0),
-                        itemCount: sortedPossessions.length,
-                        itemBuilder: (context, index) {
-                          final possession = sortedPossessions[index];
-                          return _PossessionCard(
-                            possession: possession,
-                            game: game,
-                          );
-                        },
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(8.0),
+                              itemCount: sortedPossessions.length,
+                              itemBuilder: (context, index) {
+                                final possession = sortedPossessions[index];
+                                return _PossessionCard(
+                                  possession: possession,
+                                  game: game,
+                                );
+                              },
+                            ),
+                          ),
+                          // Load More button
+                          if (game.possessions.length >= 50) // Only show if we have loaded at least 50
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ElevatedButton(
+                                onPressed: _isLoadingMorePossessions ? null : _loadMorePossessions,
+                                child: _isLoadingMorePossessions
+                                    ? const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text('Loading...'),
+                                        ],
+                                      )
+                                    : const Text('Load More Possessions'),
+                              ),
+                            ),
+                        ],
                       ),
               ),
             ],

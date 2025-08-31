@@ -40,8 +40,9 @@ class TeamAPITests(APITestCase):
         response = self.client.get(reverse("team-list"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)  # Should only see "My Team"
-        self.assertEqual(response.data[0]["name"], "My Team")
+        self.assertEqual(response.data.get("count"), 1)
+        self.assertEqual(len(response.data.get("results", [])), 1)
+        self.assertEqual(response.data["results"][0]["name"], "My Team")
 
     def test_list_teams_as_non_member(self):
         """
@@ -51,9 +52,8 @@ class TeamAPITests(APITestCase):
         response = self.client.get(reverse("team-list"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            len(response.data), 0
-        )  # "other_user" is not on any team roster yet
+        self.assertEqual(response.data.get("count"), 0)
+        self.assertEqual(len(response.data.get("results", [])), 0)
 
     def test_create_team(self):
         """

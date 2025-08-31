@@ -70,11 +70,20 @@ class CoachSidebar extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.analytics_outlined),
-            title: const Text('Analytics'),
+            title: const Text('Game Analysis'),
             selected: currentRoute.startsWith('/games'),
             onTap: () {
-              logger.i('CoachSidebar: Navigating to Analytics (/games).');
+              logger.i('CoachSidebar: Navigating to Game Analysis (/games).');
               context.go('/games');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart_outlined),
+            title: const Text('Advanced Analytics'),
+            selected: currentRoute.startsWith('/analytics'),
+            onTap: () {
+              logger.i('CoachSidebar: Navigating to Advanced Analytics (/analytics).');
+              context.go('/analytics');
             },
           ),
           ListTile(
@@ -93,6 +102,16 @@ class CoachSidebar extends StatelessWidget {
             onTap: () {
               logger.i('CoachSidebar: Navigating to Self Scouting (/self-scouting).');
               context.go('/self-scouting');
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('Debug Logs'),
+            selected: currentRoute.startsWith('/debug'),
+            onTap: () {
+              logger.i('CoachSidebar: Navigating to Debug Logs (/debug).');
+              context.go('/debug');
             },
           ),
         ],

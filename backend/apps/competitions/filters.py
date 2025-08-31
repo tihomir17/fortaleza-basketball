@@ -1,4 +1,4 @@
-import django_filters
+import django_filters  # pyright: ignore[reportMissingImports]
 from apps.competitions.models import Competition
 
 

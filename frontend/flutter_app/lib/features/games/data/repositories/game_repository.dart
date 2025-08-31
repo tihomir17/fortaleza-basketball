@@ -1,66 +1,73 @@
 // lib/features/games/data/repositories/game_repository.dart
+
+// ignore_for_file: unused_import
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/game_model.dart';
+import '../models/post_game_report_model.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 class GameRepository {
   final http.Client _client = http.Client();
+  
+  // Enhanced in-memory cache for game lists
+  static final Map<String, dynamic> _gameListCache = {};
+  static DateTime _lastCacheTime = DateTime.now();
+  static const Duration _cacheValidDuration = Duration(minutes: 10); // Increased cache duration
 
-  Future<List<Game>> getAllGames(String token) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/games/');
-    logger.d('GameRepository: Fetching all games from $url');
+  Future<List<Game>> getAllGames(String token, {int page = 1, int pageSize = 50}) async {
+    // Check cache first
+    final cacheKey = 'games_list_${page}_${pageSize}_$token';
+    if (_isCacheValid(cacheKey)) {
+      logger.d('GameRepository: Returning cached games list for page $page');
+      return _gameListCache[cacheKey] as List<Game>;
+    }
+
+    final url = Uri.parse('${ApiClient.baseUrl}/games/').replace(
+      queryParameters: {
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      },
+    );
+    logger.d('GameRepository: Fetching games list from $url');
+    
     try {
       final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
-      final status = response.statusCode;
-      final bodyText = response.body;
-      logger.d('GameRepository: Response status=$status, body=${bodyText.length > 800 ? bodyText.substring(0, 800) + '...<truncated>' : bodyText}');
-      if (status == 200) {
-        final dynamic decoded = json.decode(bodyText);
+      
+      if (response.statusCode == 200) {
+        final dynamic decoded = json.decode(response.body);
         List<dynamic> items;
-        String fromKey = '<top-level>';
-        if (decoded is List) {
+        
+        // Handle paginated response
+        if (decoded is Map<String, dynamic> && decoded['results'] != null) {
+          items = decoded['results'] as List<dynamic>;
+          logger.d('GameRepository: Parsed paginated response with ${items.length} games');
+        } else if (decoded is List) {
           items = decoded;
-          logger.d('GameRepository: Parsed top-level List with ${items.length} items.');
-        } else if (decoded is Map<String, dynamic>) {
-          if (decoded['results'] is List) {
-            items = decoded['results'] as List<dynamic>;
-            fromKey = 'results';
-          } else if (decoded['games'] is List) {
-            items = decoded['games'] as List<dynamic>;
-            fromKey = 'games';
-          } else {
-            // Fallback: pick the first List-valued entry
-            final listEntry = decoded.entries.firstWhere(
-              (e) => e.value is List,
-              orElse: () => const MapEntry<String, dynamic>('#none', null),
-            );
-            if (listEntry.key != '#none') {
-              items = (listEntry.value as List).cast<dynamic>();
-              fromKey = listEntry.key;
-              logger.w('GameRepository: Using fallback list at key "$fromKey" with ${items.length} items. Keys=${decoded.keys.toList()}');
-            } else {
-              logger.e('GameRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}');
-              throw Exception('Unexpected games payload shape. Expected List or a List under a map key.');
-            }
-          }
-          logger.d('GameRepository: Parsed List from "$fromKey" with ${items.length} items.');
+          logger.d('GameRepository: Parsed direct list with ${items.length} games');
         } else {
-          logger.e('GameRepository: Unexpected JSON root type: ${decoded.runtimeType}');
-          throw Exception('Unexpected games payload type: ${decoded.runtimeType}');
+          throw Exception('Unexpected response format');
         }
+        
         final games = items
             .map((jsonItem) => Game.fromJson(jsonItem as Map<String, dynamic>))
             .toList();
-        logger.i('GameRepository: Loaded ${games.length} games.');
+            
+        // Cache the result
+        _gameListCache[cacheKey] = games;
+        _lastCacheTime = DateTime.now();
+        
+        logger.i('GameRepository: Loaded and cached ${games.length} games for page $page');
         return games;
       } else {
-        logger.e('GameRepository: Failed to load games. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e('GameRepository: Failed to load games. Status: ${response.statusCode}');
         throw Exception('Failed to load games');
       }
     } catch (e) {
@@ -72,25 +79,83 @@ class GameRepository {
   Future<Game> getGameDetails({
     required String token,
     required int gameId,
+    bool includePossessions = false,
   }) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/');
-    logger.d('GameRepository: Fetching game details for $gameId at $url');
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/').replace(
+      queryParameters: includePossessions ? {'include_possessions': 'true'} : {},
+    );
+    logger.d('GameRepository: Fetching game details for $gameId (possessions: $includePossessions)');
+    
     try {
       final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
+      
       if (response.statusCode == 200) {
-        logger.i('GameRepository: Game $gameId details loaded.');
-        return Game.fromJson(json.decode(response.body));
+        logger.i('GameRepository: Game $gameId details loaded successfully');
+        
+        final game = Game.fromJson(json.decode(response.body));
+        return game;
       } else {
-        logger.e('GameRepository: Failed to load game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e('GameRepository: Failed to load game $gameId. Status: ${response.statusCode}');
         throw Exception('Failed to load game details');
       }
     } catch (e) {
-      logger.e('GameRepository: Error fetching game $gameId details: $e');
+      logger.e('GameRepository: Error fetching game $gameId: $e');
       throw Exception('Error fetching game details: $e');
     }
+  }
+
+  Future<Map<String, dynamic>> getGamePossessions({
+    required String token,
+    required int gameId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/possessions/').replace(
+      queryParameters: {
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      },
+    );
+    logger.d('GameRepository: Fetching possessions for game $gameId, page $page');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        logger.i('GameRepository: Loaded ${data['results'].length} possessions for game $gameId');
+        return data;
+      } else {
+        logger.e('GameRepository: Failed to load possessions for game $gameId. Status: ${response.statusCode}');
+        throw Exception('Failed to load possessions');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching possessions for game $gameId: $e');
+      throw Exception('Error fetching possessions: $e');
+    }
+  }
+
+  // Cache management methods
+  static bool _isCacheValid(String cacheKey) {
+    if (!_gameListCache.containsKey(cacheKey)) return false;
+    return DateTime.now().difference(_lastCacheTime) < _cacheValidDuration;
+  }
+
+  static void clearCache() {
+    _gameListCache.clear();
+    _lastCacheTime = DateTime.now();
+    logger.d('GameRepository: Cache cleared');
+  }
+
+  static void invalidateCache() {
+    _lastCacheTime = DateTime.now().subtract(_cacheValidDuration);
+    logger.d('GameRepository: Cache invalidated');
   }
 
   Future<Game> createGame({
@@ -101,7 +166,8 @@ class GameRepository {
     required DateTime gameDate,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/games/');
-    logger.d('GameRepository: Creating game at $url');
+    logger.d('GameRepository: Creating game');
+    
     try {
       final response = await _client.post(
         url,
@@ -113,23 +179,22 @@ class GameRepository {
           'competition': competitionId,
           'home_team': homeTeamId,
           'away_team': awayTeamId,
-          // The backend expects a date in 'YYYY-MM-DD' format.
           'game_date': gameDate.toIso8601String(),
         }),
       );
 
       if (response.statusCode == 201) {
-        logger.i('GameRepository: Game created successfully.');
+        logger.i('GameRepository: Game created successfully');
+        // Invalidate cache since we added a new game
+        invalidateCache();
         return Game.fromJson(json.decode(response.body));
       } else {
-        logger.e('GameRepository: Failed to schedule game. Status: ${response.statusCode}, Body: ${response.body}');
-        throw Exception(
-          'Failed to schedule game. Server response: ${response.body}',
-        );
+        logger.e('GameRepository: Failed to create game. Status: ${response.statusCode}');
+        throw Exception('Failed to create game. Server response: ${response.body}');
       }
     } catch (e) {
-      logger.e('GameRepository: Error scheduling game: $e');
-      throw Exception('An error occurred while scheduling the game: $e');
+      logger.e('GameRepository: Error creating game: $e');
+      throw Exception('An error occurred while creating the game: $e');
     }
   }
 
@@ -142,7 +207,8 @@ class GameRepository {
     required DateTime gameDate,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/');
-    logger.d('GameRepository: Updating game $gameId at $url');
+    logger.d('GameRepository: Updating game $gameId');
+    
     try {
       final response = await _client.put(
         url,
@@ -157,11 +223,14 @@ class GameRepository {
           'game_date': gameDate.toIso8601String(),
         }),
       );
+      
       if (response.statusCode == 200) {
-        logger.i('GameRepository: Game $gameId updated successfully.');
+        logger.i('GameRepository: Game $gameId updated successfully');
+        // Invalidate cache since we modified a game
+        invalidateCache();
         return Game.fromJson(json.decode(response.body));
       } else {
-        logger.e('GameRepository: Failed to update game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+        logger.e('GameRepository: Failed to update game $gameId. Status: ${response.statusCode}');
         throw Exception('Failed to update game.');
       }
     } catch (e) {
@@ -172,15 +241,53 @@ class GameRepository {
 
   Future<void> deleteGame({required String token, required int gameId}) async {
     final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/');
-    logger.d('GameRepository: Deleting game $gameId at $url');
+    logger.d('GameRepository: Deleting game $gameId');
+    
     final response = await _client.delete(
       url,
       headers: {'Authorization': 'Bearer $token'},
     );
+    
     if (response.statusCode != 204) {
-      logger.e('GameRepository: Failed to delete game $gameId. Status: ${response.statusCode}, Body: ${response.body}');
+      logger.e('GameRepository: Failed to delete game $gameId. Status: ${response.statusCode}');
       throw Exception('Failed to delete game.');
     }
-    logger.i('GameRepository: Game $gameId deleted successfully.');
+    
+    logger.i('GameRepository: Game $gameId deleted successfully');
+    // Invalidate cache since we deleted a game
+    invalidateCache();
+  }
+
+  Future<PostGameReport> getPostGameReport({
+    required String token,
+    required int gameId,
+    required int teamId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/post-game-report/').replace(
+      queryParameters: {
+        'team_id': teamId.toString(),
+      },
+    );
+    logger.d('GameRepository: Fetching post-game report for game $gameId, team $teamId');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Post-game report loaded successfully');
+        
+        final report = PostGameReport.fromJson(json.decode(response.body));
+        return report;
+      } else {
+        logger.e('GameRepository: Failed to load post-game report. Status: ${response.statusCode}');
+        throw Exception('Failed to load post-game report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching post-game report: $e');
+      throw Exception('Error fetching post-game report: $e');
+    }
   }
 }

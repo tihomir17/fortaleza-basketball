@@ -14,6 +14,7 @@ import 'core/navigation/app_router.dart';
 import 'core/navigation/refresh_signal.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_cubit.dart';
+import 'core/logging/file_logger.dart';
 
 // Features - Repositories
 import 'features/authentication/data/repositories/auth_repository.dart';
@@ -37,7 +38,7 @@ import 'features/calendar/presentation/cubit/calendar_cubit.dart';
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: kReleaseMode ? Level.warning : Level.verbose,
+  level: Level.error,
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,
@@ -51,8 +52,6 @@ final Logger logger = Logger(
 final ValueNotifier<bool> isSidebarVisible = ValueNotifier(true);
 
 void setupServiceLocator() {
-  // --- SINGLETONS (Live for the entire app lifecycle) ---
-
   // Global Services
   sl.registerSingleton<AuthRepository>(AuthRepository());
   sl.registerSingleton<UserRepository>(UserRepository());
@@ -109,6 +108,10 @@ void setupServiceLocator() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize file logger
+  await FileLogger().initialize();
+  
   setupServiceLocator();
   await sl<AuthCubit>().checkAuthentication();
   runApp(MyApp());

@@ -24,7 +24,9 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         if user.is_superuser:
-            return self.queryset.select_related('team', 'created_by').prefetch_related('attendees')
+            return self.queryset.select_related("team", "created_by").prefetch_related(
+                "attendees"
+            )
 
         # Get the actual Team objects the user is a member of.
         # We use the correct related_names from the Team model.
@@ -34,9 +36,12 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
 
         # Filter events where the event's team is in our list of teams,
         # OR where the user is a direct attendee.
-        return self.queryset.filter(
-            Q(team__in=member_of_teams) | Q(attendees=user)
-        ).distinct().select_related('team', 'created_by').prefetch_related('attendees')
+        return (
+            self.queryset.filter(Q(team__in=member_of_teams) | Q(attendees=user))
+            .distinct()
+            .select_related("team", "created_by")
+            .prefetch_related("attendees")
+        )
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

@@ -23,7 +23,7 @@ exclude = '''
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "basketball_analytics.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py", "tests_*.py"]
-addopts = "-ra -q --ds=basketball_analytics.settings --reuse-db --no-migrations --cov=apps --cov-report=term-missing --cov-report=xml:coverage.xml"
+addopts = "-ra --ds=basketball_analytics.settings --reuse-db --nomigrations --cov=apps --cov-report=term-missing --cov-report=xml:coverage.xml"
 
 [tool.coverage.run]
 branch = true
@@ -34,6 +34,6 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 95
 skip_covered = true
 show_missing = true

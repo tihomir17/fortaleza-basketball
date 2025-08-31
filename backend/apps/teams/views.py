@@ -41,11 +41,18 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Team.objects.none()
 
         if user.is_superuser:
-            return Team.objects.all().select_related('created_by', 'competition').prefetch_related('players', 'coaches')
+            return (
+                Team.objects.all()
+                .select_related("created_by", "competition")
+                .prefetch_related("players", "coaches")
+            )
 
-        return self.queryset.filter(
-            Q(coaches=user) | Q(players=user) | Q(created_by=user)
-        ).distinct().select_related('created_by', 'competition').prefetch_related('players', 'coaches')
+        return (
+            self.queryset.filter(Q(coaches=user) | Q(players=user))
+            .distinct()
+            .select_related("created_by", "competition")
+            .prefetch_related("players", "coaches")
+        )
 
     def create(self, request, *args, **kwargs):
         print(f"Request Data Received: {request.data}")

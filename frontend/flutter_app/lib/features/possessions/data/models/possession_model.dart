@@ -2,6 +2,8 @@
 
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:flutter/foundation.dart'; // Added for kDebugMode
 
 class Possession {
   final int id;
@@ -29,7 +31,7 @@ class Possession {
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
-    return Possession(
+    final possession = Possession(
       id: json['id'],
       game: json['game'] is Map<String, dynamic> ? Game.fromJson(json['game']) : null,
       team: json['team'] is Map<String, dynamic> ? Team.fromJson(json['team']) : null,
@@ -41,5 +43,7 @@ class Possession {
       offensiveSequence: json['offensive_sequence'] ?? '',
       defensiveSequence: json['defensive_sequence'] ?? '',
     );
+    
+    return possession;
   }
 }

@@ -25,6 +25,9 @@ import '../../features/calendar/presentation/screens/calendar_screen.dart';
 // Import the new screens
 import '../../features/scouting/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
+import '../../features/games/presentation/screens/game_analytics_screen.dart';
+import '../../features/games/presentation/screens/post_game_report_screen.dart';
+import '../debug/debug_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -121,6 +124,18 @@ class AppRouter {
                       return LiveTrackingScreen(gameId: gameId);
                     },
                   ),
+                  GoRoute(
+                    path: 'post-game-report', // Matches '/games/:gameId/post-game-report'
+                    builder: (context, state) {
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      final teamId = int.tryParse(state.uri.queryParameters['teamId'] ?? '') ?? 0;
+                      return PostGameReportScreen(
+                        gameId: gameId,
+                        teamId: teamId,
+                      );
+                    },
+                  ),
                 ],
               ),
             ],
@@ -147,6 +162,14 @@ class AppRouter {
           GoRoute(
             path: '/self-scouting',
             builder: (context, state) => const SelfScoutingScreen(),
+          ),
+          GoRoute(
+            path: '/analytics',
+            builder: (context, state) => const GameAnalyticsScreen(),
+          ),
+          GoRoute(
+            path: '/debug',
+            builder: (context, state) => const DebugScreen(),
           ),
         ],
       ),

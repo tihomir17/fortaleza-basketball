@@ -1,82 +1,226 @@
 # backend/apps/possessions/models.py
 
 from django.db import models
-from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 
 
 class Possession(models.Model):
-    class QuarterChoices(models.IntegerChoices):
-        FIRST = 1, _("1st Quarter")
-        SECOND = 2, _("2nd Quarter")
-        THIRD = 3, _("3rd Quarter")
-        FOURTH = 4, _("4th Quarter")
-        OT1 = 5, _("Overtime 1")
-        OT2 = 6, _("Overtime 2")
-
     class OutcomeChoices(models.TextChoices):
-        MADE_2PT = "MADE_2PTS", _("Made 2-Point Shot")
-        MISSED_2PT = "MISSED_2PTS", _("Missed 2-Point Shot")
-        MADE_3PT = "MADE_3PTS", _("Made 3-Point Shot")
-        MISSED_3PT = "MISSED_3PTS", _("Missed 3-Point Shot")
-        MADE_FT = "MADE_FT", _("Made Free Throw(s)")
-        MISSED_FT = "MISSED_FT", _("Missed Free Throw(s)")
-        TURNOVER_OFFENSIVE_FOUL = "TO_OFFENSIVE_FOUL", _("Turnover: Offensive Foul")
-        TURNOVER_OUT_OF_BOUNDS = "TO_OUT_OF_BOUNDS", _("Turnover: Out of Bounds")
-        TURNOVER_TRAVEL = "TO_TRAVEL", _("Turnover: Traveling")
-        TURNOVER_SHOT_CLOCK = "TO_SHOT_CLOCK", _("Turnover: Shot Clock")
-        TURNOVER_8_SECONDS = "TO_8_SECONDS", _("Turnover: 8 Seconds")
-        TURNOVER_3_SECONDS = "TO_3_SECONDS", _("Turnover: 3 Seconds")
-        TURNOVER_STOLEN_BALL = "TO_STOLEN_BALL", _("Turnover: Stolen ball")
+        MADE_2PTS = "MADE_2PTS", _("Made 2-Point Shot")
+        MISSED_2PTS = "MISSED_2PTS", _("Missed 2-Point Shot")
+        MADE_3PTS = "MADE_3PTS", _("Made 3-Point Shot")
+        MISSED_3PTS = "MISSED_3PTS", _("Missed 3-Point Shot")
+        MADE_FTS = "MADE_FTS", _("Made Free Throw")
+        MISSED_FTS = "MISSED_FTS", _("Missed Free Throw")
+        TURNOVER = "TURNOVER", _("Turnover")
+        FOUL = "FOUL", _("Foul")
+        REBOUND = "REBOUND", _("Rebound")
+        STEAL = "STEAL", _("Steal")
+        BLOCK = "BLOCK", _("Block")
+
+    class OffensiveSetChoices(models.TextChoices):
+        PICK_AND_ROLL = "PICK_AND_ROLL", _("Pick and Roll")
+        PICK_AND_POP = "PICK_AND_POP", _("Pick and Pop")
+        HANDOFF = "HANDOFF", _("Handoff")
+        BACKDOOR = "BACKDOOR", _("Backdoor")
+        FLARE = "FLARE", _("Flare")
+        DOWN_SCREEN = "DOWN_SCREEN", _("Down Screen")
+        UP_SCREEN = "UP_SCREEN", _("Up Screen")
+        CROSS_SCREEN = "CROSS_SCREEN", _("Cross Screen")
+        POST_UP = "POST_UP", _("Post Up")
+        ISOLATION = "ISOLATION", _("Isolation")
+        TRANSITION = "TRANSITION", _("Transition")
+        OFFENSIVE_REBOUND = "OFFENSIVE_REBOUND", _("Offensive Rebound")
         OTHER = "OTHER", _("Other")
 
+    class DefensiveSetChoices(models.TextChoices):
+        MAN_TO_MAN = "MAN_TO_MAN", _("Man to Man")
+        ZONE_2_3 = "ZONE_2_3", _("2-3 Zone")
+        ZONE_3_2 = "ZONE_3_2", _("3-2 Zone")
+        ZONE_1_3_1 = "ZONE_1_3_1", _("1-3-1 Zone")
+        PRESS = "PRESS", _("Press")
+        TRAP = "TRAP", _("Trap")
+        SWITCH = "SWITCH", _("Switch")
+        ICE = "ICE", _("Ice")
+        GO_OVER = "GO_OVER", _("Go Over")
+        GO_UNDER = "GO_UNDER", _("Go Under")
+        OTHER = "OTHER", _("Other")
+
+    class PnRTypeChoices(models.TextChoices):
+        BALL_SCREEN = "BALL_SCREEN", _("Ball Screen")
+        OFF_BALL_SCREEN = "OFF_BALL_SCREEN", _("Off Ball Screen")
+        HANDOFF_SCREEN = "HANDOFF_SCREEN", _("Handoff Screen")
+        NONE = "NONE", _("None")
+
+    class PnRResultChoices(models.TextChoices):
+        SCORER = "SCORER", _("Scorer")
+        BIG_GUY = "BIG_GUY", _("Big Guy")
+        KICK_OUT = "KICK_OUT", _("Kick Out")
+        REJECT = "REJECT", _("Reject")
+        NONE = "NONE", _("None")
+
+    class DefensivePnRChoices(models.TextChoices):
+        SWITCH = "SWITCH", _("Switch")
+        ICE = "ICE", _("Ice")
+        GO_OVER = "GO_OVER", _("Go Over")
+        GO_UNDER = "GO_UNDER", _("Go Under")
+        TRAP = "TRAP", _("Trap")
+        NONE = "NONE", _("None")
+
+    class ShootQualityChoices(models.TextChoices):
+        EXCELLENT = "EXCELLENT", _("Excellent")
+        GOOD = "GOOD", _("Good")
+        AVERAGE = "AVERAGE", _("Average")
+        POOR = "POOR", _("Poor")
+        CONTESTED = "CONTESTED", _("Contested")
+        OPEN = "OPEN", _("Open")
+
+    class TimeRangeChoices(models.TextChoices):
+        EARLY_SHOT_CLOCK = "EARLY_SHOT_CLOCK", _("Early Shot Clock (0-7s)")
+        MID_SHOT_CLOCK = "MID_SHOT_CLOCK", _("Mid Shot Clock (8-14s)")
+        LATE_SHOT_CLOCK = "LATE_SHOT_CLOCK", _("Late Shot Clock (15-24s)")
+        SHOT_CLOCK_VIOLATION = "SHOT_CLOCK_VIOLATION", _("Shot Clock Violation")
+
+    # Basic possession fields
     game = models.ForeignKey(
         "games.Game", on_delete=models.CASCADE, related_name="possessions"
     )
-
-    # Team relationships
     team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="team_possessions"
+        "teams.Team", on_delete=models.CASCADE, related_name="offensive_possessions"
     )
-
     opponent = models.ForeignKey(
         "teams.Team",
         on_delete=models.CASCADE,
-        related_name="opponent_for_possessions",
-        # It's possible to log a possession without an opponent (e.g., practice)
-        # but for a game, it's required. We'll enforce this on the frontend.
+        related_name="defensive_possessions",
         null=True,
         blank=True,
     )
-    # Metadata
-    start_time_in_game = models.CharField(_("Start Time (e.g., 12:00)"), max_length=5)
-    duration_seconds = models.PositiveIntegerField(_("Duration (seconds)"))
-    quarter = models.IntegerField(_("Quarter"), choices=QuarterChoices.choices)
+    quarter = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(4)]
+    )
+    start_time_in_game = models.CharField(max_length=10)  # Format: "MM:SS"
+    duration_seconds = models.PositiveIntegerField()
+    outcome = models.CharField(max_length=20, choices=OutcomeChoices.choices)
+    points_scored = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    # The definitive result
-    outcome = models.CharField(
-        _("Outcome"), max_length=50, choices=OutcomeChoices.choices
+    # Offensive analysis fields
+    offensive_set = models.CharField(
+        max_length=20, choices=OffensiveSetChoices.choices, null=True, blank=True
+    )
+    pnr_type = models.CharField(
+        max_length=20, choices=PnRTypeChoices.choices, default=PnRTypeChoices.NONE
+    )
+    pnr_result = models.CharField(
+        max_length=20, choices=PnRResultChoices.choices, default=PnRResultChoices.NONE
     )
 
-    # The two sequences, stored as flexible text blocks
+    # Sequence analysis
+    has_paint_touch = models.BooleanField(default=False)
+    has_kick_out = models.BooleanField(default=False)
+    has_extra_pass = models.BooleanField(default=False)
+    number_of_passes = models.PositiveIntegerField(default=0)
+
+    # Offensive rebounds
+    is_offensive_rebound = models.BooleanField(default=False)
+    offensive_rebound_players = models.ManyToManyField(
+        "users.User", related_name="offensive_rebounds", blank=True
+    )
+    offensive_rebound_count = models.PositiveIntegerField(default=0)
+
+    # Defensive analysis
+    defensive_set = models.CharField(
+        max_length=20, choices=DefensiveSetChoices.choices, null=True, blank=True
+    )
+    defensive_pnr = models.CharField(
+        max_length=20,
+        choices=DefensivePnRChoices.choices,
+        default=DefensivePnRChoices.NONE,
+    )
+
+    # Box out analysis
+    box_out_count = models.PositiveIntegerField(default=0)
+    offensive_rebounds_allowed = models.PositiveIntegerField(default=0)
+
+    # Shooting analysis
+    shoot_time = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # Seconds into possession
+    shoot_quality = models.CharField(
+        max_length=20, choices=ShootQualityChoices.choices, null=True, blank=True
+    )
+    time_range = models.CharField(
+        max_length=25, choices=TimeRangeChoices.choices, null=True, blank=True
+    )
+
+    # Context
+    after_timeout = models.BooleanField(default=False)
+
+    # Players on court (for lineup analysis)
+    players_on_court = models.ManyToManyField(
+        "users.User", related_name="possessions_on_court", blank=True
+    )
+
+    # Sequence fields for tracking possession actions
     offensive_sequence = models.TextField(
-        _("Offensive Sequence"),
-        blank=True,
-        help_text="The sequence of offensive actions, e.g., 'P&R -> Cut -> Kickout Pass'.",
+        blank=True, help_text="Sequence of offensive actions"
     )
     defensive_sequence = models.TextField(
-        _("Defensive Sequence"),
-        blank=True,
-        help_text="The sequence of defensive actions, e.g., 'Hedge -> Switch'.",
+        blank=True, help_text="Sequence of defensive actions"
     )
 
-    logged_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    # Additional metadata
+    notes = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["-id"]  # Show newest possessions first by default
+        ordering = ["game", "quarter", "start_time_in_game"]
+        indexes = [
+            models.Index(fields=["game", "quarter"]),
+            models.Index(fields=["team", "offensive_set"]),
+            models.Index(fields=["opponent", "defensive_set"]),
+            models.Index(fields=["pnr_type", "pnr_result"]),
+            models.Index(fields=["outcome", "points_scored"]),
+            models.Index(fields=["has_paint_touch", "has_kick_out"]),
+            models.Index(fields=["is_offensive_rebound", "offensive_rebound_count"]),
+            models.Index(fields=["shoot_quality", "shoot_time"]),
+            models.Index(fields=["after_timeout"]),
+        ]
 
     def __str__(self):
-        opponent_name = self.opponent.name if self.opponent else "Unknown"
-        return f"{self.team.name} vs {opponent_name} in Q{self.quarter} at {self.start_time_in_game}"
+        return f"{self.team} vs {self.opponent} - Q{self.quarter} {self.start_time_in_game} - {self.outcome}"
+
+    def save(self, *args, **kwargs):
+        # Auto-calculate points based on outcome
+        if self.outcome == self.OutcomeChoices.MADE_2PTS:
+            self.points_scored = 2
+        elif self.outcome == self.OutcomeChoices.MADE_3PTS:
+            self.points_scored = 3
+        elif self.outcome == self.OutcomeChoices.MADE_FTS:
+            self.points_scored = 1
+        else:
+            self.points_scored = 0
+
+        super().save(*args, **kwargs)
+
+    @property
+    def ppp(self):
+        """Points per possession"""
+        return self.points_scored
+
+    @property
+    def is_successful(self):
+        """Whether the possession resulted in points"""
+        return self.points_scored > 0
+
+    @property
+    def is_pnr_possession(self):
+        """Whether this is a pick and roll possession"""
+        return self.pnr_type != self.PnRTypeChoices.NONE
+
+    @property
+    def has_sequence_actions(self):
+        """Whether the possession has any sequence actions"""
+        return self.has_paint_touch or self.has_kick_out or self.has_extra_pass

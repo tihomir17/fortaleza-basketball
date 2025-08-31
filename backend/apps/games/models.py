@@ -1,7 +1,11 @@
 # apps/games/models.py
-from django.db import models
-from django.conf import settings
-from django.db.models import CheckConstraint, Q, F
+from django.db import models  # pyright: ignore[reportMissingImports]
+from django.conf import settings  # pyright: ignore[reportMissingImports]
+from django.db.models import (  # pyright: ignore[reportMissingImports]
+    CheckConstraint,
+    Q,
+    F,
+)  # pyright: ignore[reportMissingImports]
 
 
 class Game(models.Model):

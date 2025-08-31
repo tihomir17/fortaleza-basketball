@@ -1,3 +1,7 @@
 __pycache__
 *.sqlite3
 *.png
+*.xml
+*cover*
+*.lock
+frontend/flutter_app/pubspec.lock
