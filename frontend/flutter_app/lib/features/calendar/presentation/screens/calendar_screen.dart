@@ -330,7 +330,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ],
         ),
         onTap: () {
-          /* TODO: Navigate to Event Detail Screen */
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _EventDetailScreen(event: event),
+            ),
+          );
         },
       ),
     );
@@ -385,6 +389,71 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+class _EventDetailScreen extends StatelessWidget {
+  final CalendarEvent event;
+
+  const _EventDetailScreen({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(event.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EditEventScreen(event: event),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  event.eventType.startsWith('PRACTICE')
+                      ? Icons.fitness_center
+                      : Icons.event,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+                title: Text(
+                  event.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                subtitle: Text(
+                  '${DateFormat.yMMMd().format(event.startTime)} at ${DateFormat.jm().format(event.startTime)}',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (event.description?.isNotEmpty == true) ...[
+              Text(
+                'Description',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                event.description!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

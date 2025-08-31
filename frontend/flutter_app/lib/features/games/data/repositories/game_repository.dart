@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/game_model.dart';
+import '../models/post_game_report_model.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
 import 'package:flutter_app/core/logging/file_logger.dart';
 
@@ -14,7 +15,7 @@ class GameRepository {
   final http.Client _client = http.Client();
   
   // Enhanced in-memory cache for game lists
-  static Map<String, dynamic> _gameListCache = {};
+  static final Map<String, dynamic> _gameListCache = {};
   static DateTime _lastCacheTime = DateTime.now();
   static const Duration _cacheValidDuration = Duration(minutes: 10); // Increased cache duration
 
@@ -78,9 +79,12 @@ class GameRepository {
   Future<Game> getGameDetails({
     required String token,
     required int gameId,
+    bool includePossessions = false,
   }) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/');
-    logger.d('GameRepository: Fetching game details for $gameId');
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/').replace(
+      queryParameters: includePossessions ? {'include_possessions': 'true'} : {},
+    );
+    logger.d('GameRepository: Fetching game details for $gameId (possessions: $includePossessions)');
     
     try {
       final response = await _client.get(
@@ -98,8 +102,42 @@ class GameRepository {
         throw Exception('Failed to load game details');
       }
     } catch (e) {
-      logger.e('GameRepository: Error fetching game $gameId details: $e');
+      logger.e('GameRepository: Error fetching game $gameId: $e');
       throw Exception('Error fetching game details: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getGamePossessions({
+    required String token,
+    required int gameId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/possessions/').replace(
+      queryParameters: {
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      },
+    );
+    logger.d('GameRepository: Fetching possessions for game $gameId, page $page');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        logger.i('GameRepository: Loaded ${data['results'].length} possessions for game $gameId');
+        return data;
+      } else {
+        logger.e('GameRepository: Failed to load possessions for game $gameId. Status: ${response.statusCode}');
+        throw Exception('Failed to load possessions');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching possessions for game $gameId: $e');
+      throw Exception('Error fetching possessions: $e');
     }
   }
 
@@ -218,5 +256,38 @@ class GameRepository {
     logger.i('GameRepository: Game $gameId deleted successfully');
     // Invalidate cache since we deleted a game
     invalidateCache();
+  }
+
+  Future<PostGameReport> getPostGameReport({
+    required String token,
+    required int gameId,
+    required int teamId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/post-game-report/').replace(
+      queryParameters: {
+        'team_id': teamId.toString(),
+      },
+    );
+    logger.d('GameRepository: Fetching post-game report for game $gameId, team $teamId');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Post-game report loaded successfully');
+        
+        final report = PostGameReport.fromJson(json.decode(response.body));
+        return report;
+      } else {
+        logger.e('GameRepository: Failed to load post-game report. Status: ${response.statusCode}');
+        throw Exception('Failed to load post-game report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching post-game report: $e');
+      throw Exception('Error fetching post-game report: $e');
+    }
   }
 }

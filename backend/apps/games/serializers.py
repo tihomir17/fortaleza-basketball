@@ -102,7 +102,7 @@ class GameReadSerializer(serializers.ModelSerializer):
     # When reading, we show the full, nested objects.
     home_team = TeamReadSerializer(read_only=True)
     away_team = TeamReadSerializer(read_only=True)
-    possessions = PossessionInGameSerializer(many=True, read_only=True)
+    possessions = PossessionInGameSerializer(many=True, read_only=True, required=False)
 
     class Meta:
         model = Game
@@ -115,4 +115,23 @@ class GameReadSerializer(serializers.ModelSerializer):
             "home_team_score",
             "away_team_score",
             "possessions",
+        ]
+
+
+# --- LIGHTWEIGHT READ SERIALIZER (For faster loading) ---
+class GameReadLightweightSerializer(serializers.ModelSerializer):
+    # When reading, we show the full, nested objects but without possessions.
+    home_team = TeamReadSerializer(read_only=True)
+    away_team = TeamReadSerializer(read_only=True)
+
+    class Meta:
+        model = Game
+        fields = [
+            "id",
+            "competition",
+            "home_team",
+            "away_team",
+            "game_date",
+            "home_team_score",
+            "away_team_score",
         ]

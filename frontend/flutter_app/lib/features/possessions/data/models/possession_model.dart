@@ -31,15 +31,6 @@ class Possession {
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Possession.fromJson_raw', {
-        'id': json['id'],
-        'outcome': json['outcome'],
-        'quarter': json['quarter'],
-      });
-    }
-    
     final possession = Possession(
       id: json['id'],
       game: json['game'] is Map<String, dynamic> ? Game.fromJson(json['game']) : null,
@@ -52,17 +43,6 @@ class Possession {
       offensiveSequence: json['offensive_sequence'] ?? '',
       defensiveSequence: json['defensive_sequence'] ?? '',
     );
-    
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Possession.fromJson_parsed', {
-        'id': possession.id,
-        'offensive_sequence_length': possession.offensiveSequence.length,
-        'defensive_sequence_length': possession.defensiveSequence.length,
-        'outcome': possession.outcome,
-        'quarter': possession.quarter,
-      });
-    }
     
     return possession;
   }
