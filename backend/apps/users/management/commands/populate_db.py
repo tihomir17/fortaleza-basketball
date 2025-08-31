@@ -88,6 +88,27 @@ class Command(BaseCommand):
             ("Aleksandar", "Vezenkov"), ("Filip", "Petrusev"), ("Nikola", "Kalinić"), ("Stefan", "Birčević"),
             ("Milan", "Mačvan"), ("Nemanja", "Dangubić"), ("Marko", "Simonović"), ("Aleksa", "Avramović"),
             ("Ognjen", "Dobrić"), ("Dejan", "Davidovac"), ("Stefan", "Lazarević"), ("Nikola", "Rakićević"),
+            ("Vladimir", "Lučić"), ("Miroslav", "Raduljica"), ("Nemanja", "Nedović"), ("Stefan", "Marković"),
+            ("Branko", "Lazić"), ("Dragan", "Milosavljević"), ("Uroš", "Tripković"), ("Marko", "Keselj"),
+            ("Novica", "Veličković"), ("Dušan", "Kecman"), ("Milan", "Gurović"), ("Predrag", "Stojaković"),
+            ("Vlade", "Divac"), ("Peja", "Stojaković"), ("Dejan", "Bodiroga"), ("Željko", "Rebrača"),
+            ("Predrag", "Danilović"), ("Sasha", "Đorđević"), ("Žarko", "Paspalj"), ("Vlado", "Šćepanović"),
+            ("Miroslav", "Berić"), ("Dragan", "Tarlać"), ("Željko", "Obradović"), ("Dejan", "Tomasević"),
+            ("Predrag", "Drobnjak"), ("Marko", "Jarić"), ("Darko", "Miličić"), ("Nenad", "Krstić"),
+            ("Vladimir", "Radmanović"), ("Igor", "Rakočević"), ("Miloš", "Vujanić"), ("Predrag", "Savović"),
+            ("Dragan", "Lukovski"), ("Vule", "Avdalović"), ("Stefan", "Nikolić"), ("Milan", "Mačvan"),
+            ("Nemanja", "Krstić"), ("Stefan", "Birčević"), ("Bogdan", "Bogdanović"), ("Nemanja", "Dangubić"),
+            ("Marko", "Simonović"), ("Aleksa", "Avramović"), ("Ognjen", "Dobrić"), ("Dejan", "Davidovac"),
+            ("Stefan", "Lazarević"), ("Nikola", "Rakićević"), ("Vladimir", "Lučić"), ("Miroslav", "Raduljica"),
+            ("Nemanja", "Nedović"), ("Stefan", "Marković"), ("Branko", "Lazić"), ("Dragan", "Milosavljević"),
+            ("Uroš", "Tripković"), ("Marko", "Keselj"), ("Novica", "Veličković"), ("Dušan", "Kecman"),
+            ("Milan", "Gurović"), ("Predrag", "Stojaković"), ("Vlade", "Divac"), ("Peja", "Stojaković"),
+            ("Dejan", "Bodiroga"), ("Željko", "Rebrača"), ("Predrag", "Danilović"), ("Sasha", "Đorđević"),
+            ("Žarko", "Paspalj"), ("Vlado", "Šćepanović"), ("Miroslav", "Berić"), ("Dragan", "Tarlać"),
+            ("Željko", "Obradović"), ("Dejan", "Tomasević"), ("Predrag", "Drobnjak"), ("Marko", "Jarić"),
+            ("Darko", "Miličić"), ("Nenad", "Krstić"), ("Vladimir", "Radmanović"), ("Igor", "Rakočević"),
+            ("Miloš", "Vujanić"), ("Predrag", "Savović"), ("Dragan", "Lukovski"), ("Vule", "Avdalović"),
+            ("Stefan", "Nikolić"), ("Milan", "Mačvan"), ("Nemanja", "Krstić"), ("Stefan", "Birčević"),
         ]
         
         us_names = [
@@ -96,6 +117,30 @@ class Command(BaseCommand):
             ("Devin", "Booker"), ("Damian", "Lillard"), ("Jimmy", "Butler"), ("Anthony", "Davis"),
             ("Zion", "Williamson"), ("Ja", "Morant"), ("Trae", "Young"), ("Donovan", "Mitchell"),
             ("Jaylen", "Brown"), ("Bam", "Adebayo"), ("De'Aaron", "Fox"), ("Shai", "Gilgeous-Alexander"),
+            ("Bradley", "Beal"), ("Karl-Anthony", "Towns"), ("Rudy", "Gobert"), ("Domantas", "Sabonis"),
+            ("Julius", "Randle"), ("Zach", "LaVine"), ("DeMar", "DeRozan"), ("Fred", "VanVleet"),
+            ("Tyrese", "Haliburton"), ("Pascal", "Siakam"), ("OG", "Anunoby"), ("Scottie", "Barnes"),
+            ("Cade", "Cunningham"), ("Jalen", "Green"), ("Paolo", "Banchero"), ("Franz", "Wagner"),
+            ("Evan", "Mobley"), ("Jalen", "Suggs"), ("Josh", "Giddey"), ("Chet", "Holmgren"),
+            ("Victor", "Wembanyama"), ("Scoot", "Henderson"), ("Brandon", "Miller"), ("Amen", "Thompson"),
+            ("Ausar", "Thompson"), ("Jarace", "Walker"), ("Taylor", "Hendricks"), ("Anthony", "Black"),
+            ("Bilal", "Coulibaly"), ("Keyonte", "George"), ("Jett", "Howard"), ("Gradey", "Dick"),
+            ("Jordan", "Hawkins"), ("Kobe", "Bufkin"), ("Jalen", "Hood-Schifino"), ("Nick", "Smith"),
+            ("Brice", "Sensabaugh"), ("Noah", "Clowney"), ("Dereck", "Lively"), ("Olivier", "Maxence-Prosper"),
+            ("Jaime", "Jaquez"), ("Brandin", "Podziemski"), ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"),
+            ("Ben", "Sheppard"), ("Colby", "Jones"), ("Julian", "Strawther"), ("Kris", "Murray"),
+            ("Toumani", "Camara"), ("Hunter", "Tyson"), ("Andre", "Jackson"), ("Seth", "Lundy"),
+            ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"), ("Amari", "Bailey"), ("Tristan", "Vukčević"),
+            ("Rayan", "Rupert"), ("James", "Nnaji"), ("Leonard", "Miller"), ("Colin", "Castleton"),
+            ("Ricky", "Council"), ("Mouhamadou", "Gueye"), ("Isaiah", "Wong"), ("Jordan", "Walsh"),
+            ("Emoni", "Bates"), ("Dariq", "Whitehead"), ("Keyontae", "Johnson"), ("Jalen", "Wilson"),
+            ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"), ("Ben", "Sheppard"), ("Colby", "Jones"),
+            ("Julian", "Strawther"), ("Kris", "Murray"), ("Toumani", "Camara"), ("Hunter", "Tyson"),
+            ("Andre", "Jackson"), ("Seth", "Lundy"), ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"),
+            ("Amari", "Bailey"), ("Tristan", "Vukčević"), ("Rayan", "Rupert"), ("James", "Nnaji"),
+            ("Leonard", "Miller"), ("Colin", "Castleton"), ("Ricky", "Council"), ("Mouhamadou", "Gueye"),
+            ("Isaiah", "Wong"), ("Jordan", "Walsh"), ("Emoni", "Bates"), ("Dariq", "Whitehead"),
+            ("Keyontae", "Johnson"), ("Jalen", "Wilson"), ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"),
         ]
         
         brazilian_names = [
@@ -104,6 +149,43 @@ class Command(BaseCommand):
             ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
             ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
             ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
+            ("Nenê", "Hilário"), ("Anderson", "Varejão"), ("Leandrinho", "Barbosa"), ("Tiago", "Splitter"),
+            ("Rafael", "Hettsheimeir"), ("Guilherme", "Deodato"), ("João", "Paulo"), ("Rafael", "Luz"),
+            ("Lucas", "Mariano"), ("Augusto", "Lima"), ("Rafael", "Mineiro"), ("Didi", "Louzada"),
+            ("Yago", "Santos"), ("Georginho", "De Paula"), ("Rafael", "Fischer"), ("Lucas", "Dias"),
+            ("Bruno", "Caboclo"), ("Cristiano", "Felício"), ("Raul", "Neto"), ("Vítor", "Benite"),
+            ("Marcelinho", "Huertas"), ("Alex", "Garcia"), ("Vítor", "Faverani"), ("Rafael", "Araújo"),
         ]
         
         australian_names = [
@@ -112,11 +194,53 @@ class Command(BaseCommand):
             ("Ryan", "Broekhoff"), ("Mitch", "Creek"), ("Nathan", "Sobey"), ("Chris", "Goulding"),
             ("Daniel", "Johnson"), ("Jock", "Landale"), ("Duop", "Reath"), ("Will", "Magnay"),
             ("Sam", "Froling"), ("Kyle", "Adnam"), ("Todd", "Blanchfield"), ("Mitch", "McCarron"),
+            ("Josh", "Giddey"), ("Dyson", "Daniels"), ("Luke", "Travers"), ("Tyrese", "Proctor"),
+            ("Johnny", "Furphy"), ("Alex", "Sarr"), ("Zach", "Edey"), ("Tristan", "da Silva"),
+            ("Harrison", "Ingram"), ("Jordan", "Walsh"), ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"),
+            ("Ben", "Sheppard"), ("Colby", "Jones"), ("Julian", "Strawther"), ("Kris", "Murray"),
+            ("Toumani", "Camara"), ("Hunter", "Tyson"), ("Andre", "Jackson"), ("Seth", "Lundy"),
+            ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"), ("Amari", "Bailey"), ("Tristan", "Vukčević"),
+            ("Rayan", "Rupert"), ("James", "Nnaji"), ("Leonard", "Miller"), ("Colin", "Castleton"),
+            ("Ricky", "Council"), ("Mouhamadou", "Gueye"), ("Isaiah", "Wong"), ("Jordan", "Walsh"),
+            ("Emoni", "Bates"), ("Dariq", "Whitehead"), ("Keyontae", "Johnson"), ("Jalen", "Wilson"),
+            ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"), ("Ben", "Sheppard"), ("Colby", "Jones"),
+            ("Julian", "Strawther"), ("Kris", "Murray"), ("Toumani", "Camara"), ("Hunter", "Tyson"),
+            ("Andre", "Jackson"), ("Seth", "Lundy"), ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"),
+            ("Amari", "Bailey"), ("Tristan", "Vukčević"), ("Rayan", "Rupert"), ("James", "Nnaji"),
+            ("Leonard", "Miller"), ("Colin", "Castleton"), ("Ricky", "Council"), ("Mouhamadou", "Gueye"),
+            ("Isaiah", "Wong"), ("Jordan", "Walsh"), ("Emoni", "Bates"), ("Dariq", "Whitehead"),
+            ("Keyontae", "Johnson"), ("Jalen", "Wilson"), ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"),
+            ("Ben", "Sheppard"), ("Colby", "Jones"), ("Julian", "Strawther"), ("Kris", "Murray"),
+            ("Toumani", "Camara"), ("Hunter", "Tyson"), ("Andre", "Jackson"), ("Seth", "Lundy"),
+            ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"), ("Amari", "Bailey"), ("Tristan", "Vukčević"),
+            ("Rayan", "Rupert"), ("James", "Nnaji"), ("Leonard", "Miller"), ("Colin", "Castleton"),
+            ("Ricky", "Council"), ("Mouhamadou", "Gueye"), ("Isaiah", "Wong"), ("Jordan", "Walsh"),
+            ("Emoni", "Bates"), ("Dariq", "Whitehead"), ("Keyontae", "Johnson"), ("Jalen", "Wilson"),
+            ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"), ("Ben", "Sheppard"), ("Colby", "Jones"),
+            ("Julian", "Strawther"), ("Kris", "Murray"), ("Toumani", "Camara"), ("Hunter", "Tyson"),
+            ("Andre", "Jackson"), ("Seth", "Lundy"), ("Mouhamed", "Gueye"), ("Maxwell", "Lewis"),
+            ("Amari", "Bailey"), ("Tristan", "Vukčević"), ("Rayan", "Rupert"), ("James", "Nnaji"),
+            ("Leonard", "Miller"), ("Colin", "Castleton"), ("Ricky", "Council"), ("Mouhamadou", "Gueye"),
+            ("Isaiah", "Wong"), ("Jordan", "Walsh"), ("Emoni", "Bates"), ("Dariq", "Whitehead"),
+            ("Keyontae", "Johnson"), ("Jalen", "Wilson"), ("Trayce", "Jackson-Davis"), ("Marcus", "Sasser"),
         ]
         
-        # Combine all names
+        # Combine all names and ensure uniqueness
         all_names = serbian_names + us_names + brazilian_names + australian_names
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_names = []
+        for name in all_names:
+            username = f"{name[0].lower()}.{name[1].lower()}"
+            if username not in seen:
+                seen.add(username)
+                unique_names.append(name)
+        
+        all_names = unique_names
         random.shuffle(all_names)  # Shuffle to randomize distribution
+        
+        self.stdout.write(f"  - Total unique player names: {len(all_names)}")
         
         all_teams = []
         name_index = 0
@@ -146,12 +270,13 @@ class Command(BaseCommand):
                 if name_index < len(all_names):
                     first_name, last_name = all_names[name_index]
                     name_index += 1
+                    username = f"{first_name.lower()}.{last_name.lower()}"
                 else:
-                    # Fallback names if we run out
-                    first_name = f"Player{j+1}"
+                    # Fallback names if we run out - ensure unique usernames
+                    player_num = (i * 20) + j + 1
+                    first_name = f"Player{player_num}"
                     last_name = f"Team{i+1}"
-                
-                username = f"{first_name.lower()}.{last_name.lower()}"
+                    username = f"player{player_num}.team{i+1}"
                 
                 player = User.objects.create_user(
                     username=username,
@@ -211,7 +336,7 @@ class Command(BaseCommand):
                 )
         self.stdout.write("Play definitions loaded.")
 
-        # --- 6. CREATE SAMPLE GAMES ---
+        # Create sample games
         self.stdout.write("Creating 50 sample games (20 Fortaleza games)...")
         
         # Find Fortaleza team
