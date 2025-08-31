@@ -2,6 +2,7 @@
 
 import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 class Possession {
   final int id;
@@ -29,7 +30,10 @@ class Possession {
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
-    return Possession(
+    // Log the raw JSON data being parsed
+    FileLogger().logPossessionData('Possession.fromJson_raw', json);
+    
+    final possession = Possession(
       id: json['id'],
       game: json['game'] is Map<String, dynamic> ? Game.fromJson(json['game']) : null,
       team: json['team'] is Map<String, dynamic> ? Team.fromJson(json['team']) : null,
@@ -41,5 +45,16 @@ class Possession {
       offensiveSequence: json['offensive_sequence'] ?? '',
       defensiveSequence: json['defensive_sequence'] ?? '',
     );
+    
+    // Log the parsed possession data
+    FileLogger().logPossessionData('Possession.fromJson_parsed', {
+      'id': possession.id,
+      'offensive_sequence': possession.offensiveSequence,
+      'defensive_sequence': possession.defensiveSequence,
+      'outcome': possession.outcome,
+      'quarter': possession.quarter,
+    });
+    
+    return possession;
   }
 }

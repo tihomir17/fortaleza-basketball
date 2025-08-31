@@ -43,9 +43,23 @@ class PossessionAPITests(APITestCase):
             "start_time_in_game": "11:45",
             "duration_seconds": 15,
             "quarter": 1,
-            "outcome": "MADE_2PT",
-            "offensive_sequence": "P&R -> Roll -> Score",
-            "defensive_sequence": "Drop",
+            "outcome": "MADE_2PTS",
+            "offensive_set": "PICK_AND_ROLL",
+            "pnr_type": "BALL_SCREEN",
+            "pnr_result": "SCORER",
+            "has_paint_touch": True,
+            "has_kick_out": False,
+            "has_extra_pass": True,
+            "number_of_passes": 3,
+            "defensive_set": "MAN_TO_MAN",
+            "defensive_pnr": "SWITCH",
+            "box_out_count": 2,
+            "offensive_rebounds_allowed": 0,
+            "shoot_time": 12,
+            "shoot_quality": "GOOD",
+            "time_range": "EARLY_SHOT_CLOCK",
+            "after_timeout": False,
+            "notes": "Test possession",
         }
 
     def test_create_possession(self):
@@ -60,5 +74,23 @@ class PossessionAPITests(APITestCase):
         self.assertEqual(Possession.objects.count(), 1)
 
         new_possession = Possession.objects.first()
-        self.assertEqual(new_possession.logged_by, self.coach)
-        self.assertEqual(new_possession.offensive_sequence, "P&R -> Roll -> Score")
+        self.assertEqual(new_possession.created_by, self.coach)
+        self.assertEqual(new_possession.offensive_set, "PICK_AND_ROLL")
+        self.assertEqual(new_possession.pnr_type, "BALL_SCREEN")
+        self.assertEqual(new_possession.pnr_result, "SCORER")
+        self.assertEqual(new_possession.has_paint_touch, True)
+        self.assertEqual(new_possession.has_kick_out, False)
+        self.assertEqual(new_possession.has_extra_pass, True)
+        self.assertEqual(new_possession.number_of_passes, 3)
+        self.assertEqual(new_possession.defensive_set, "MAN_TO_MAN")
+        self.assertEqual(new_possession.defensive_pnr, "SWITCH")
+        self.assertEqual(new_possession.box_out_count, 2)
+        self.assertEqual(new_possession.offensive_rebounds_allowed, 0)
+        self.assertEqual(new_possession.shoot_time, 12)
+        self.assertEqual(new_possession.shoot_quality, "GOOD")
+        self.assertEqual(new_possession.time_range, "EARLY_SHOT_CLOCK")
+        self.assertEqual(new_possession.after_timeout, False)
+        self.assertEqual(new_possession.notes, "Test possession")
+        self.assertEqual(
+            new_possession.points_scored, 2
+        )  # Auto-calculated from outcome

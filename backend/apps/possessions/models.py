@@ -164,6 +164,10 @@ class Possession(models.Model):
         "users.User", related_name="possessions_on_court", blank=True
     )
 
+    # Sequence fields for tracking possession actions
+    offensive_sequence = models.TextField(blank=True, help_text="Sequence of offensive actions")
+    defensive_sequence = models.TextField(blank=True, help_text="Sequence of defensive actions")
+
     # Additional metadata
     notes = models.TextField(blank=True)
 

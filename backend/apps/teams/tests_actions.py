@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.teams.models import Team
+from apps.competitions.models import Competition
 from apps.users.models import User
 
 
@@ -23,8 +24,15 @@ class TeamActionsTests(APITestCase):
             username="other_coach", password="testpass123", role=User.Role.COACH
         )
 
+        # Create competition
+        self.competition = Competition.objects.create(
+            name="Test League", season="2024", created_by=self.coach
+        )
+
         # Create team
-        self.team = Team.objects.create(name="Test Team", created_by=self.coach)
+        self.team = Team.objects.create(
+            name="Test Team", competition=self.competition, created_by=self.coach
+        )
         self.team.coaches.add(self.coach)
         self.team.players.add(self.player)
 
@@ -65,7 +73,9 @@ class TeamActionsTests(APITestCase):
 
     def test_coach_cannot_add_member_to_other_team(self):
         """Coach cannot add members to other teams."""
-        other_team = Team.objects.create(name="Other Team", created_by=self.other_coach)
+        other_team = Team.objects.create(
+            name="Other Team", competition=self.competition, created_by=self.other_coach
+        )
         self.auth(self.coach)
         data = {"user_id": self.new_player.id, "role": "player"}
         res = self.client.post(

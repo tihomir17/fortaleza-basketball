@@ -14,6 +14,7 @@ import 'package:flutter_app/features/games/data/models/game_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
+import 'package:flutter_app/core/logging/file_logger.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
 
@@ -305,6 +306,17 @@ class _PossessionCardState extends State<_PossessionCard> {
     final possession = widget.possession;
     final game = widget.game;
     final teamWithBall = possession.team;
+
+    // Log possession data for debugging
+    FileLogger().logPossessionData('_PossessionCard_build', {
+      'possession_id': possession.id,
+      'offensive_sequence': possession.offensiveSequence,
+      'defensive_sequence': possession.defensiveSequence,
+      'offensive_sequence_length': possession.offensiveSequence.length,
+      'defensive_sequence_length': possession.defensiveSequence.length,
+      'outcome': possession.outcome,
+      'quarter': possession.quarter,
+    });
 
     if (teamWithBall == null) {
       return const Card(

@@ -24,4 +24,6 @@ class PossessionInGameSerializer(serializers.ModelSerializer):
             "points_scored",
             "offensive_set",
             "defensive_set",
+            "offensive_sequence",
+            "defensive_sequence",
         ]

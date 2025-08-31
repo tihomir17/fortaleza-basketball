@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/possession_model.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 class PossessionRepository {
   final http.Client _client = http.Client();
@@ -21,7 +22,23 @@ class PossessionRepository {
     required String defensiveSequence,
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/');
+    
+    // Log the request data
+    final requestData = {
+      'game_id': gameId,
+      'team_id': teamId,
+      'opponent_id': opponentId,
+      'start_time_in_game': startTime,
+      'duration_seconds': duration,
+      'quarter': quarter,
+      'outcome': outcome,
+      'offensive_sequence': offensiveSequence,
+      'defensive_sequence': defensiveSequence,
+    };
+    
+    await FileLogger().logPossessionData('createPossession', requestData);
     logger.d('PossessionRepository: Creating possession for game $gameId at $url');
+    
     try {
       final response = await _client.post(
         url,
@@ -29,24 +46,28 @@ class PossessionRepository {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({
-          'game_id': gameId,
-          'team_id': teamId,
-          'opponent_id': opponentId,
-          'start_time_in_game': startTime,
-          'duration_seconds': duration,
-          'quarter': quarter,
-          'outcome': outcome,
-          'offensive_sequence': offensiveSequence,
-          'defensive_sequence': defensiveSequence,
-        }),
+        body: json.encode(requestData),
       );
+
+      // Log the API response
+      await FileLogger().logApiResponse('/possessions/', response.statusCode, response.body);
 
       if (response.statusCode == 201) {
         logger.i('PossessionRepository: Possession created successfully for game $gameId.');
-        return Possession.fromJson(json.decode(response.body));
+        final possession = Possession.fromJson(json.decode(response.body));
+        
+        // Log the created possession data
+        await FileLogger().logPossessionData('createPossession_response', {
+          'id': possession.id,
+          'offensive_sequence': possession.offensiveSequence,
+          'defensive_sequence': possession.defensiveSequence,
+          'outcome': possession.outcome,
+        });
+        
+        return possession;
       } else {
         logger.e('PossessionRepository: Failed to create possession. Status: ${response.statusCode}, Body: ${response.body}');
+        await FileLogger().logError('createPossession_failed', 'Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to create possession. Server response: ${response.body}',
         );

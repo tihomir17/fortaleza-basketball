@@ -1,4 +1,5 @@
 import pytest
+import datetime
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -6,6 +7,7 @@ from rest_framework.test import APITestCase
 from apps.games.models import Game
 from apps.possessions.models import Possession
 from apps.teams.models import Team
+from apps.competitions.models import Competition
 from apps.users.models import User
 
 
@@ -16,20 +18,31 @@ class PossessionValidationTests(APITestCase):
             username="coach", password="testpass123", role=User.Role.COACH
         )
 
+        # Create competition
+        self.competition = Competition.objects.create(
+            name="Test League", season="2024", created_by=self.coach
+        )
+
         # Create teams
-        self.team_a = Team.objects.create(name="Team A", created_by=self.coach)
-        self.team_b = Team.objects.create(name="Team B", created_by=self.coach)
-        self.team_c = Team.objects.create(name="Team C", created_by=self.coach)
+        self.team_a = Team.objects.create(
+            name="Team A", competition=self.competition, created_by=self.coach
+        )
+        self.team_b = Team.objects.create(
+            name="Team B", competition=self.competition, created_by=self.coach
+        )
+        self.team_c = Team.objects.create(
+            name="Team C", competition=self.competition, created_by=self.coach
+        )
 
         # Create game
         self.game = Game.objects.create(
+            competition=self.competition,
             home_team=self.team_a,
             away_team=self.team_b,
-            game_date="2024-01-15",
-            created_by=self.coach,
+            game_date=datetime.datetime.now(),
         )
 
-        self.coach.teams.add(self.team_a)
+        self.team_a.coaches.add(self.coach)
 
         self.url = reverse("possession-list")
 

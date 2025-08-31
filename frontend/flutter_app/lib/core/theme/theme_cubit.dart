@@ -19,7 +19,7 @@ class ThemeCubit extends Cubit<ThemeMode> {
   // Load the saved theme preference from SharedPreferences
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeName = prefs.getString(_themeKey);
+    final themeName = 'light';//prefs.getString(_themeKey);
     if (themeName != null) {
       if (themeName == 'light') {
         emit(ThemeMode.light);

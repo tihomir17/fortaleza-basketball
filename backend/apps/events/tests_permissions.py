@@ -50,10 +50,10 @@ class EventPermissionsTests(APITestCase):
             end_time="2024-01-16T12:00:00Z",
         )
 
-        self.url = reverse("calendarevent-list")
-        self.event_detail_url = reverse("calendarevent-detail", args=[self.event.id])
+        self.url = reverse("event-list")
+        self.event_detail_url = reverse("event-detail", args=[self.event.id])
         self.other_event_detail_url = reverse(
-            "calendarevent-detail", args=[self.other_event.id]
+            "event-detail", args=[self.other_event.id]
         )
 
     def auth(self, user):

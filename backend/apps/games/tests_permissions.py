@@ -28,10 +28,10 @@ class GamePermissionsTests(APITestCase):
 
         # Create games
         self.game = Game.objects.create(
-            home_team=self.team_a,
-            away_team=self.team_b,
-            game_date="2024-01-15",
-            created_by=self.coach,
+            competition=self.competition,
+            home_team=self.team1,
+            away_team=self.team2,
+            game_date=datetime.datetime.now(),
         )
 
         self.other_game = Game.objects.create(

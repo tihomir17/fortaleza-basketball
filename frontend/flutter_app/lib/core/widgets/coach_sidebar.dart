@@ -95,6 +95,16 @@ class CoachSidebar extends StatelessWidget {
               context.go('/self-scouting');
             },
           ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('Debug Logs'),
+            selected: currentRoute.startsWith('/debug'),
+            onTap: () {
+              logger.i('CoachSidebar: Navigating to Debug Logs (/debug).');
+              context.go('/debug');
+            },
+          ),
         ],
       ),
     );

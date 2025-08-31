@@ -12,6 +12,8 @@ from apps.events.models import CalendarEvent
 from apps.competitions.models import Competition
 from apps.possessions.models import Possession
 from apps.users.permissions import IsTeamScopedObject
+from apps.plays.models import PlayCategory
+import datetime
 
 
 class IsTeamScopedObjectTests(TestCase):
@@ -33,30 +35,44 @@ class IsTeamScopedObjectTests(TestCase):
             username="other_player", password="testpass123", role=User.Role.PLAYER
         )
 
+        # Create competition
+        self.competition = Competition.objects.create(
+            name="Test Competition",
+            season="2024",
+            created_by=self.coach,
+        )
+
         # Create teams
-        self.team = Team.objects.create(name="Test Team", created_by=self.coach)
+        self.team = Team.objects.create(
+            name="Test Team", competition=self.competition, created_by=self.coach
+        )
+        self.other_team = Team.objects.create(
+            name="Other Team", competition=self.competition, created_by=self.other_coach
+        )
+
+        # Add users to teams
         self.team.coaches.add(self.coach)
         self.team.players.add(self.player)
-
-        self.other_team = Team.objects.create(
-            name="Other Team", created_by=self.other_coach
-        )
         self.other_team.coaches.add(self.other_coach)
         self.other_team.players.add(self.other_player)
 
-        # Create objects
+        # Create game
         self.game = Game.objects.create(
+            competition=self.competition,
             home_team=self.team,
             away_team=self.other_team,
-            game_date="2024-01-15",
-            created_by=self.coach,
+            game_date=datetime.datetime.now(),
         )
+
+        # Create play category
+        self.category = PlayCategory.objects.create(name="Test Category")
 
         self.play = PlayDefinition.objects.create(
             name="Test Play",
             description="A test play",
+            play_type="OFFENSIVE",
             team=self.team,
-            created_by=self.coach,
+            category=self.category,
         )
 
         self.event = CalendarEvent.objects.create(
@@ -66,12 +82,6 @@ class IsTeamScopedObjectTests(TestCase):
             created_by=self.coach,
             start_time="2024-01-15T10:00:00Z",
             end_time="2024-01-15T12:00:00Z",
-        )
-
-        self.competition = Competition.objects.create(
-            name="Test Competition",
-            season="2024",
-            created_by=self.coach,
         )
 
         self.possession = Possession.objects.create(

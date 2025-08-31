@@ -14,6 +14,7 @@ import 'core/navigation/app_router.dart';
 import 'core/navigation/refresh_signal.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_cubit.dart';
+import 'core/logging/file_logger.dart';
 
 // Features - Repositories
 import 'features/authentication/data/repositories/auth_repository.dart';
@@ -107,6 +108,10 @@ void setupServiceLocator() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize file logger
+  await FileLogger().initialize();
+  
   setupServiceLocator();
   await sl<AuthCubit>().checkAuthentication();
   runApp(MyApp());

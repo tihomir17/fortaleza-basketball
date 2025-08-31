@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/game_repository.dart';
 import 'game_detail_state.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 class GameDetailCubit extends Cubit<GameDetailState> {
   final GameRepository _gameRepository;
@@ -32,6 +33,17 @@ class GameDetailCubit extends Cubit<GameDetailState> {
       final List<Possession> possessions = List<Possession>.from(
         game.possessions,
       );
+
+      // Log the fetched possessions data
+      for (int i = 0; i < possessions.length; i++) {
+        await FileLogger().logPossessionData('GameDetailCubit_possession_$i', {
+          'id': possessions[i].id,
+          'offensive_sequence': possessions[i].offensiveSequence,
+          'defensive_sequence': possessions[i].defensiveSequence,
+          'outcome': possessions[i].outcome,
+          'quarter': possessions[i].quarter,
+        });
+      }
 
       emit(
         state.copyWith(

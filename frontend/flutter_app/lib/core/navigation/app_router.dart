@@ -25,6 +25,7 @@ import '../../features/calendar/presentation/screens/calendar_screen.dart';
 // Import the new screens
 import '../../features/scouting/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
+import '../debug/debug_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -147,6 +148,10 @@ class AppRouter {
           GoRoute(
             path: '/self-scouting',
             builder: (context, state) => const SelfScoutingScreen(),
+          ),
+          GoRoute(
+            path: '/debug',
+            builder: (context, state) => const DebugScreen(),
           ),
         ],
       ),

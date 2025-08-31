@@ -21,6 +21,9 @@ class PossessionViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = PossessionFilter
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
     def get_queryset(self):
         user = self.request.user
         queryset = Possession.objects.select_related(

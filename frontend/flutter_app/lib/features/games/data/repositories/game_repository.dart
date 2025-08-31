@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/game_model.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 class GameRepository {
   final http.Client _client = http.Client();
@@ -103,7 +104,21 @@ class GameRepository {
       );
       if (response.statusCode == 200) {
         logger.i('GameRepository: Game $gameId details loaded.');
-        return Game.fromJson(json.decode(response.body));
+        
+        // Log the API response for debugging
+        await FileLogger().logApiResponse('/games/$gameId/', response.statusCode, response.body);
+        
+        final game = Game.fromJson(json.decode(response.body));
+        
+        // Log the parsed game data
+        await FileLogger().logPossessionData('GameRepository_getGameDetails', {
+          'game_id': game.id,
+          'possessions_count': game.possessions.length,
+          'home_team': game.homeTeam.name,
+          'away_team': game.awayTeam.name,
+        });
+        
+        return game;
       } else {
         logger.e(
           'GameRepository: Failed to load game $gameId. Status: ${response.statusCode}, Body: ${response.body}',

@@ -95,7 +95,7 @@ class StatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.SWITCH,
             box_out_count=2,
             offensive_rebounds_allowed=0,
-            shoot_time=Possession.ShootTimeChoices.EARLY,
+            shoot_time=5,  # Early in possession
             shoot_quality=Possession.ShootQualityChoices.GOOD,
             time_range=Possession.TimeRangeChoices.EARLY_SHOT_CLOCK,
             after_timeout=False,
@@ -124,7 +124,7 @@ class StatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.NONE,
             box_out_count=0,
             offensive_rebounds_allowed=1,
-            shoot_time=Possession.ShootTimeChoices.LATE,
+            shoot_time=18,  # Late in possession
             shoot_quality=Possession.ShootQualityChoices.EXCELLENT,
             time_range=Possession.TimeRangeChoices.LATE_SHOT_CLOCK,
             after_timeout=True,
@@ -154,7 +154,7 @@ class StatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.ICE,
             box_out_count=3,
             offensive_rebounds_allowed=0,
-            shoot_time=Possession.ShootTimeChoices.MID,
+            shoot_time=12,  # Mid possession
             shoot_quality=Possession.ShootQualityChoices.AVERAGE,
             time_range=Possession.TimeRangeChoices.MID_SHOT_CLOCK,
             after_timeout=False,
@@ -183,7 +183,7 @@ class StatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.GO_OVER,
             box_out_count=1,
             offensive_rebounds_allowed=2,
-            shoot_time=Possession.ShootTimeChoices.EARLY,
+            shoot_time=5,  # Early in possession
             shoot_quality=Possession.ShootQualityChoices.POOR,
             time_range=Possession.TimeRangeChoices.EARLY_SHOT_CLOCK,
             after_timeout=False,
@@ -563,7 +563,7 @@ class PlayerStatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.SWITCH,
             box_out_count=2,
             offensive_rebounds_allowed=0,
-            shoot_time=Possession.ShootTimeChoices.EARLY,
+            shoot_time=5,  # Early in possession
             shoot_quality=Possession.ShootQualityChoices.GOOD,
             time_range=Possession.TimeRangeChoices.EARLY_SHOT_CLOCK,
             after_timeout=False,
@@ -594,7 +594,7 @@ class PlayerStatsServiceTestCase(APITestCase):
             defensive_pnr=Possession.DefensivePnRChoices.ICE,
             box_out_count=3,
             offensive_rebounds_allowed=0,
-            shoot_time=Possession.ShootTimeChoices.LATE,
+            shoot_time=18,  # Late in possession
             shoot_quality=Possession.ShootQualityChoices.POOR,
             time_range=Possession.TimeRangeChoices.LATE_SHOT_CLOCK,
             after_timeout=True,
@@ -697,21 +697,27 @@ class StatsAPITestCase(APITestCase):
             role=User.Role.PLAYER,
         )
 
-        # Create team
-        self.team = Team.objects.create(name="Test Team", created_by=self.coach)
-        self.team.players.add(self.player)
-        self.team.coaches.add(self.coach)
-
         # Create competition
         self.competition = Competition.objects.create(
             name="Test Competition", season="2024-2025", created_by=self.coach
+        )
+
+        # Create teams
+        self.team = Team.objects.create(
+            name="Test Team", competition=self.competition, created_by=self.coach
+        )
+        self.team.players.add(self.player)
+        self.team.coaches.add(self.coach)
+
+        self.opponent_team = Team.objects.create(
+            name="Opponent Team", competition=self.competition, created_by=self.coach
         )
 
         # Create game
         self.game = Game.objects.create(
             competition=self.competition,
             home_team=self.team,
-            away_team=self.team,
+            away_team=self.opponent_team,
             game_date=timezone.now(),
         )
 
@@ -719,7 +725,7 @@ class StatsAPITestCase(APITestCase):
         self.possession = Possession.objects.create(
             game=self.game,
             team=self.team,
-            opponent=self.team,
+            opponent=self.opponent_team,
             quarter=1,
             start_time_in_game="10:00",
             duration_seconds=15,

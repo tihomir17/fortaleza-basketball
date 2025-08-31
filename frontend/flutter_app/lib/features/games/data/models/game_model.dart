@@ -3,6 +3,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
+import 'package:flutter_app/core/logging/file_logger.dart';
 
 import '../../../teams/data/models/team_model.dart';
 
@@ -29,12 +30,31 @@ class Game {
   });
 
   factory Game.fromJson(Map<String, dynamic> json) {
+    // Log the raw JSON data
+    FileLogger().logPossessionData('Game.fromJson_raw', {
+      'game_id': json['id'],
+      'possessions_count': json['possessions']?.length ?? 0,
+      'has_possessions': json['possessions'] != null,
+    });
+
     // Safely get the list of possessions from the JSON
     final possessionListData = json['possessions'] as List<dynamic>? ?? [];
+    
+    // Log the possession list data
+    FileLogger().logPossessionData('Game.fromJson_possessions_raw', {
+      'possession_list_length': possessionListData.length,
+      'possession_list_type': possessionListData.runtimeType.toString(),
+    });
+    
     // Correctly parse the raw list into a List<Possession>
     final List<Possession> parsedPossessions = possessionListData
         .map((p) => Possession.fromJson(p as Map<String, dynamic>))
         .toList();
+
+    // Log the parsed possessions
+    FileLogger().logPossessionData('Game.fromJson_possessions_parsed', {
+      'parsed_possessions_count': parsedPossessions.length,
+    });
 
     // Safely parse the competition ID, which might be a Map or an int
     int? compId;
@@ -44,7 +64,7 @@ class Game {
       compId = json['competition']['id'];
     }
 
-    return Game(
+    final game = Game(
       id: json['id'],
       // If the key is null or not a map, the result will be null.
       homeTeam: Team.fromJson(json['home_team']),
@@ -57,5 +77,13 @@ class Game {
       homeTeamScore: json['home_team_score'],
       awayTeamScore: json['away_team_score'],
     );
+
+    // Log the final game data
+    FileLogger().logPossessionData('Game.fromJson_final', {
+      'game_id': game.id,
+      'final_possessions_count': game.possessions.length,
+    });
+
+    return game;
   }
 }

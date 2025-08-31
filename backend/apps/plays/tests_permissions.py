@@ -3,8 +3,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.plays.models import PlayDefinition
+from apps.plays.models import PlayDefinition, PlayCategory
 from apps.teams.models import Team
+from apps.competitions.models import Competition
 from apps.users.models import User
 
 
@@ -21,29 +22,40 @@ class PlayPermissionsTests(APITestCase):
             username="other_coach", password="testpass123", role=User.Role.COACH
         )
 
+        # Create competition
+        self.competition = Competition.objects.create(
+            name="Test League", season="2024", created_by=self.coach
+        )
+
         # Create teams
-        self.team = Team.objects.create(name="Test Team", created_by=self.coach)
+        self.team = Team.objects.create(
+            name="Test Team", competition=self.competition, created_by=self.coach
+        )
         self.team.coaches.add(self.coach)
         self.team.players.add(self.player)
 
         self.other_team = Team.objects.create(
-            name="Other Team", created_by=self.other_coach
+            name="Other Team", competition=self.competition, created_by=self.other_coach
         )
         self.other_team.coaches.add(self.other_coach)
+
+        # Create play category
+        self.category = PlayCategory.objects.create(name="Test Category")
 
         # Create play definitions
         self.play = PlayDefinition.objects.create(
             name="Test Play",
-            description="A test play",
+            play_type="OFFENSIVE",
             team=self.team,
-            created_by=self.coach,
+            category=self.category,
         )
 
         self.other_play = PlayDefinition.objects.create(
             name="Other Play",
             description="Another test play",
+            play_type="OFFENSIVE",
             team=self.other_team,
-            created_by=self.other_coach,
+            category=self.category,
         )
 
         self.url = reverse("playdefinition-list")

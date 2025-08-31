@@ -54,8 +54,8 @@ class PossessionPermissionsTests(APITestCase):
             start_time_in_game="12:00",
             duration_seconds=10,
             quarter=1,
-            outcome=Possession.OutcomeChoices.MADE_2PT,
-            logged_by=self.coach,
+            outcome=Possession.OutcomeChoices.MADE_2PTS,
+            created_by=self.coach,
         )
         self.auth(self.player)
         res = self.client.get(self.url)
@@ -73,7 +73,7 @@ class PossessionPermissionsTests(APITestCase):
                 "start_time_in_game": "11:50",
                 "duration_seconds": 12,
                 "quarter": 1,
-                "outcome": Possession.OutcomeChoices.MADE_2PT,
+                "outcome": Possession.OutcomeChoices.MADE_2PTS,
             },
             format="json",
         )
@@ -90,7 +90,7 @@ class PossessionPermissionsTests(APITestCase):
                 "start_time_in_game": "11:50",
                 "duration_seconds": 12,
                 "quarter": 1,
-                "outcome": Possession.OutcomeChoices.MADE_2PT,
+                "outcome": Possession.OutcomeChoices.MADE_2PTS,
             },
             format="json",
         )
