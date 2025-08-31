@@ -457,6 +457,64 @@ class GameRepository {
     }
   }
 
+  Future<Map<String, dynamic>> renameScoutingReport({
+    required String token,
+    required int reportId,
+    required String newTitle,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$reportId/rename_report/');
+    
+    logger.d('GameRepository: Renaming scouting report $reportId to "$newTitle"');
+
+    try {
+      final response = await _client.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'title': newTitle}),
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Scouting report renamed successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to rename scouting report. Status: ${response.statusCode}');
+        throw Exception('Failed to rename scouting report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error renaming scouting report: $e');
+      throw Exception('Error renaming scouting report: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> cleanupCorruptedReports({
+    required String token,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/cleanup_corrupted_reports/');
+    
+    logger.d('GameRepository: Cleaning up corrupted reports');
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Corrupted reports cleaned up successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to cleanup corrupted reports. Status: ${response.statusCode}');
+        throw Exception('Failed to cleanup corrupted reports');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error cleaning up corrupted reports: $e');
+      throw Exception('Error cleaning up corrupted reports: $e');
+    }
+  }
+
   /// Clear the analytics cache
   static void clearAnalyticsCache() {
     _analyticsCache.clear();

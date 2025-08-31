@@ -368,10 +368,36 @@ class GameViewSet(viewsets.ModelViewSet):
     def scouting_reports(self, request):
         """
         List all scouting reports for the authenticated user.
+        Automatically filters out corrupted reports (0 bytes).
         """
         try:
+            # Get all reports for the user
             reports = ScoutingReport.objects.filter(created_by=request.user)
-            serializer = ScoutingReportSerializer(reports, many=True)
+            
+            # Filter out corrupted reports (0 bytes) and delete them
+            corrupted_reports = []
+            valid_reports = []
+            
+            for report in reports:
+                if report.file_size == 0:
+                    corrupted_reports.append(report)
+                else:
+                    valid_reports.append(report)
+            
+            # Delete corrupted reports
+            if corrupted_reports:
+                for report in corrupted_reports:
+                    try:
+                        # Delete the file from storage if it exists
+                        if report.pdf_file and report.pdf_file.storage.exists(report.pdf_file.name):
+                            report.pdf_file.storage.delete(report.pdf_file.name)
+                        # Delete the database record
+                        report.delete()
+                    except Exception as delete_error:
+                        print(f"Failed to delete corrupted report {report.id}: {delete_error}")
+            
+            # Serialize only valid reports
+            serializer = ScoutingReportSerializer(valid_reports, many=True)
             return Response(serializer.data)
         except Exception as e:
             return Response(
@@ -432,6 +458,73 @@ class GameViewSet(viewsets.ModelViewSet):
                 {'error': 'Report not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["patch"])
+    def rename_report(self, request, pk=None):
+        """
+        Rename a scouting report.
+        """
+        try:
+            report = ScoutingReport.objects.get(id=pk, created_by=request.user)
+            
+            new_title = request.data.get('title')
+            if not new_title or not new_title.strip():
+                return Response(
+                    {'error': 'Title is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            report.title = new_title.strip()
+            report.save()
+            
+            serializer = ScoutingReportSerializer(report)
+            return Response(serializer.data)
+            
+        except ScoutingReport.DoesNotExist:
+            return Response(
+                {'error': 'Report not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=["post"])
+    def cleanup_corrupted_reports(self, request):
+        """
+        Manually cleanup corrupted reports (0 bytes) for the authenticated user.
+        """
+        try:
+            # Find all corrupted reports for the user
+            corrupted_reports = ScoutingReport.objects.filter(
+                created_by=request.user,
+                file_size=0
+            )
+            
+            deleted_count = 0
+            for report in corrupted_reports:
+                try:
+                    # Delete the file from storage if it exists
+                    if report.pdf_file and report.pdf_file.storage.exists(report.pdf_file.name):
+                        report.pdf_file.storage.delete(report.pdf_file.name)
+                    # Delete the database record
+                    report.delete()
+                    deleted_count += 1
+                except Exception as delete_error:
+                    print(f"Failed to delete corrupted report {report.id}: {delete_error}")
+            
+            return Response({
+                'message': f'Successfully deleted {deleted_count} corrupted reports',
+                'deleted_count': deleted_count
+            })
+            
         except Exception as e:
             return Response(
                 {'error': str(e)},

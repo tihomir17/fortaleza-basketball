@@ -53,6 +53,12 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _customGamesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadAnalytics() async {
     setState(() {
       _isLoading = true;

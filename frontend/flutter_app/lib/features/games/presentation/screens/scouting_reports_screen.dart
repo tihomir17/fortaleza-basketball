@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'dart:typed_data';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -10,6 +10,7 @@ import '../../data/repositories/game_repository.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:flutter_app/core/services/web_download_service.dart';
 
 class ScoutingReportsScreen extends StatefulWidget {
   const ScoutingReportsScreen({super.key});
@@ -32,8 +33,10 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh reports when screen becomes visible
-    _loadReports();
+    // Only load reports if not already loading and reports are empty
+    if (!_isLoading && _reports.isEmpty) {
+      _loadReports();
+    }
   }
 
   Future<void> _loadReports() async {
@@ -53,8 +56,15 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
       }
 
       final reports = await sl<GameRepository>().getScoutingReports(token: token);
+      
+      // Filter out corrupted reports (0 MB or unknown size)
+      final validReports = reports.where((report) {
+        final fileSize = report['file_size_mb']?.toString() ?? 'Unknown';
+        return fileSize != '0.0' && fileSize != '0' && fileSize != 'Unknown';
+      }).toList();
+      
       setState(() {
-        _reports = reports;
+        _reports = validReports;
         _isLoading = false;
       });
     } catch (e) {
@@ -66,67 +76,51 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
   }
 
   Future<void> _downloadReport(Map<String, dynamic> report) async {
+    // Check if report is corrupted
+    final fileSize = report['file_size_mb']?.toString() ?? 'Unknown';
+    final isCorrupted = fileSize == '0.0' || fileSize == '0' || fileSize == 'Unknown';
+    
+    if (isCorrupted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This report is corrupted and cannot be downloaded. Please regenerate it.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    final token = context.read<AuthCubit>().state.token;
+    if (token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication required')),
+        );
+      }
+      return;
+    }
+
+    // Use unawaited to prevent blocking the UI
+    unawaited(_performDownload(report, token));
+  }
+
+  Future<void> _performDownload(Map<String, dynamic> report, String token) async {
     try {
-      // Check if report is corrupted
-      final fileSize = report['file_size_mb']?.toString() ?? 'Unknown';
-      final isCorrupted = fileSize == '0.0' || fileSize == '0' || fileSize == 'Unknown';
-      
-      if (isCorrupted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('This report is corrupted and cannot be downloaded. Please regenerate it.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-
-      final token = context.read<AuthCubit>().state.token;
-      if (token == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Authentication required')),
-          );
-        }
-        return;
-      }
-
-      // Store current context to avoid deactivated widget issues
-      final currentContext = context;
-
-      // Show loading indicator
-      if (!mounted) return;
-      showDialog(
-        context: currentContext,
-        barrierDismissible: false,
-        builder: (dialogContext) => const Center(child: CircularProgressIndicator()),
-      );
-
-      // Download the report
+      // Download the report without showing loading dialog
       final pdfBytes = await sl<GameRepository>().downloadScoutingReport(
         token: token,
         reportId: report['id'],
       );
 
-      // Close loading dialog
-      if (mounted && Navigator.of(currentContext).canPop()) {
-        Navigator.of(currentContext).pop();
-      }
-
-      // Save to device
+      // Save to device (non-blocking)
       if (mounted) {
-        await _savePDFToDevice(pdfBytes, report['title']);
+        unawaited(_savePDFToDevice(pdfBytes, report['title']));
       }
 
     } catch (e) {
-      // Close loading dialog if still open
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -141,13 +135,13 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
   Future<void> _savePDFToDevice(Uint8List pdfBytes, String title) async {
     try {
       if (kIsWeb) {
-        await _downloadPDFOnWeb(pdfBytes, title);
+        unawaited(_downloadPDFOnWeb(pdfBytes, title));
       } else {
-        await _savePDFToFileSystem(pdfBytes, title);
+        unawaited(_savePDFToFileSystem(pdfBytes, title));
       }
     } catch (e) {
       print('Error saving PDF: $e');
-      rethrow;
+      // Don't rethrow - just log the error to prevent UI blocking
     }
   }
 
@@ -156,80 +150,122 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filename = '${title.replaceAll(RegExp(r'[^a-zA-Z0-9\s-]'), '')}_$timestamp.pdf';
       
-      // Create a data URL for the PDF
-      final base64Data = base64Encode(pdfBytes);
-      final dataUrl = 'data:application/pdf;base64,$base64Data';
-      
-      // Store the current context to avoid deactivated widget issues
-      final currentContext = context;
-      
-      // Show dialog with download options
-      if (!mounted) return;
-      
-      final result = await showDialog<String>(
-        context: currentContext,
-        barrierDismissible: true,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Download PDF'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('PDF: $filename'),
-              const SizedBox(height: 16),
-              const Text('Choose download method:'),
-            ],
+      // Show dialog in a non-blocking way
+      unawaited(_showDownloadDialog(pdfBytes, filename));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download PDF: $e'),
+            backgroundColor: Colors.red,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop('copy'),
-              child: const Text('Copy Data URL'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop('open'),
-              child: const Text('Open in New Tab'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop('cancel'),
-              child: const Text('Cancel'),
-            ),
+        );
+      }
+    }
+  }
+
+         Future<void> _showDownloadDialog(Uint8List pdfBytes, String filename) async {
+    if (!mounted) return;
+    
+    // Show dialog without blocking
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Download PDF'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PDF: $filename'),
+            const SizedBox(height: 16),
+            const Text('Choose download method:'),
           ],
         ),
-      );
-      
-      // Handle the dialog result
-      if (!mounted) return;
-      
-      switch (result) {
-        case 'copy':
-          await Clipboard.setData(ClipboardData(text: dataUrl));
-          if (mounted) {
-            ScaffoldMessenger.of(currentContext).showSnackBar(
-              const SnackBar(content: Text('PDF data URL copied to clipboard')),
-            );
-          }
-          break;
-        case 'open':
-          await Clipboard.setData(ClipboardData(text: dataUrl));
-          if (mounted) {
-            ScaffoldMessenger.of(currentContext).showSnackBar(
-              const SnackBar(
-                content: Text('PDF data URL copied. Paste in new tab to view/download'),
-                duration: Duration(seconds: 4),
-              ),
-            );
-          }
-          break;
-        case 'cancel':
-        default:
-          // User cancelled, do nothing
-          break;
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('download'),
+            child: const Text('Download File'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('view'),
+            child: const Text('View in New Tab'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('copy'),
+            child: const Text('Copy Data URL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    
+    if (!mounted) return;
+    
+    // Handle the result immediately without unawaited
+    _handleDownloadResult(result, pdfBytes, filename);
+  }
+
+  void _handleDownloadResult(String? result, Uint8List pdfBytes, String filename) {
+    switch (result) {
+      case 'download':
+        // Direct download using JavaScript
+        WebDownloadService.downloadFile(pdfBytes, filename);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF download started'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        break;
+      case 'view':
+        // Open in new tab
+        WebDownloadService.openFileInNewTab(pdfBytes, filename);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF opened in new tab'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        break;
+      case 'copy':
+        // Fallback to clipboard method (non-blocking)
+        unawaited(_copyToClipboard(pdfBytes));
+        break;
+      case 'cancel':
+      default:
+        // User cancelled, do nothing
+        break;
+    }
+  }
+
+  Future<void> _copyToClipboard(Uint8List pdfBytes) async {
+    try {
+      final base64Data = base64Encode(pdfBytes);
+      final dataUrl = 'data:application/pdf;base64,$base64Data';
+      await Clipboard.setData(ClipboardData(text: dataUrl));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF data URL copied to clipboard. Paste in new tab to view/download'),
+            duration: Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to prepare PDF download: $e'),
+            content: Text('Failed to copy to clipboard: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -238,54 +274,185 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
   }
 
   Future<void> _savePDFToFileSystem(Uint8List pdfBytes, String title) async {
-    // Request storage permission
-    var status = await Permission.storage.status;
-    if (!status.isGranted) {
-      status = await Permission.storage.request();
+    try {
+      // Request storage permission
+      var status = await Permission.storage.status;
       if (!status.isGranted) {
-        throw Exception('Storage permission denied');
+        status = await Permission.storage.request();
+        if (!status.isGranted) {
+          throw Exception('Storage permission denied');
+        }
       }
-    }
 
-    // Get the downloads directory
-    Directory? directory;
-    if (Platform.isAndroid) {
-      directory = Directory('/storage/emulated/0/Download');
-      if (!await directory.exists()) {
-        directory = await getExternalStorageDirectory();
+      // Get the downloads directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        directory = await getApplicationDocumentsDirectory();
       }
-    } else if (Platform.isIOS) {
-      directory = await getApplicationDocumentsDirectory();
-    } else {
-      directory = await getApplicationDocumentsDirectory();
-    }
 
-    if (directory == null) {
-      throw Exception('Could not access storage directory');
-    }
+      if (directory == null) {
+        throw Exception('Could not access storage directory');
+      }
 
-    // Create filename
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filename = '${title.replaceAll(RegExp(r'[^a-zA-Z0-9\s-]'), '')}_$timestamp.pdf';
-    final file = File('${directory.path}/$filename');
+      // Create filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filename = '${title.replaceAll(RegExp(r'[^a-zA-Z0-9\s-]'), '')}_$timestamp.pdf';
+      final file = File('${directory.path}/$filename');
 
-    // Write PDF bytes to file
-    await file.writeAsBytes(pdfBytes);
+      // Write PDF bytes to file
+      await file.writeAsBytes(pdfBytes);
 
-    // Show success message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Report saved to: ${file.path}'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {},
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report saved to: ${file.path}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
           ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _renameReport(Map<String, dynamic> report) async {
+    final currentTitle = report['title'] ?? 'Untitled Report';
+    final textController = TextEditingController(text: currentTitle);
+    
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Report'),
+        content: TextField(
+          controller: textController,
+          decoration: const InputDecoration(
+            labelText: 'Report Title',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
         ),
-      );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(textController.text.trim()),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+    
+    if (newTitle != null && newTitle.isNotEmpty && newTitle != currentTitle) {
+      try {
+        final token = context.read<AuthCubit>().state.token;
+        if (token == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Authentication required')),
+            );
+          }
+          return;
+        }
+        
+        // Call backend to rename the report
+        await sl<GameRepository>().renameScoutingReport(
+          token: token,
+          reportId: report['id'],
+          newTitle: newTitle,
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Report renamed successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Refresh the reports list
+          _loadReports();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to rename report: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _cleanupCorruptedReports() async {
+    try {
+      final token = context.read<AuthCubit>().state.token;
+      if (token == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Authentication required')),
+          );
+        }
+        return;
+      }
+
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cleaning up corrupted reports...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Call the cleanup endpoint
+      final result = await sl<GameRepository>().cleanupCorruptedReports(token: token);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Cleanup completed'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        // Refresh the reports list
+        _loadReports();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to cleanup reports: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -295,6 +462,11 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
       appBar: AppBar(
         title: const Text('Scouting Reports'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cleaning_services),
+            onPressed: _cleanupCorruptedReports,
+            tooltip: 'Cleanup Corrupted Reports',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadReports,
@@ -367,6 +539,7 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
         return _ReportCard(
           report: report,
           onDownload: () => _downloadReport(report),
+          onRename: _renameReport,
         );
       },
     );
@@ -376,10 +549,12 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
 class _ReportCard extends StatelessWidget {
   final Map<String, dynamic> report;
   final VoidCallback onDownload;
+  final Function(Map<String, dynamic>) onRename;
 
   const _ReportCard({
     required this.report,
     required this.onDownload,
+    required this.onRename,
   });
 
   @override
@@ -439,14 +614,24 @@ class _ReportCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    isCorrupted ? Icons.error : Icons.download,
-                    color: isCorrupted ? Colors.red : null,
-                  ),
-                  onPressed: isCorrupted ? null : onDownload,
-                  tooltip: isCorrupted ? 'Report is corrupted' : 'Download Report',
-                ),
+                                 Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     IconButton(
+                       icon: const Icon(Icons.edit),
+                       onPressed: () => onRename(report),
+                       tooltip: 'Rename Report',
+                     ),
+                     IconButton(
+                       icon: Icon(
+                         isCorrupted ? Icons.error : Icons.download,
+                         color: isCorrupted ? Colors.red : null,
+                       ),
+                       onPressed: isCorrupted ? null : onDownload,
+                       tooltip: isCorrupted ? 'Report is corrupted' : 'Download Report',
+                     ),
+                   ],
+                 ),
               ],
             ),
             if (report['description'] != null && report['description'].isNotEmpty) ...[
