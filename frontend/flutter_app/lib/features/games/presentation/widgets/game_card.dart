@@ -32,15 +32,11 @@ class GameCard extends StatelessWidget {
     );
 
     // Calculate quick stats
-    final totalPossessions = game.possessions.length;
-    final offensivePossessions = game.possessions.where((p) => p.offensiveSequence.isNotEmpty).length;
-    final defensivePossessions = game.possessions.where((p) => p.defensiveSequence.isNotEmpty).length;
-    
-    // Calculate average offensive possession time
-    final offensivePossessionsWithTime = game.possessions.where((p) => p.offensiveSequence.isNotEmpty && p.durationSeconds > 0);
-    final avgOffensivePossessionTime = offensivePossessionsWithTime.isNotEmpty 
-        ? offensivePossessionsWithTime.fold(0.0, (sum, p) => sum + p.durationSeconds) / offensivePossessionsWithTime.length 
-        : 0.0;
+    // Use lightweight possession statistics from the model
+    final totalPossessions = game.totalPossessions;
+    final offensivePossessions = game.offensivePossessions;
+    final defensivePossessions = game.defensivePossessions;
+    final avgOffensivePossessionTime = game.avgOffensivePossessionTime;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

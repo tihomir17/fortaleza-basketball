@@ -17,6 +17,12 @@ class Game {
   final List<Possession> possessions; // Keep possessions for detail view
   final int? homeTeamScore; // <-- ADD THIS
   final int? awayTeamScore; // <-- ADD THIS
+  
+  // Lightweight possession statistics for list view
+  final int totalPossessions;
+  final int offensivePossessions;
+  final int defensivePossessions;
+  final double avgOffensivePossessionTime;
 
   Game({
     required this.id,
@@ -27,40 +33,20 @@ class Game {
     this.possessions = const [],
     this.homeTeamScore,
     this.awayTeamScore,
+    this.totalPossessions = 0,
+    this.offensivePossessions = 0,
+    this.defensivePossessions = 0,
+    this.avgOffensivePossessionTime = 0.0,
   });
 
   factory Game.fromJson(Map<String, dynamic> json) {
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Game.fromJson_raw', {
-        'game_id': json['id'],
-        'possessions_count': json['possessions']?.length ?? 0,
-        'has_possessions': json['possessions'] != null,
-      });
-    }
-
-    // Safely get the list of possessions from the JSON
+    // Safely get the list of possessions from the JSON (empty for lightweight list view)
     final possessionListData = json['possessions'] as List<dynamic>? ?? [];
-    
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Game.fromJson_possessions_raw', {
-        'possession_list_length': possessionListData.length,
-        'possession_list_type': possessionListData.runtimeType.toString(),
-      });
-    }
     
     // Correctly parse the raw list into a List<Possession>
     final List<Possession> parsedPossessions = possessionListData
         .map((p) => Possession.fromJson(p as Map<String, dynamic>))
         .toList();
-
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Game.fromJson_possessions_parsed', {
-        'parsed_possessions_count': parsedPossessions.length,
-      });
-    }
 
     // Safely parse the competition ID, which might be a Map or an int
     int? compId;
@@ -82,15 +68,13 @@ class Game {
       possessions: parsedPossessions,
       homeTeamScore: json['home_team_score'],
       awayTeamScore: json['away_team_score'],
+      
+      // Add lightweight possession statistics
+      totalPossessions: json['total_possessions'] as int? ?? 0,
+      offensivePossessions: json['offensive_possessions'] as int? ?? 0,
+      defensivePossessions: json['defensive_possessions'] as int? ?? 0,
+      avgOffensivePossessionTime: (json['avg_offensive_possession_time'] as num?)?.toDouble() ?? 0.0,
     );
-
-    // Only log in debug mode to reduce overhead
-    if (kDebugMode) {
-      FileLogger().logPossessionData('Game.fromJson_final', {
-        'game_id': game.id,
-        'final_possessions_count': game.possessions.length,
-      });
-    }
 
     return game;
   }

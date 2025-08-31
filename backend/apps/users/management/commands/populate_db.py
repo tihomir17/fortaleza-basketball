@@ -464,7 +464,7 @@ class Command(BaseCommand):
         all_names = serbian_names + us_names + brazilian_names + australian_names
         random.shuffle(all_names)
         name_index = 0
-        
+
         # Track used usernames to ensure uniqueness
         used_usernames = set()
 
@@ -487,7 +487,7 @@ class Command(BaseCommand):
                 first_name = f"Coach{i+1}"
                 last_name = f"Team{i+1}"
                 base_username = f"coach{i+1}.team{i+1}"
-            
+
             # Ensure unique username
             username = base_username
             counter = 1
@@ -677,7 +677,6 @@ class Command(BaseCommand):
                 game_date=game_date,
                 home_team_score=home_score,
                 away_team_score=away_score,
-                created_by=superuser,
             )
             games.append(game)
 
@@ -703,7 +702,6 @@ class Command(BaseCommand):
                 game_date=game_date,
                 home_team_score=home_score,
                 away_team_score=away_score,
-                created_by=superuser,
             )
             games.append(game)
 
@@ -730,10 +728,16 @@ class Command(BaseCommand):
         ]
         time_ranges = [choice[0] for choice in Possession.TimeRangeChoices.choices]
 
+        # Create possessions in batches for better performance
+        possession_batch = []
+        batch_size = 1000
+
         for game in games:
-            for i in range(
-                random.randint(100, 130)
-            ):  # Create a random number of possessions (100-130 per game)
+            possession_count = random.randint(
+                120, 200
+            )  # Reduced: Create a random number of possessions (20-40 per game)
+
+            for i in range(possession_count):
                 possession_team = random.choice([game.home_team, game.away_team])
                 opponent_team = (
                     game.away_team
@@ -757,7 +761,8 @@ class Command(BaseCommand):
                         plays_by_category
                     )
 
-                Possession.objects.create(
+                # Create possession object without saving to database yet
+                possession = Possession(
                     game=game,
                     team=possession_team,
                     opponent=opponent_team,
@@ -788,5 +793,22 @@ class Command(BaseCommand):
                     notes=f"Sample possession {i+1}",
                     created_by=superuser,
                 )
+
+                possession_batch.append(possession)
+
+                # Bulk create when batch is full
+                if len(possession_batch) >= batch_size:
+                    Possession.objects.bulk_create(possession_batch)
+                    self.stdout.write(
+                        f"  - Created batch of {len(possession_batch)} possessions"
+                    )
+                    possession_batch = []
+
+        # Create remaining possessions
+        if possession_batch:
+            Possession.objects.bulk_create(possession_batch)
+            self.stdout.write(
+                f"  - Created final batch of {len(possession_batch)} possessions"
+            )
 
         self.stdout.write(self.style.SUCCESS("--- Database Population Complete! ---"))

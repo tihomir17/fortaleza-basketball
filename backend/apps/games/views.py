@@ -11,9 +11,9 @@ from apps.users.permissions import IsTeamScopedObject  # New import
 
 
 class GamePagination(PageNumberPagination):
-    page_size = 20
+    page_size = 50  # Increased page size for better performance
     page_size_query_param = "page_size"
-    max_page_size = 100
+    max_page_size = 200
 
 
 class GameViewSet(viewsets.ModelViewSet):
@@ -64,11 +64,11 @@ class GameViewSet(viewsets.ModelViewSet):
                 .select_related("competition", "home_team", "away_team")
             )
 
-        # For list action, prefetch possessions to show possession statistics
+        # For list action, don't prefetch possessions - we'll use aggregate queries
         if self.action == "list":
-            return base_queryset.prefetch_related("possessions")
+            return base_queryset
         else:
-            # For retrieve action, prefetch possessions
+            # For retrieve action, prefetch possessions for full details
             return base_queryset.prefetch_related("possessions")
 
     def create(self, request, *args, **kwargs):

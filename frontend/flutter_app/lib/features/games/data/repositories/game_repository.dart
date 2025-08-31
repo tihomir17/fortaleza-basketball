@@ -13,20 +13,25 @@ import 'package:flutter_app/core/logging/file_logger.dart';
 class GameRepository {
   final http.Client _client = http.Client();
   
-  // Simple in-memory cache for game lists
+  // Enhanced in-memory cache for game lists
   static Map<String, dynamic> _gameListCache = {};
   static DateTime _lastCacheTime = DateTime.now();
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
+  static const Duration _cacheValidDuration = Duration(minutes: 10); // Increased cache duration
 
-  Future<List<Game>> getAllGames(String token) async {
+  Future<List<Game>> getAllGames(String token, {int page = 1, int pageSize = 50}) async {
     // Check cache first
-    final cacheKey = 'games_list_$token';
+    final cacheKey = 'games_list_${page}_${pageSize}_$token';
     if (_isCacheValid(cacheKey)) {
-      logger.d('GameRepository: Returning cached games list');
+      logger.d('GameRepository: Returning cached games list for page $page');
       return _gameListCache[cacheKey] as List<Game>;
     }
 
-    final url = Uri.parse('${ApiClient.baseUrl}/games/');
+    final url = Uri.parse('${ApiClient.baseUrl}/games/').replace(
+      queryParameters: {
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      },
+    );
     logger.d('GameRepository: Fetching games list from $url');
     
     try {
@@ -58,7 +63,7 @@ class GameRepository {
         _gameListCache[cacheKey] = games;
         _lastCacheTime = DateTime.now();
         
-        logger.i('GameRepository: Loaded and cached ${games.length} games');
+        logger.i('GameRepository: Loaded and cached ${games.length} games for page $page');
         return games;
       } else {
         logger.e('GameRepository: Failed to load games. Status: ${response.statusCode}');
