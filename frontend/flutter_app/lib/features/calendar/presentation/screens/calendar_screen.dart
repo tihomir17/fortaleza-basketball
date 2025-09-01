@@ -283,7 +283,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               )
             : Text('Game at ${DateFormat.jm().format(game.gameDate)}'),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios, size: 16),
+              tooltip: 'View Game Details',
+              onPressed: () => context.go('/games/${game.id}'),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              tooltip: 'Delete Game',
+              onPressed: () => _showDeleteConfirmation(context, game),
+            ),
+          ],
+        ),
         onTap: () => context.go('/games/${game.id}'),
       ),
     );

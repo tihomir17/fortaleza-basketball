@@ -1,6 +1,7 @@
 // lib/features/dashboard/presentation/screens/dashboard_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/features/dashboard/data/models/dashboard_data.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
@@ -22,41 +23,52 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+
   @override
   void initState() {
     super.initState();
-    // Load dashboard data when the screen is first created
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _refreshSignal.addListener(_refreshDashboard);
+  }
+
+  @override
+  void dispose() {
+    _refreshSignal.removeListener(_refreshDashboard);
+    super.dispose();
+  }
+
+  void _refreshDashboard() {
+    if (mounted) {
       context.read<DashboardCubit>().loadDashboardData();
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<DashboardCubit>(),
-      child: Scaffold(
-        appBar: const UserProfileAppBar(title: 'DASHBOARD'),
-        body: BlocBuilder<AuthCubit, AuthState>(
-          builder: (context, authState) {
-            if (authState.status == AuthStatus.authenticated && authState.user != null) {
-              return BlocBuilder<DashboardCubit, DashboardState>(
-                builder: (context, dashboardState) {
-                  if (dashboardState is DashboardLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (dashboardState is DashboardError) {
-                    return _buildErrorState(dashboardState.message);
-                  } else if (dashboardState is DashboardLoaded) {
-                    return _buildDashboardContent(dashboardState.dashboardData);
-                  } else {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                },
-              );
-            }
-            return const Center(child: CircularProgressIndicator());
-          },
-        ),
+    return Scaffold(
+      appBar: UserProfileAppBar(
+        title: 'DASHBOARD',
+        onRefresh: () => context.read<DashboardCubit>().loadDashboardData(),
+      ),
+      body: BlocBuilder<AuthCubit, AuthState>(
+        builder: (context, authState) {
+          if (authState.status == AuthStatus.authenticated && authState.user != null) {
+            return BlocBuilder<DashboardCubit, DashboardState>(
+              builder: (context, dashboardState) {
+                if (dashboardState is DashboardLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (dashboardState is DashboardError) {
+                  return _buildErrorState(dashboardState.message);
+                } else if (dashboardState is DashboardLoaded) {
+                  return _buildDashboardContent(dashboardState.dashboardData);
+                } else {
+                  return const Center(child: CircularProgressIndicator());
+                }
+              },
+            );
+          }
+          return const Center(child: CircularProgressIndicator());
+        },
       ),
     );
   }

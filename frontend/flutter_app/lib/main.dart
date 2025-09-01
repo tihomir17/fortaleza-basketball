@@ -165,6 +165,7 @@ class _MyAppState extends State<MyApp> {
               token: authState.token!,
             );
             context.read<GameCubit>().fetchGames(token: authState.token!);
+            context.read<DashboardCubit>().loadDashboardData();
           }
         },
         child: BlocBuilder<ThemeCubit, ThemeMode>(
