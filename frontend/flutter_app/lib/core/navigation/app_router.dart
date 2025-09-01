@@ -27,6 +27,7 @@ import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';
+import '../../features/games/presentation/screens/advanced_post_game_report_screen.dart';
 import '../../features/games/presentation/screens/schedule_game_screen.dart';
 import '../../features/calendar/presentation/screens/schedule_event_screen.dart';
 import '../debug/debug_screen.dart';
@@ -140,6 +141,14 @@ class AppRouter {
                         gameId: gameId,
                         teamId: teamId,
                       );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'advanced-report', // Matches '/games/:gameId/advanced-report'
+                    builder: (context, state) {
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return AdvancedPostGameReportScreen(gameId: gameId);
                     },
                   ),
                 ],

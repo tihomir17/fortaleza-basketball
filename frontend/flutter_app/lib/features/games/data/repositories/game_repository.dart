@@ -517,8 +517,19 @@ class GameRepository {
 
   /// Clear the analytics cache
   static void clearAnalyticsCache() {
-    _analyticsCache.clear();
-    _analyticsCacheTime.clear();
-    logger.d('GameRepository: Analytics cache cleared');
+    try {
+      _analyticsCache.clear();
+      _analyticsCacheTime.clear();
+      logger.d('GameRepository: Analytics cache cleared');
+    } catch (e) {
+      logger.w('GameRepository: Error clearing analytics cache: $e');
+      // Reinitialize the cache maps if they're corrupted
+      try {
+        _analyticsCache.clear();
+        _analyticsCacheTime.clear();
+      } catch (e2) {
+        logger.e('GameRepository: Failed to reinitialize analytics cache: $e2');
+      }
+    }
   }
 }

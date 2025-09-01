@@ -188,25 +188,44 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               color: const Color(0xFF0066CC),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.analytics_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-              onPressed: () {
-                // Get the user's team ID from the game
-                final game = context.read<GameDetailCubit>().state.game;
-                if (game != null) {
-                  final userTeams = context.read<TeamCubit>().state.teams;
-                  final userTeamInGame = userTeams.firstWhere(
-                    (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
-                    orElse: () => game.homeTeam,
-                  );
-                  context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
-                }
-              },
-              tooltip: 'Post Game Report',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.analytics_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    // Get the user's team ID from the game
+                    final game = context.read<GameDetailCubit>().state.game;
+                    if (game != null) {
+                      final userTeams = context.read<TeamCubit>().state.teams;
+                      final userTeamInGame = userTeams.firstWhere(
+                        (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                        orElse: () => game.homeTeam,
+                      );
+                      context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+                    }
+                  },
+                  tooltip: 'Post Game Report',
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.assessment,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    final game = context.read<GameDetailCubit>().state.game;
+                    if (game != null) {
+                      context.go('/games/${game.id}/advanced-report');
+                    }
+                  },
+                  tooltip: 'Advanced Post-Game Report',
+                ),
+              ],
             ),
           ),
                      Padding(

@@ -202,7 +202,7 @@ class _GameCard extends StatelessWidget {
     
     if (difference == 0) return 'Today';
     if (difference == 1) return 'Yesterday';
-    if (difference < 7) return '${difference} days ago';
+    if (difference < 7) return '$difference days ago';
     
     return '${date.month}/${date.day}/${date.year}';
   }

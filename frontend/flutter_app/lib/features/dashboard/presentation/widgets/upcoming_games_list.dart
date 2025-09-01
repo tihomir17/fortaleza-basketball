@@ -196,7 +196,7 @@ class _GameCard extends StatelessWidget {
     
     if (difference == 0) return 'TODAY';
     if (difference == 1) return 'TOMORROW';
-    if (difference < 7) return '${date.weekday == 1 ? 'Mon' : date.weekday == 2 ? 'Tue' : date.weekday == 3 ? 'Wed' : date.weekday == 4 ? 'Thu' : date.weekday == 5 ? 'Fri' : date.weekday == 6 ? 'Sat' : 'Sun'}';
+    if (difference < 7) return date.weekday == 1 ? 'Mon' : date.weekday == 2 ? 'Tue' : date.weekday == 3 ? 'Wed' : date.weekday == 4 ? 'Thu' : date.weekday == 5 ? 'Fri' : date.weekday == 6 ? 'Sat' : 'Sun';
     
     return '${date.month}/${date.day}';
   }
@@ -206,6 +206,6 @@ class _GameCard extends StatelessWidget {
     final minute = date.minute;
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour == 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return '${displayHour}:${minute.toString().padLeft(2, '0')} $period';
+    return '$displayHour:${minute.toString().padLeft(2, '0')} $period';
   }
 }

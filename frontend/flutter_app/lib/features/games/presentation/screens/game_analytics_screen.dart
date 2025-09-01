@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -36,15 +37,12 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    // Don't load analytics here - wait for didChangeDependencies
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Load analytics after dependencies are available
     if (_analyticsData == null && !_isLoading) {
-      // Use post-frame callback to ensure build is complete
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadAnalytics();
@@ -57,6 +55,37 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   void dispose() {
     _customGamesController.dispose();
     super.dispose();
+  }
+
+  void _safeClearCacheAndReload() {
+    try {
+      GameRepository.clearAnalyticsCache();
+    } catch (e) {
+      print('Cache clearing failed: $e');
+    }
+    _loadAnalytics();
+  }
+
+  void _navigateToPostGameReport() {
+    // For now, we'll use a placeholder game ID since this is analytics screen
+    // In a real implementation, you might want to get the game ID from context or parameters
+    final gameId = 1; // Placeholder - you can modify this based on your needs
+    final userTeams = context.read<TeamCubit>().state.teams;
+    if (userTeams.isNotEmpty) {
+      final teamId = userTeams.first.id;
+      context.go('/games/$gameId/post-game-report?teamId=$teamId');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No team selected for post-game report')),
+      );
+    }
+  }
+
+  void _navigateToAdvancedPostGameReport() {
+    // For now, we'll use a placeholder game ID since this is analytics screen
+    // In a real implementation, you might want to get the game ID from context or parameters
+    final gameId = 1; // Placeholder - you can modify this based on your needs
+    context.go('/games/$gameId/advanced-report');
   }
 
   Future<void> _loadAnalytics() async {
@@ -75,10 +104,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         return;
       }
 
-      // Use custom games value if available, otherwise use selected last games
       final lastGamesToUse = _selectedLastGames == -1 ? _customLastGames : _selectedLastGames;
       
-      // Show loading message using post-frame callback to avoid build-time issues
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -100,6 +127,11 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         minPossessions: _minPossessions,
       );
 
+      // Validate the analytics data structure
+      if (analyticsData == null) {
+        throw Exception('Analytics data is null');
+      }
+
       setState(() {
         _analyticsData = analyticsData;
         _isLoading = false;
@@ -115,19 +147,36 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     final userTeams = context.watch<TeamCubit>().state.teams;
+    final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Advanced Analytics'),
+        title: Text(
+          'Game Analytics',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 24,
+            // Font suggestions: 'Poppins', 'Inter', 'Roboto', 'SF Pro Display'
+          ),
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // Clear cache and reload
-              GameRepository.clearAnalyticsCache();
-              _loadAnalytics();
-            },
-            tooltip: 'Refresh Analytics (Clear Cache)',
+            onPressed: _safeClearCacheAndReload,
+            tooltip: 'Refresh Analytics',
+          ),
+          IconButton(
+            icon: const Icon(Icons.analytics_outlined),
+            onPressed: _navigateToPostGameReport,
+            tooltip: 'Post Game Report',
+          ),
+          IconButton(
+            icon: const Icon(Icons.assessment),
+            onPressed: _navigateToAdvancedPostGameReport,
+            tooltip: 'Advanced Post-Game Report',
           ),
           IconButton(
             icon: const Icon(Icons.download),
@@ -138,8 +187,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
       ),
       body: Column(
         children: [
-          // Comprehensive Filters
-          _buildComprehensiveFilters(userTeams),
+          // Enhanced Filters Section
+          _buildEnhancedFilters(userTeams),
           
           // Analytics Content
           Expanded(
@@ -150,224 +199,297 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     );
   }
 
-  Widget _buildComprehensiveFilters(List<Team> userTeams) {
+  Widget _buildEnhancedFilters(List<Team> userTeams) {
+    final theme = Theme.of(context);
+    
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Advanced Filters',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.tune,
+                color: theme.colorScheme.primary,
+                size: 24,
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Row 1: Team and Quarter
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    value: _selectedTeamId,
-                    hint: const Text('Select Team'),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('All Teams')),
-                      ...userTeams.map((team) => DropdownMenuItem(
-                        value: team.id,
-                        child: Text(team.name),
-                      )),
-                    ],
+              const SizedBox(width: 12),
+              Text(
+                'Analytics Filters',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                  // Font suggestions: 'Poppins', 'Inter', 'Roboto'
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Team and Quarter Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildFilterDropdown<int?>(
+                  value: _selectedTeamId,
+                  hint: 'Select Team',
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Teams')),
+                    ...userTeams.map((team) => DropdownMenuItem(
+                      value: team.id,
+                      child: Text(team.name),
+                    )),
+                  ],
                     onChanged: (teamId) {
                       setState(() => _selectedTeamId = teamId);
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
+                      _safeClearCacheAndReload();
                     },
-                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    value: _selectedQuarter,
-                    hint: const Text('Quarter'),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('All Quarters')),
-                      const DropdownMenuItem<int?>(value: 1, child: Text('Q1')),
-                      const DropdownMenuItem<int?>(value: 2, child: Text('Q2')),
-                      const DropdownMenuItem<int?>(value: 3, child: Text('Q3')),
-                      const DropdownMenuItem<int?>(value: 4, child: Text('Q4')),
-                      const DropdownMenuItem<int?>(value: 5, child: Text('OT')),
-                    ],
-                    onChanged: (quarter) {
-                      setState(() => _selectedQuarter = quarter);
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Row 2: Last Games and Outcome
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    value: _selectedLastGames,
-                    hint: const Text('Last X Games'),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: const [
-                      DropdownMenuItem<int?>(value: null, child: Text('All Games')),
-                      DropdownMenuItem<int?>(value: 5, child: Text('Last 5 Games')),
-                      DropdownMenuItem<int?>(value: 10, child: Text('Last 10 Games')),
-                      DropdownMenuItem<int?>(value: 15, child: Text('Last 15 Games')),
-                      DropdownMenuItem<int?>(value: 20, child: Text('Last 20 Games')),
-                      DropdownMenuItem<int?>(value: 30, child: Text('Last 30 Games')),
-                      DropdownMenuItem<int?>(value: -1, child: Text('Custom...')),
-                    ],
-                    onChanged: (lastGames) {
-                      setState(() {
-                        _selectedLastGames = lastGames;
-                        if (lastGames != -1) {
-                          _customLastGames = null;
-                          _customGamesController.clear();
-                        }
-                      });
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    value: _selectedOutcome,
-                    hint: const Text('Outcome'),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('All Outcomes')),
-                      const DropdownMenuItem<String?>(value: 'W', child: Text('Wins')),
-                      const DropdownMenuItem<String?>(value: 'L', child: Text('Losses')),
-                    ],
-                    onChanged: (outcome) {
-                      setState(() => _selectedOutcome = outcome);
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Custom Games Input (shown when "Custom..." is selected)
-            if (_selectedLastGames == -1)
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _customGamesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Number of Games',
-                        hintText: 'Enter number of games (1-100)',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        final games = int.tryParse(value);
-                        setState(() => _customLastGames = games);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _customLastGames != null && _customLastGames! > 0 ? () {
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    } : null,
-                    child: const Text('Apply'),
-                  ),
-                ],
               ),
-            const SizedBox(height: 12),
-            
-            // Row 3: Home/Away and Min Possessions
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildFilterDropdown<int?>(
+                  value: _selectedQuarter,
+                  hint: 'Quarter',
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Quarters')),
+                    const DropdownMenuItem<int?>(value: 1, child: Text('Q1')),
+                    const DropdownMenuItem<int?>(value: 2, child: Text('Q2')),
+                    const DropdownMenuItem<int?>(value: 3, child: Text('Q3')),
+                    const DropdownMenuItem<int?>(value: 4, child: Text('Q4')),
+                    const DropdownMenuItem<int?>(value: 5, child: Text('OT')),
+                  ],
+                  onChanged: (quarter) {
+                    setState(() => _selectedQuarter = quarter);
+                    _safeClearCacheAndReload();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Last Games and Outcome Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildFilterDropdown<int?>(
+                  value: _selectedLastGames,
+                  hint: 'Last X Games',
+                  items: const [
+                    DropdownMenuItem<int?>(value: null, child: Text('All Games')),
+                    DropdownMenuItem<int?>(value: 5, child: Text('Last 5 Games')),
+                    DropdownMenuItem<int?>(value: 10, child: Text('Last 10 Games')),
+                    DropdownMenuItem<int?>(value: 15, child: Text('Last 15 Games')),
+                    DropdownMenuItem<int?>(value: 20, child: Text('Last 20 Games')),
+                    DropdownMenuItem<int?>(value: 30, child: Text('Last 30 Games')),
+                    DropdownMenuItem<int?>(value: -1, child: Text('Custom...')),
+                  ],
+                  onChanged: (lastGames) {
+                    setState(() {
+                      _selectedLastGames = lastGames;
+                      if (lastGames != -1) {
+                        _customLastGames = null;
+                        _customGamesController.clear();
+                      }
+                    });
+                    _safeClearCacheAndReload();
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildFilterDropdown<String?>(
+                  value: _selectedOutcome,
+                  hint: 'Outcome',
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Outcomes')),
+                    const DropdownMenuItem<String?>(value: 'W', child: Text('Wins')),
+                    const DropdownMenuItem<String?>(value: 'L', child: Text('Losses')),
+                  ],
+                  onChanged: (outcome) {
+                    setState(() => _selectedOutcome = outcome);
+                    _safeClearCacheAndReload();
+                  },
+                ),
+              ),
+            ],
+          ),
+          
+          // Custom Games Input
+          if (_selectedLastGames == -1) ...[
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    value: _selectedHomeAway,
-                    hint: const Text('Home/Away'),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('All Games')),
-                      const DropdownMenuItem<String?>(value: 'Home', child: Text('Home Games')),
-                      const DropdownMenuItem<String?>(value: 'Away', child: Text('Away Games')),
-                    ],
-                    onChanged: (homeAway) {
-                      setState(() => _selectedHomeAway = homeAway);
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    },
-                  ),
+                  child: _buildCustomInput(),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _minPossessions,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      labelText: 'Min Possessions',
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _customLastGames != null && _customLastGames! > 0 ? _safeClearCacheAndReload : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 5, child: Text('5+ Possessions')),
-                      DropdownMenuItem(value: 10, child: Text('10+ Possessions')),
-                      DropdownMenuItem(value: 15, child: Text('15+ Possessions')),
-                      DropdownMenuItem(value: 20, child: Text('20+ Possessions')),
-                    ],
-                    onChanged: (minPoss) {
-                      setState(() => _minPossessions = minPoss!);
-                      GameRepository.clearAnalyticsCache();
-                      _loadAnalytics();
-                    },
                   ),
+                  child: const Text('Apply'),
                 ),
               ],
             ),
           ],
+          
+          const SizedBox(height: 16),
+          
+          // Home/Away and Min Possessions Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildFilterDropdown<String?>(
+                  value: _selectedHomeAway,
+                  hint: 'Home/Away',
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Games')),
+                    const DropdownMenuItem<String?>(value: 'Home', child: Text('Home Games')),
+                    const DropdownMenuItem<String?>(value: 'Away', child: Text('Away Games')),
+                  ],
+                  onChanged: (homeAway) {
+                    setState(() => _selectedHomeAway = homeAway);
+                    _safeClearCacheAndReload();
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildFilterDropdown<int>(
+                  value: _minPossessions,
+                  hint: 'Min Possessions',
+                  items: const [
+                    DropdownMenuItem(value: 5, child: Text('5+ Possessions')),
+                    DropdownMenuItem(value: 10, child: Text('10+ Possessions')),
+                    DropdownMenuItem(value: 15, child: Text('15+ Possessions')),
+                    DropdownMenuItem(value: 20, child: Text('20+ Possessions')),
+                  ],
+                  onChanged: (minPoss) {
+                    setState(() => _minPossessions = minPoss!);
+                    _safeClearCacheAndReload();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    final theme = Theme.of(context);
+    
+    return DropdownButtonFormField<T?>(
+      value: value,
+      hint: Text(hint),
+      decoration: InputDecoration(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: theme.colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      items: items,
+      onChanged: onChanged,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: theme.colorScheme.onSurface,
+        // Font suggestions: 'Inter', 'Roboto', 'SF Pro Text'
+      ),
+    );
+  }
+
+  Widget _buildCustomInput() {
+    final theme = Theme.of(context);
+    
+    return TextFormField(
+      controller: _customGamesController,
+      decoration: InputDecoration(
+        labelText: 'Number of Games',
+        hintText: 'Enter number of games (1-100)',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: theme.colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      keyboardType: TextInputType.number,
+      onChanged: (value) {
+        final games = int.tryParse(value);
+        setState(() => _customLastGames = games);
+      },
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: theme.colorScheme.onSurface,
       ),
     );
   }
 
   Widget _buildAnalyticsContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading analytics...'),
+          ],
+        ),
+      );
     }
 
     if (_errorMessage != null) {
@@ -384,10 +506,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                GameRepository.clearAnalyticsCache();
-                _loadAnalytics();
-              },
+              onPressed: _safeClearCacheAndReload,
               child: const Text('Retry'),
             ),
           ],
@@ -405,288 +524,531 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          _buildSummarySection(),
+          _buildEnhancedSummarySection(),
           const SizedBox(height: 24),
-          _buildOffensiveAnalysisSection(),
+          _buildEnhancedOffensiveSection(),
           const SizedBox(height: 24),
-          _buildDefensiveAnalysisSection(),
+          _buildEnhancedDefensiveSection(),
           const SizedBox(height: 24),
-          _buildPlayerAnalysisSection(),
+          _buildEnhancedPlayerSection(),
           const SizedBox(height: 24),
-          _buildDetailedBreakdownSection(),
+          _buildEnhancedBreakdownSection(),
         ],
       ),
     );
   }
 
-  Widget _buildSummarySection() {
+  Widget _buildEnhancedSummarySection() {
+    if (_analyticsData == null || _analyticsData!['summary'] == null) {
+      return const SizedBox();
+    }
+    
     final summary = _analyticsData!['summary'] as Map<String, dynamic>;
+    final theme = Theme.of(context);
     
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Summary Statistics',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _SummaryCard(
-                  title: 'Total Possessions',
-                  value: summary['total_possessions'].toString(),
-                  icon: Icons.sports_basketball,
-                  color: Colors.blue,
-                ),
-                _SummaryCard(
-                  title: 'Offensive PPP',
-                  value: summary['offensive_ppp'].toString(),
-                  icon: Icons.trending_up,
-                  color: Colors.green,
-                ),
-                _SummaryCard(
-                  title: 'Defensive PPP',
-                  value: summary['defensive_ppp'].toString(),
-                  icon: Icons.shield,
-                  color: Colors.red,
-                ),
-                _SummaryCard(
-                  title: 'Avg Time',
-                  value: '${summary['avg_possession_time']}s',
-                  icon: Icons.timer,
-                  color: Colors.orange,
-                ),
-              ],
-            ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primary.withOpacity(0.1),
+            theme.colorScheme.secondary.withOpacity(0.1),
           ],
         ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.analytics,
+                color: theme.colorScheme.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Summary Statistics',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                  // Font suggestions: 'Poppins', 'Inter', 'Roboto'
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              _EnhancedSummaryCard(
+                title: 'Total Possessions',
+                value: (summary['total_possessions'] ?? 0).toString(),
+                icon: Icons.sports_basketball,
+                color: Colors.blue,
+              ),
+              _EnhancedSummaryCard(
+                title: 'Offensive PPP',
+                value: (summary['offensive_ppp'] ?? 0.0).toString(),
+                icon: Icons.trending_up,
+                color: Colors.green,
+              ),
+              _EnhancedSummaryCard(
+                title: 'Defensive PPP',
+                value: (summary['defensive_ppp'] ?? 0.0).toString(),
+                icon: Icons.shield,
+                color: Colors.red,
+              ),
+              _EnhancedSummaryCard(
+                title: 'Avg Time',
+                value: '${summary['avg_possession_time'] ?? 0}s',
+                icon: Icons.timer,
+                color: Colors.orange,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildOffensiveAnalysisSection() {
+  Widget _buildEnhancedOffensiveSection() {
+    if (_analyticsData == null || _analyticsData!['offensive_analysis'] == null) {
+      return const SizedBox();
+    }
+    
     final offensive = _analyticsData!['offensive_analysis'] as Map<String, dynamic>;
+    final theme = Theme.of(context);
     
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Offensive Analysis',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // PnR Analysis
-            if (offensive['pnr_analysis'] != null && offensive['pnr_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Pick & Roll', offensive['pnr_analysis']),
-            
-            // Paint Touch Analysis
-            if (offensive['paint_touch_analysis'] != null && offensive['paint_touch_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Paint Touch', offensive['paint_touch_analysis']),
-            
-            // Kick Out Analysis
-            if (offensive['kick_out_analysis'] != null && offensive['kick_out_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Kick Out', offensive['kick_out_analysis']),
-            
-            // Extra Pass Analysis
-            if (offensive['extra_pass_analysis'] != null && offensive['extra_pass_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Extra Pass', offensive['extra_pass_analysis']),
-            
-            // Offensive Rebound Analysis
-            if (offensive['offensive_rebound_analysis'] != null && offensive['offensive_rebound_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Offensive Rebound', offensive['offensive_rebound_analysis']),
-            
-            // Shot Time Analysis
-            if (offensive['shot_time_analysis'] != null && offensive['shot_time_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Shot Time', offensive['shot_time_analysis']),
-            
-            // After Timeout Analysis
-            if (offensive['after_timeout_analysis'] != null && offensive['after_timeout_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('After Timeout', offensive['after_timeout_analysis']),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.sports_soccer,
+                color: Colors.green,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Offensive Analysis',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          if (offensive['pnr_analysis'] != null && offensive['pnr_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Pick & Roll', offensive['pnr_analysis'], Colors.green),
+          
+          if (offensive['paint_touch_analysis'] != null && offensive['paint_touch_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Paint Touch', offensive['paint_touch_analysis'], Colors.blue),
+          
+          if (offensive['kick_out_analysis'] != null && offensive['kick_out_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Kick Out', offensive['kick_out_analysis'], Colors.purple),
+          
+          if (offensive['extra_pass_analysis'] != null && offensive['extra_pass_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Extra Pass', offensive['extra_pass_analysis'], Colors.orange),
+          
+          if (offensive['offensive_rebound_analysis'] != null && offensive['offensive_rebound_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Offensive Rebound', offensive['offensive_rebound_analysis'], Colors.teal),
+          
+          if (offensive['shot_time_analysis'] != null && offensive['shot_time_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Shot Time', offensive['shot_time_analysis'], Colors.indigo),
+          
+          if (offensive['after_timeout_analysis'] != null && offensive['after_timeout_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('After Timeout', offensive['after_timeout_analysis'], Colors.amber),
+        ],
       ),
     );
   }
 
-  Widget _buildDefensiveAnalysisSection() {
+  Widget _buildEnhancedDefensiveSection() {
+    if (_analyticsData == null || _analyticsData!['defensive_analysis'] == null) {
+      return const SizedBox();
+    }
+    
     final defensive = _analyticsData!['defensive_analysis'] as Map<String, dynamic>;
+    final theme = Theme.of(context);
     
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Defensive Analysis',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // PnR Defense
-            if (defensive['pnr_defense'] != null && defensive['pnr_defense'].isNotEmpty)
-              _buildAnalysisSubsection('PnR Defense', defensive['pnr_defense']),
-            
-            // Box Out Analysis
-            if (defensive['box_out_analysis'] != null && defensive['box_out_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Box Out', defensive['box_out_analysis']),
-            
-            // Defensive Rebound Analysis
-            if (defensive['defensive_rebound_analysis'] != null && defensive['defensive_rebound_analysis'].isNotEmpty)
-              _buildAnalysisSubsection('Defensive Rebound', defensive['defensive_rebound_analysis']),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.shield,
+                color: Colors.red,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Defensive Analysis',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          if (defensive['pnr_defense'] != null && defensive['pnr_defense'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('PnR Defense', defensive['pnr_defense'], Colors.red),
+          
+          if (defensive['box_out_analysis'] != null && defensive['box_out_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Box Out', defensive['box_out_analysis'], Colors.deepOrange),
+          
+          if (defensive['defensive_rebound_analysis'] != null && defensive['defensive_rebound_analysis'].isNotEmpty)
+            _buildEnhancedAnalysisSubsection('Defensive Rebound', defensive['defensive_rebound_analysis'], Colors.pink),
+        ],
       ),
     );
   }
 
-  Widget _buildPlayerAnalysisSection() {
+  Widget _buildEnhancedPlayerSection() {
+    if (_analyticsData == null || _analyticsData!['player_analysis'] == null) {
+      return const SizedBox();
+    }
+    
     final playerAnalysis = _analyticsData!['player_analysis'] as Map<String, dynamic>;
     final players = playerAnalysis['players'] as Map<String, dynamic>?;
+    final theme = Theme.of(context);
     
     if (players == null || players.isEmpty) {
       return const SizedBox();
     }
     
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Player Performance (${playerAnalysis['min_possessions_threshold']}+ possessions)',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.person,
+                color: theme.colorScheme.primary,
+                size: 28,
               ),
-            ),
-            const SizedBox(height: 16),
-            ...players.entries.map((entry) {
-              final player = entry.value as Map<String, dynamic>;
-              return ListTile(
-                title: Text(player['player_name']),
-                subtitle: Text('${player['possessions']} possessions'),
-                trailing: Text(
-                  '${player['ppp']} PPP',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+              const SizedBox(width: 12),
+              Text(
+                'Player Performance (${playerAnalysis['min_possessions_threshold']}+ possessions)',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailedBreakdownSection() {
-    final breakdown = _analyticsData!['detailed_breakdown'] as Map<String, dynamic>;
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Detailed Breakdown',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Quarter Breakdown
-            if (breakdown['quarter_breakdown'] != null && breakdown['quarter_breakdown'].isNotEmpty)
-              _buildBreakdownSubsection('Quarter Breakdown', breakdown['quarter_breakdown']),
-            
-            // Home/Away Breakdown
-            if (breakdown['home_away_breakdown'] != null && breakdown['home_away_breakdown'].isNotEmpty)
-              _buildBreakdownSubsection('Home/Away Breakdown', breakdown['home_away_breakdown']),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...players.entries.map((entry) {
+            final player = entry.value as Map<String, dynamic>;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                    child: Text(
+                      player['player_name'][0].toUpperCase(),
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          player['player_name'],
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '${player['possessions']} possessions',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      '${player['ppp']} PPP',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
 
-  Widget _buildAnalysisSubsection(String title, Map<String, dynamic> data) {
+  Widget _buildEnhancedBreakdownSection() {
+    if (_analyticsData == null || _analyticsData!['detailed_breakdown'] == null) {
+      return const SizedBox();
+    }
+    
+    final breakdown = _analyticsData!['detailed_breakdown'] as Map<String, dynamic>;
+    final theme = Theme.of(context);
+    
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.bar_chart,
+                color: theme.colorScheme.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Detailed Breakdown',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          if (breakdown['quarter_breakdown'] != null && breakdown['quarter_breakdown'].isNotEmpty)
+            _buildEnhancedBreakdownSubsection('Quarter Breakdown', breakdown['quarter_breakdown'], Colors.blue),
+          
+          if (breakdown['home_away_breakdown'] != null && breakdown['home_away_breakdown'].isNotEmpty)
+            _buildEnhancedBreakdownSubsection('Home/Away Breakdown', breakdown['home_away_breakdown'], Colors.purple),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedAnalysisSubsection(String title, Map<String, dynamic> data, Color color) {
+    final theme = Theme.of(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: color,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 12,
+          runSpacing: 12,
           children: data.entries.map((entry) {
             final key = entry.key;
             final value = entry.value;
             
             if (value is Map<String, dynamic>) {
-              return _AnalysisChip(
+              return _EnhancedAnalysisChip(
                 label: key,
                 value: value,
+                color: color,
               );
             } else {
-              return _AnalysisChip(
+              return _EnhancedAnalysisChip(
                 label: key,
                 value: {'value': value},
+                color: color,
               );
             }
           }).toList(),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildBreakdownSubsection(String title, Map<String, dynamic> data) {
+  Widget _buildEnhancedBreakdownSubsection(String title, Map<String, dynamic> data, Color color) {
+    final theme = Theme.of(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: color,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         ...data.entries.map((entry) {
           final period = entry.key;
           final stats = entry.value as Map<String, dynamic>;
-          return ListTile(
-            title: Text(period),
-            subtitle: Text('${stats['possessions']} possessions'),
-            trailing: Text(
-              '${stats['ppp']} PPP',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.1),
               ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    period,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    '${stats['possessions']} possessions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    '${stats['ppp']} PPP',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -705,10 +1067,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         return;
       }
 
-      // Use custom games value if available, otherwise use selected last games
       final lastGamesToUse = _selectedLastGames == -1 ? _customLastGames : _selectedLastGames;
 
-      // Export PDF with current filter settings and save as scouting report
       final reportData = await sl<GameRepository>().exportAnalyticsPDF(
         token: token,
         teamId: _selectedTeamId,
@@ -723,7 +1083,6 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         _isLoading = false;
       });
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Report "${reportData['title']}" saved to Scouting Reports'),
@@ -733,7 +1092,6 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
             label: 'View Reports',
             textColor: Colors.white,
             onPressed: () {
-              // Navigate to scouting reports screen
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const ScoutingReportsScreen(),
@@ -756,17 +1114,15 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
       );
     }
   }
-
-
 }
 
-class _SummaryCard extends StatelessWidget {
+class _EnhancedSummaryCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
   final Color color;
   
-  const _SummaryCard({
+  const _EnhancedSummaryCard({
     required this.title,
     required this.value,
     required this.icon,
@@ -775,30 +1131,45 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 28, color: color),
+            ),
+            const SizedBox(height: 12),
             Text(
               value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
                 color: color,
+                // Font suggestions: 'Poppins', 'Inter', 'Roboto'
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
                 color: color.withOpacity(0.8),
+                // Font suggestions: 'Inter', 'Roboto', 'SF Pro Text'
               ),
               textAlign: TextAlign.center,
             ),
@@ -809,17 +1180,21 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _AnalysisChip extends StatelessWidget {
+class _EnhancedAnalysisChip extends StatelessWidget {
   final String label;
   final Map<String, dynamic> value;
+  final Color color;
   
-  const _AnalysisChip({
+  const _EnhancedAnalysisChip({
     required this.label,
     required this.value,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     String displayValue = '';
     if (value.containsKey('ppp')) {
       displayValue = '${value['ppp']} PPP';
@@ -830,24 +1205,31 @@ class _AnalysisChip extends StatelessWidget {
     }
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: color,
+              // Font suggestions: 'Inter', 'Roboto', 'SF Pro Text'
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             displayValue,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.blue,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+              // Font suggestions: 'Inter', 'Roboto', 'SF Pro Text'
             ),
           ),
         ],
