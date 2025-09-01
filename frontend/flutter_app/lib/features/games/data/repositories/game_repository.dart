@@ -305,6 +305,9 @@ class GameRepository {
     String? homeAway,
     int? minPossessions,
   }) async {
+    // Ensure analytics cache is initialized
+    _ensureAnalyticsCacheInitialized();
+    
     final queryParams = <String, String>{};
     
     if (teamId != null) queryParams['team_id'] = teamId.toString();
@@ -321,12 +324,17 @@ class GameRepository {
     
     // Check cache
     final now = DateTime.now();
-    if (_analyticsCache.containsKey(cacheKey)) {
-      final cacheTime = _analyticsCacheTime[cacheKey];
-      if (cacheTime != null && now.difference(cacheTime).inMinutes < 5) {
-        logger.d('GameRepository: Returning cached comprehensive analytics');
-        return _analyticsCache[cacheKey]!;
+    try {
+      if (_analyticsCache.containsKey(cacheKey)) {
+        final cacheTime = _analyticsCacheTime[cacheKey];
+        if (cacheTime != null && now.difference(cacheTime).inMinutes < 5) {
+          logger.d('GameRepository: Returning cached comprehensive analytics');
+          return _analyticsCache[cacheKey]!;
+        }
       }
+    } catch (e) {
+      logger.w('GameRepository: Error checking analytics cache: $e');
+      // Continue without cache if there's an error
     }
     
     final url = Uri.parse('${ApiClient.baseUrl}/games/comprehensive_analytics/').replace(
@@ -346,8 +354,13 @@ class GameRepository {
         final data = json.decode(response.body);
         
         // Cache the result
-        _analyticsCache[cacheKey] = data;
-        _analyticsCacheTime[cacheKey] = now;
+        try {
+          _analyticsCache[cacheKey] = data;
+          _analyticsCacheTime[cacheKey] = now;
+        } catch (e) {
+          logger.w('GameRepository: Error caching analytics data: $e');
+          // Continue without caching if there's an error
+        }
         
         return data;
       } else {
@@ -518,18 +531,30 @@ class GameRepository {
   /// Clear the analytics cache
   static void clearAnalyticsCache() {
     try {
-      _analyticsCache.clear();
-      _analyticsCacheTime.clear();
+      // Check if the maps exist and are accessible
+      if (_analyticsCache.isNotEmpty) {
+        _analyticsCache.clear();
+      }
+      if (_analyticsCacheTime.isNotEmpty) {
+        _analyticsCacheTime.clear();
+      }
       logger.d('GameRepository: Analytics cache cleared');
     } catch (e) {
       logger.w('GameRepository: Error clearing analytics cache: $e');
-      // Reinitialize the cache maps if they're corrupted
-      try {
-        _analyticsCache.clear();
-        _analyticsCacheTime.clear();
-      } catch (e2) {
-        logger.e('GameRepository: Failed to reinitialize analytics cache: $e2');
+      // Don't try to reinitialize - just log the error and continue
+      // The cache will be recreated when needed
+    }
+  }
+
+  /// Initialize analytics cache if needed
+  static void _ensureAnalyticsCacheInitialized() {
+    try {
+      // This will trigger the static initialization if not already done
+      if (_analyticsCache.isEmpty && _analyticsCacheTime.isEmpty) {
+        logger.d('GameRepository: Analytics cache initialized');
       }
+    } catch (e) {
+      logger.w('GameRepository: Error initializing analytics cache: $e');
     }
   }
 }

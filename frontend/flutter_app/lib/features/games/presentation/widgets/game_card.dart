@@ -374,7 +374,7 @@ class _StatItem extends StatelessWidget {
 // Keep the old classes for backward compatibility
 class _TeamDisplay extends StatelessWidget {
   final Team? team;
-  const _TeamDisplay({this.team});
+  const _TeamDisplay(this.team);
 
   @override
   Widget build(BuildContext context) {

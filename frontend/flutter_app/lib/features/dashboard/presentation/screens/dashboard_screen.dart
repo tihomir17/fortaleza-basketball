@@ -29,6 +29,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _refreshSignal.addListener(_refreshDashboard);
+    
+    // Load dashboard data when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        print('DashboardScreen: Loading dashboard data on init');
+        context.read<DashboardCubit>().loadDashboardData();
+      }
+    });
   }
 
   @override
@@ -55,13 +63,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (authState.status == AuthStatus.authenticated && authState.user != null) {
             return BlocBuilder<DashboardCubit, DashboardState>(
               builder: (context, dashboardState) {
+                print('DashboardScreen: Current state: ${dashboardState.runtimeType}');
                 if (dashboardState is DashboardLoading) {
+                  print('DashboardScreen: Showing loading state');
                   return const Center(child: CircularProgressIndicator());
                 } else if (dashboardState is DashboardError) {
+                  print('DashboardScreen: Showing error state: ${dashboardState.message}');
                   return _buildErrorState(dashboardState.message);
                 } else if (dashboardState is DashboardLoaded) {
+                  print('DashboardScreen: Showing loaded state with ${dashboardState.dashboardData.quickStats.totalGames} games');
                   return _buildDashboardContent(dashboardState.dashboardData);
                 } else {
+                  print('DashboardScreen: Showing initial state (loading)');
                   return const Center(child: CircularProgressIndicator());
                 }
               },
@@ -113,40 +126,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onRefresh: () async {
         context.read<DashboardCubit>().refresh();
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Quick Stats Card
-            QuickStatsCard(stats: dashboardData.quickStats ?? QuickStats(totalGames: 0, totalPossessions: 0, recentPossessions: 0, avgPossessionsPerGame: 0.0)),
-            const SizedBox(height: 16),
-            
-            // Quick Actions Grid
-            QuickActionsGrid(actions: dashboardData.quickActions ?? []),
-            const SizedBox(height: 16),
-            
-            // Upcoming Games
-            UpcomingGamesList(games: dashboardData.upcomingGames ?? []),
-            const SizedBox(height: 16),
-            
-            // Recent Games
-            RecentGamesList(games: dashboardData.recentGames ?? []),
-            const SizedBox(height: 16),
-            
-            // Recent Activity
-            RecentActivityList(activities: dashboardData.recentActivity ?? []),
-            const SizedBox(height: 16),
-            
-            // Recent Reports (if any)
-            if ((dashboardData.recentReports ?? []).isNotEmpty) ...[
-              _buildRecentReportsCard(dashboardData.recentReports ?? []),
-              const SizedBox(height: 16),
+              child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Quick Stats Card
+              QuickStatsCard(stats: dashboardData.quickStats ?? QuickStats(totalGames: 0, totalPossessions: 0, recentPossessions: 0, avgPossessionsPerGame: 0.0)),
+              const SizedBox(height: 12),
+              
+              // Quick Actions Grid
+              QuickActionsGrid(actions: dashboardData.quickActions ?? []),
+              const SizedBox(height: 12),
+              
+              // Upcoming Games
+              UpcomingGamesList(games: dashboardData.upcomingGames ?? []),
+              const SizedBox(height: 12),
+              
+              // Recent Games
+              RecentGamesList(games: dashboardData.recentGames ?? []),
+              const SizedBox(height: 12),
+              
+              // Recent Activity
+              RecentActivityList(activities: dashboardData.recentActivity ?? []),
+              const SizedBox(height: 12),
+              
+              // Recent Reports (if any)
+              if ((dashboardData.recentReports ?? []).isNotEmpty) ...[
+                _buildRecentReportsCard(dashboardData.recentReports ?? []),
+                const SizedBox(height: 12),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
     );
   }
 

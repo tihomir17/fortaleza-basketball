@@ -20,6 +20,7 @@ class ApiService {
   Future<http.Response> get(String endpoint) async {
     final url = Uri.parse('${ApiClient.baseUrl}$endpoint');
     logger.d('ApiService: GET request to $url');
+    logger.d('ApiService: Auth token present: ${_authToken != null}');
     
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -27,6 +28,9 @@ class ApiService {
     
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
+      logger.d('ApiService: Added Authorization header');
+    } else {
+      logger.w('ApiService: No auth token available');
     }
 
     try {

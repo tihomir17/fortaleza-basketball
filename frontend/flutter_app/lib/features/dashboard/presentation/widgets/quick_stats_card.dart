@@ -13,7 +13,7 @@ class QuickStatsCard extends StatelessWidget {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -22,17 +22,18 @@ class QuickStatsCard extends StatelessWidget {
                 Icon(
                   Icons.analytics_outlined,
                   color: Theme.of(context).colorScheme.primary,
+                  size: 20,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   'Quick Stats',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -51,7 +52,7 @@ class QuickStatsCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -94,13 +95,13 @@ class _StatItem extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: 24,
+          size: 20,
           color: Theme.of(context).colorScheme.secondary,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.primary,
           ),

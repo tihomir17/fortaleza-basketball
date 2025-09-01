@@ -154,7 +154,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => sl<GameCubit>()),
         BlocProvider(create: (context) => sl<CalendarCubit>()),
         BlocProvider(create: (context) => sl<PlayCategoryCubit>()),
-        BlocProvider(create: (context) => sl<DashboardCubit>()),
+        BlocProvider.value(value: sl<DashboardCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {

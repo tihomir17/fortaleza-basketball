@@ -14,7 +14,7 @@ class QuickActionsGrid extends StatelessWidget {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -23,25 +23,26 @@ class QuickActionsGrid extends StatelessWidget {
                 Icon(
                   Icons.flash_on_outlined,
                   color: Theme.of(context).colorScheme.primary,
+                  size: 20,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   'Quick Actions',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1.0,
               ),
               itemCount: actions.length,
               itemBuilder: (context, index) {
@@ -79,13 +80,13 @@ class _ActionCard extends StatelessWidget {
           children: [
             Icon(
               _getIconData(action.icon),
-              size: 32,
+              size: 24,
               color: Theme.of(context).colorScheme.primary,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               action.title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,

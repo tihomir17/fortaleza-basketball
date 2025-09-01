@@ -87,11 +87,11 @@ class RecentActivity {
     return RecentActivity(
       id: json['id'],
       game: GameInfo.fromJson(json['game']),
-      team: json['team'],
+      team: json['team'] ?? '',
       opponent: json['opponent'],
-      quarter: json['quarter'],
-      outcome: json['outcome'],
-      offensiveSet: json['offensive_set'],
+      quarter: json['quarter'] ?? 1,
+      outcome: json['outcome'] ?? '',
+      offensiveSet: json['offensive_set'] ?? '',
       createdAt: DateTime.parse(json['created_at']),
     );
   }
@@ -112,9 +112,9 @@ class GameInfo {
 
   factory GameInfo.fromJson(Map<String, dynamic> json) {
     return GameInfo(
-      id: json['id'],
-      homeTeam: json['home_team'],
-      awayTeam: json['away_team'],
+      id: json['id'] ?? 0,
+      homeTeam: json['home_team'] ?? '',
+      awayTeam: json['away_team'] ?? '',
       gameDate: DateTime.parse(json['game_date']),
     );
   }
@@ -143,10 +143,10 @@ class UpcomingGame {
 
   factory UpcomingGame.fromJson(Map<String, dynamic> json) {
     return UpcomingGame(
-      id: json['id'],
-      homeTeam: json['home_team'],
-      awayTeam: json['away_team'],
-      competition: json['competition'],
+      id: json['id'] ?? 0,
+      homeTeam: json['home_team'] ?? '',
+      awayTeam: json['away_team'] ?? '',
+      competition: json['competition'] ?? '',
       gameDate: DateTime.parse(json['game_date']),
       homeTeamScore: json['home_team_score'] ?? 0,
       awayTeamScore: json['away_team_score'] ?? 0,
@@ -174,10 +174,10 @@ class RecentReport {
 
   factory RecentReport.fromJson(Map<String, dynamic> json) {
     return RecentReport(
-      id: json['id'],
-      title: json['title'],
-      team: json['team'],
-      createdBy: json['created_by'],
+      id: json['id'] ?? 0,
+      title: json['title'] ?? '',
+      team: json['team'] ?? '',
+      createdBy: json['created_by'] ?? '',
       createdAt: DateTime.parse(json['created_at']),
       fileSizeMb: (json['file_size_mb'] ?? 0.0).toDouble(),
     );
@@ -197,9 +197,9 @@ class QuickAction {
 
   factory QuickAction.fromJson(Map<String, dynamic> json) {
     return QuickAction(
-      title: json['title'],
-      icon: json['icon'],
-      route: json['route'],
+      title: json['title'] ?? '',
+      icon: json['icon'] ?? '',
+      route: json['route'] ?? '',
     );
   }
 }

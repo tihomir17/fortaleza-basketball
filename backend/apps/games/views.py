@@ -746,11 +746,6 @@ class GameViewSet(viewsets.ModelViewSet):
                         "icon": "sports_basketball",
                         "route": "/games/add",
                     },
-                    {
-                        "title": "Generate Report",
-                        "icon": "assessment",
-                        "route": "/games/export",
-                    },
                     {"title": "Team Management", "icon": "group", "route": "/teams"},
                     {
                         "title": "Playbook Editor",
