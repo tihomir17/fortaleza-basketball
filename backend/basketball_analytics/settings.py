@@ -287,5 +287,5 @@ LOGGING = {
 SLOW_QUERY_MS = 100  # tuned threshold
 
 # Media files (uploads)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

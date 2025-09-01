@@ -1,6 +1,9 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/services/api_service.dart';
+import 'package:flutter_app/features/dashboard/data/services/dashboard_service.dart';
+import 'package:flutter_app/features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
@@ -56,6 +59,7 @@ void setupServiceLocator() {
   sl.registerSingleton<AuthRepository>(AuthRepository());
   sl.registerSingleton<UserRepository>(UserRepository());
   sl.registerSingleton<RefreshSignal>(RefreshSignal());
+  sl.registerSingleton<ApiService>(ApiService());
 
   // Repositories (Stateless, can live for the whole session)
   sl.registerLazySingleton<TeamRepository>(() => TeamRepository());
@@ -92,6 +96,9 @@ void setupServiceLocator() {
   sl.registerLazySingleton<PlayCategoryCubit>(
     () => PlayCategoryCubit(playRepository: sl<PlayRepository>()),
   );
+  sl.registerLazySingleton<DashboardCubit>(
+    () => DashboardCubit(DashboardService(sl<ApiService>())),
+  );
   // Factories for screen-specific state
   sl.registerFactory<TeamDetailCubit>(
     () => TeamDetailCubit(teamRepository: sl<TeamRepository>()),
@@ -108,10 +115,10 @@ void setupServiceLocator() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize file logger
   await FileLogger().initialize();
-  
+
   setupServiceLocator();
   await sl<AuthCubit>().checkAuthentication();
   runApp(MyApp());
@@ -147,6 +154,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => sl<GameCubit>()),
         BlocProvider(create: (context) => sl<CalendarCubit>()),
         BlocProvider(create: (context) => sl<PlayCategoryCubit>()),
+        BlocProvider(create: (context) => sl<DashboardCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, authState) {

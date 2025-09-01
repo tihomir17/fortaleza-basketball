@@ -27,6 +27,8 @@ import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';
+import '../../features/games/presentation/screens/schedule_game_screen.dart';
+import '../../features/calendar/presentation/screens/schedule_event_screen.dart';
 import '../debug/debug_screen.dart';
 
 class AppRouter {
@@ -99,6 +101,10 @@ class AppRouter {
             builder: (context, state) => const GamesScreen(),
             routes: [
               GoRoute(
+                path: 'add',
+                builder: (context, state) => const ScheduleGameScreen(),
+              ),
+              GoRoute(
                 path: ':gameId',
                 builder: (context, state) {
                   final gameId =
@@ -154,6 +160,18 @@ class AppRouter {
           GoRoute(
             path: '/calendar',
             builder: (context, state) => const CalendarScreen(),
+          ),
+          GoRoute(
+            path: '/events',
+            builder: (context, state) => const CalendarScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) => ScheduleEventScreen(
+                  initialDate: DateTime.now(),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/scouting-reports',
