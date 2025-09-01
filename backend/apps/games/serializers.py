@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from django.db import models
-from .models import Game
+from .models import Game, ScoutingReport
 from apps.teams.models import Team
 from apps.teams.serializers import TeamReadSerializer
 from apps.possessions.nested_serializers import PossessionInGameSerializer
@@ -135,3 +135,27 @@ class GameReadLightweightSerializer(serializers.ModelSerializer):
             "home_team_score",
             "away_team_score",
         ]
+
+
+# --- SCOUTING REPORT SERIALIZER ---
+class ScoutingReportSerializer(serializers.ModelSerializer):
+    team = TeamReadSerializer(read_only=True)
+    created_by = serializers.StringRelatedField(read_only=True)
+    file_size_mb = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ScoutingReport
+        fields = [
+            'id', 'title', 'description', 'file_size', 'file_size_mb', 
+            'download_url', 'team', 'quarter_filter', 'last_games', 
+            'outcome_filter', 'home_away_filter', 'min_possessions',
+            'created_by', 'created_at'
+        ]
+        read_only_fields = ['file_size', 'created_by', 'created_at']
+    
+    def get_file_size_mb(self, obj):
+        return obj.get_file_size_mb()
+    
+    def get_download_url(self, obj):
+        return obj.get_download_url()

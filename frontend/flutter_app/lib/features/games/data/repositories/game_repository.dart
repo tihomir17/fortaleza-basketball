@@ -3,6 +3,7 @@
 // ignore_for_file: unused_import
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
@@ -289,5 +290,235 @@ class GameRepository {
       logger.e('GameRepository: Error fetching post-game report: $e');
       throw Exception('Error fetching post-game report: $e');
     }
+  }
+
+  // Cache for comprehensive analytics (5 minutes)
+  static final Map<String, Map<String, dynamic>> _analyticsCache = {};
+  static final Map<String, DateTime> _analyticsCacheTime = {};
+
+  Future<Map<String, dynamic>> getComprehensiveAnalytics({
+    required String token,
+    int? teamId,
+    int? quarter,
+    int? lastGames,
+    String? outcome,
+    String? homeAway,
+    int? minPossessions,
+  }) async {
+    final queryParams = <String, String>{};
+    
+    if (teamId != null) queryParams['team_id'] = teamId.toString();
+    if (quarter != null) queryParams['quarter'] = quarter.toString();
+    if (lastGames != null) queryParams['last_games'] = lastGames.toString();
+    if (outcome != null) queryParams['outcome'] = outcome;
+    if (homeAway != null) queryParams['home_away'] = homeAway;
+    if (minPossessions != null) queryParams['min_possessions'] = minPossessions.toString();
+    
+    // Create cache key
+    final cacheKey = queryParams.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('&');
+    
+    // Check cache
+    final now = DateTime.now();
+    if (_analyticsCache.containsKey(cacheKey)) {
+      final cacheTime = _analyticsCacheTime[cacheKey];
+      if (cacheTime != null && now.difference(cacheTime).inMinutes < 5) {
+        logger.d('GameRepository: Returning cached comprehensive analytics');
+        return _analyticsCache[cacheKey]!;
+      }
+    }
+    
+    final url = Uri.parse('${ApiClient.baseUrl}/games/comprehensive_analytics/').replace(
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    );
+    
+    logger.d('GameRepository: Fetching comprehensive analytics with params: $queryParams');
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Comprehensive analytics loaded successfully');
+        final data = json.decode(response.body);
+        
+        // Cache the result
+        _analyticsCache[cacheKey] = data;
+        _analyticsCacheTime[cacheKey] = now;
+        
+        return data;
+      } else {
+        logger.e('GameRepository: Failed to load comprehensive analytics. Status: ${response.statusCode}');
+        throw Exception('Failed to load comprehensive analytics');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching comprehensive analytics: $e');
+      throw Exception('Error fetching comprehensive analytics: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> exportAnalyticsPDF({
+    required String token,
+    int? teamId,
+    int? quarter,
+    int? lastGames,
+    String? outcome,
+    String? homeAway,
+    int? minPossessions,
+  }) async {
+    final queryParams = <String, String>{};
+    
+    if (teamId != null) queryParams['team_id'] = teamId.toString();
+    if (quarter != null) queryParams['quarter'] = quarter.toString();
+    if (lastGames != null) queryParams['last_games'] = lastGames.toString();
+    if (outcome != null) queryParams['outcome'] = outcome;
+    if (homeAway != null) queryParams['home_away'] = homeAway;
+    if (minPossessions != null) queryParams['min_possessions'] = minPossessions.toString();
+    
+    final url = Uri.parse('${ApiClient.baseUrl}/games/export_analytics_pdf/').replace(
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    );
+    
+    logger.d('GameRepository: Exporting analytics PDF with params: $queryParams');
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Analytics PDF exported successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to export analytics PDF. Status: ${response.statusCode}');
+        throw Exception('Failed to export analytics PDF');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error exporting analytics PDF: $e');
+      throw Exception('Error exporting analytics PDF: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getScoutingReports({
+    required String token,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/scouting_reports/');
+    
+    logger.d('GameRepository: Fetching scouting reports');
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Scouting reports loaded successfully');
+        final List<dynamic> data = json.decode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        logger.e('GameRepository: Failed to load scouting reports. Status: ${response.statusCode}');
+        throw Exception('Failed to load scouting reports');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching scouting reports: $e');
+      throw Exception('Error fetching scouting reports: $e');
+    }
+  }
+
+  Future<Uint8List> downloadScoutingReport({
+    required String token,
+    required int reportId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$reportId/download_report/');
+    
+    logger.d('GameRepository: Downloading scouting report $reportId');
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Scouting report downloaded successfully');
+        return response.bodyBytes;
+      } else {
+        logger.e('GameRepository: Failed to download scouting report. Status: ${response.statusCode}');
+        throw Exception('Failed to download scouting report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error downloading scouting report: $e');
+      throw Exception('Error downloading scouting report: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> renameScoutingReport({
+    required String token,
+    required int reportId,
+    required String newTitle,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$reportId/rename_report/');
+    
+    logger.d('GameRepository: Renaming scouting report $reportId to "$newTitle"');
+
+    try {
+      final response = await _client.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'title': newTitle}),
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Scouting report renamed successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to rename scouting report. Status: ${response.statusCode}');
+        throw Exception('Failed to rename scouting report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error renaming scouting report: $e');
+      throw Exception('Error renaming scouting report: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> cleanupCorruptedReports({
+    required String token,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/cleanup_corrupted_reports/');
+    
+    logger.d('GameRepository: Cleaning up corrupted reports');
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Corrupted reports cleaned up successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to cleanup corrupted reports. Status: ${response.statusCode}');
+        throw Exception('Failed to cleanup corrupted reports');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error cleaning up corrupted reports: $e');
+      throw Exception('Error cleaning up corrupted reports: $e');
+    }
+  }
+
+  /// Clear the analytics cache
+  static void clearAnalyticsCache() {
+    _analyticsCache.clear();
+    _analyticsCacheTime.clear();
+    logger.d('GameRepository: Analytics cache cleared');
   }
 }

@@ -943,7 +943,7 @@ class _PlayersPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get players from both teams and sort by jersey number
-    final homeTeamPlayers = (game.homeTeam.players ?? [])
+    final homeTeamPlayers = (game.homeTeam.players)
         .where((player) => player.jerseyNumber != null)
         .toList()
       ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
