@@ -5,9 +5,12 @@ from apps.games.models import Game, GameRoster
 from apps.competitions.models import Competition
 from apps.possessions.models import Possession
 from apps.users.models import User
+from apps.plays.models import PlayCategory, PlayDefinition
 from datetime import date, time, timedelta, datetime
 import random
 import math
+import os
+import json
 
 User = get_user_model()
 
@@ -67,22 +70,31 @@ class Command(BaseCommand):
                 )
                 return
 
+        # Verify database is empty BEFORE creating any data
+        self.verify_database_empty()
+
         self.stdout.write("Creating admin user...")
         admin_user = self.create_admin_user()
+
+        self.stdout.write("Loading play definitions...")
+        self.load_play_definitions(admin_user)
 
         self.stdout.write("Creating competitions for multiple seasons...")
         competitions = self.create_seasons(admin_user)
 
-        # Verify database is empty
-        self.verify_database_empty()
-
         self.stdout.write("Creating teams with Brazilian basketball characteristics...")
         teams = self.create_realistic_teams(admin_user)
+
+        self.stdout.write("Creating specific coaches for Fortaleza...")
+        self.create_fortaleza_coaches(teams, admin_user)
 
         self.stdout.write(
             "Creating players with realistic Brazilian basketball profiles..."
         )
-        self.create_realistic_players(teams, admin_user)
+        players = self.create_realistic_players(teams, admin_user)
+
+        self.stdout.write("Simulating player injuries...")
+        injured_players = self.simulate_injuries(teams, admin_user)
 
         self.stdout.write("Generating season storylines and rivalries...")
         self.create_storylines(teams)
@@ -137,20 +149,35 @@ class Command(BaseCommand):
             )
 
     def create_seasons(self, admin_user):
-        """Create competitions for multiple seasons"""
+        """Create competitions for multiple seasons with basketball-specific rules"""
         seasons = {}
         current_year = date.today().year
+
+        # Brazilian basketball rules
+        brazil_rules = {
+            "quarter_length_minutes": 10,
+            "overtime_length_minutes": 5,
+            "shot_clock_seconds": 24,
+            "personal_foul_limit": 5,
+            "team_fouls_for_bonus": 5,
+            "country": "Brazil",
+            "league_level": "Professional"
+        }
 
         for i in range(2):  # 2024-2025 and 2025-2026
             season_year = current_year - 1 + i
             season_name = f"Temporada {season_year}-{season_year + 1}"
 
             competition, created = Competition.objects.get_or_create(
-                name=season_name, defaults={"created_by": admin_user}
+                name=season_name, 
+                defaults={
+                    "created_by": admin_user,
+                    **brazil_rules
+                }
             )
 
             if created:
-                self.stdout.write(f"Created competition: {competition.name}")
+                self.stdout.write(f"Created competition: {competition.name} with Brazilian rules")
             else:
                 self.stdout.write(f"Using existing competition: {competition.name}")
 
@@ -164,6 +191,14 @@ class Command(BaseCommand):
 
         # Real Brazilian basketball teams with characteristics
         team_data = [
+            {
+                "name": "Fortaleza",
+                "style": "balanced",
+                "strength": "balanced",
+                "home_court_advantage": 0.10,
+                "fan_base": "medium",
+                "budget": "medium",
+            },
             {
                 "name": "Flamengo Basquete",
                 "style": "fast_paced",
@@ -253,22 +288,78 @@ class Command(BaseCommand):
 
         return teams
 
+    def create_fortaleza_coaches(self, teams, admin_user):
+        """Create specific coaches for Fortaleza team"""
+        fortaleza_team = None
+        
+        # Find Fortaleza team
+        for team in teams:
+            if team.name == "Fortaleza":
+                fortaleza_team = team
+                break
+        
+        if fortaleza_team:
+            # Create Vladimir Dosenovic (Assistant Coach)
+            vladimir = User.objects.create_user(
+                username="vladdos",
+                password="20pogodi",
+                first_name="Vladimir",
+                last_name="Dosenovic",
+                role=User.Role.COACH,
+                coach_type=User.CoachType.ASSISTANT_COACH,
+            )
+            fortaleza_team.coaches.add(vladimir)
+            self.stdout.write(
+                "  - Created Vladimir Dosenovic (Assistant Coach) for Fortaleza"
+            )
+
+            # Create Jelena Todorovic (Head Coach)
+            jelena = User.objects.create_user(
+                username="jelena",
+                password="20pogodi",
+                first_name="Jelena",
+                last_name="Todorovic",
+                role=User.Role.COACH,
+                coach_type=User.CoachType.HEAD_COACH,
+            )
+            fortaleza_team.coaches.add(jelena)
+            self.stdout.write("  - Created Jelena Todorovic (Head Coach) for Fortaleza")
+        else:
+            self.stdout.write(
+                self.style.ERROR("Fortaleza team not found for specific coaches!")
+            )
+
     def create_realistic_players(self, teams, admin_user):
-        """Create players with realistic Brazilian basketball profiles"""
-        # Brazilian basketball player characteristics
-        positions = ["PG", "SG", "SF", "PF", "C"]
-        position_weights = [0.2, 0.25, 0.25, 0.2, 0.1]  # More guards and forwards
+        """Create players with realistic Brazilian basketball profiles following position distribution rules"""
+        players = []
+        
+        # Position distribution rules for team roster (20 players)
+        position_distribution = {
+            "PG": 4,  # Point Guards
+            "SG": 4,  # Shooting Guards  
+            "SF": 4,  # Small Forwards
+            "PF": 4,  # Power Forwards
+            "C": 4,   # Centers (maximum 4)
+        }
 
         for team in teams:
-            # Create 20 players per team (12 active + 8 reserves)
-            for i in range(20):
-                position = random.choices(positions, weights=position_weights)[0]
-                player = self.create_realistic_player(team, position, i, admin_user)
+            team_players = []
+            
+            # Create players according to position distribution
+            for position, count in position_distribution.items():
+                for i in range(count):
+                    player = self.create_realistic_player(team, position, i, admin_user)
+                    team_players.append(player)
+                    # Add player to team
+                    team.players.add(player)
+            
+            # Shuffle the players to randomize their order
+            random.shuffle(team_players)
+            players.extend(team_players)
 
-                # Add player to team
-                team.players.add(player)
-
-            self.stdout.write(f"Created {team.players.count()} players for {team.name}")
+            self.stdout.write(f"Created {team.players.count()} players for {team.name} with proper position distribution")
+        
+        return players
 
     def create_realistic_player(self, team, position, player_index, admin_user):
         """Create a single player with realistic Brazilian basketball characteristics"""
@@ -368,14 +459,32 @@ class Command(BaseCommand):
             first_name = random.choice(international_names)
             last_name = random.choice(international_names)
 
-        username = f"{first_name.lower()}.{last_name.lower()}{player_index + 1 if player_index > 0 else ''}"
+        # Generate unique username
+        base_username = f"{first_name.lower()}.{last_name.lower()}"
+        username = base_username
+        counter = 1
+        
+        # Ensure username uniqueness
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        # Generate unique email
+        base_email = f"{username}@{team.name.lower().replace(' ', '').replace('.', '')}.com"
+        email = base_email
+        email_counter = 1
+        
+        # Ensure email uniqueness
+        while User.objects.filter(email=email).exists():
+            email = f"{username}{email_counter}@{team.name.lower().replace(' ', '').replace('.', '')}.com"
+            email_counter += 1
 
         # Create user
         user = User.objects.create_user(
             username=username,
             first_name=first_name,
             last_name=last_name,
-            email=f"{username}@{team.name.lower().replace(' ', '').replace('.', '')}.com",
+            email=email,
             password="password123",
         )
 
@@ -608,25 +717,263 @@ class Command(BaseCommand):
         return game
 
     def create_game_rosters(self, game):
-        """Create 12-player rosters for each team in the game"""
+        """Create 12-player rosters for each team in the game following position distribution rules"""
+        # Position distribution for game roster (12 players)
+        game_roster_distribution = {
+            "PG": 2,  # Point Guards
+            "SG": 2,  # Shooting Guards
+            "SF": 3,  # Small Forwards
+            "PF": 3,  # Power Forwards
+            "C": 2,   # Centers
+        }
+
         # Home team roster
         home_roster = GameRoster.objects.create(game=game, team=game.home_team)
-
-        # Select 12 players (5 starters + 7 bench)
-        home_players = list(game.home_team.players.all())
-        random.shuffle(home_players)
-
-        home_roster.players.set(home_players[:12])
-        home_roster.starting_five.set(home_players[:5])
+        home_roster_players = self.select_players_by_position(game.home_team, game_roster_distribution)
+        home_roster.players.set(home_roster_players)
+        home_roster.starting_five.set(self.select_starting_five(home_roster_players))
 
         # Away team roster
         away_roster = GameRoster.objects.create(game=game, team=game.away_team)
+        away_roster_players = self.select_players_by_position(game.away_team, game_roster_distribution)
+        away_roster.players.set(away_roster_players)
+        away_roster.starting_five.set(self.select_starting_five(away_roster_players))
 
-        away_players = list(game.away_team.players.all())
-        random.shuffle(away_players)
+    def select_players_by_position(self, team, position_distribution):
+        """Select players for game roster following position distribution rules"""
+        selected_players = []
+        
+        for position, count in position_distribution.items():
+            # Get players of this position from the team
+            position_players = list(team.players.filter(position=position))
+            
+            if len(position_players) >= count:
+                # Randomly select the required number of players
+                selected = random.sample(position_players, count)
+                selected_players.extend(selected)
+            else:
+                # If not enough players of this position, take all available
+                selected_players.extend(position_players)
+                # Fill remaining slots with players from other positions
+                remaining_slots = count - len(position_players)
+                other_players = list(team.players.exclude(position=position))
+                if other_players:
+                    fillers = random.sample(other_players, min(remaining_slots, len(other_players)))
+                    selected_players.extend(fillers)
+        
+        # Ensure we have exactly 12 players
+        if len(selected_players) > 12:
+            selected_players = random.sample(selected_players, 12)
+        elif len(selected_players) < 12:
+            # Fill remaining slots with any available players
+            all_players = list(team.players.all())
+            remaining = [p for p in all_players if p not in selected_players]
+            if remaining:
+                fillers = random.sample(remaining, min(12 - len(selected_players), len(remaining)))
+                selected_players.extend(fillers)
+        
+        return selected_players[:12]
 
-        away_roster.players.set(away_players[:12])
-        away_roster.starting_five.set(away_players[:5])
+    def select_starting_five(self, roster_players):
+        """Select starting five players (1 PG, 1 SG, 1 SF, 1 PF, 1 C)"""
+        starting_five = []
+        required_positions = ["PG", "SG", "SF", "PF", "C"]
+        
+        for position in required_positions:
+            position_players = [p for p in roster_players if p.position == position]
+            if position_players:
+                starting_five.append(random.choice(position_players))
+        
+        # If we don't have all positions, fill with available players
+        if len(starting_five) < 5:
+            remaining_players = [p for p in roster_players if p not in starting_five]
+            while len(starting_five) < 5 and remaining_players:
+                starting_five.append(remaining_players.pop(0))
+        
+        return starting_five[:5]
+
+    def simulate_game_flow(self, game, possessions):
+        """Simulate realistic game flow including lead changes, close games, and clutch situations"""
+        # Calculate lead changes throughout the game
+        lead_changes = 0
+        current_leader = None
+        home_score = 0
+        away_score = 0
+        
+        # Track scores throughout the game
+        score_progression = []
+        
+        for i, possession in enumerate(possessions):
+            if possession.team.team == game.home_team:
+                home_score += possession.points_scored
+            else:
+                away_score += possession.points_scored
+            
+            # Check for lead change
+            if home_score > away_score:
+                if current_leader != 'home':
+                    if current_leader is not None:
+                        lead_changes += 1
+                    current_leader = 'home'
+            elif away_score > home_score:
+                if current_leader != 'away':
+                    if current_leader is not None:
+                        lead_changes += 1
+                    current_leader = 'away'
+            
+            score_progression.append({
+                'possession': i,
+                'home_score': home_score,
+                'away_score': away_score,
+                'leader': current_leader
+            })
+        
+        # Determine game characteristics
+        final_margin = abs(home_score - away_score)
+        is_close_game = final_margin <= 10
+        is_blowout = final_margin >= 20
+        
+        # Simulate clutch situations (last 2 minutes of close games)
+        clutch_situations = 0
+        if is_close_game:
+            # Last 2 minutes = last ~8-10 possessions
+            clutch_possessions = possessions[-min(10, len(possessions)):]
+            clutch_situations = len([p for p in clutch_possessions if p.points_scored > 0])
+        
+        # Store game flow data
+        game.lead_changes = lead_changes
+        game.is_close_game = is_close_game
+        game.is_blowout = is_blowout
+        game.clutch_situations = clutch_situations
+        game.save()
+        
+        return {
+            'lead_changes': lead_changes,
+            'is_close_game': is_close_game,
+            'is_blowout': is_blowout,
+            'clutch_situations': clutch_situations,
+            'final_margin': final_margin
+        }
+
+    def add_special_scenarios(self, game, possessions):
+        """Add special basketball scenarios like buzzer beaters, technical fouls, and coach challenges"""
+        special_scenarios = []
+        
+        # Buzzer beaters (game-winning shots in close games)
+        if game.is_close_game and random.random() < 0.15:  # 15% chance
+            # Find the last possession that scored
+            scoring_possessions = [p for p in possessions if p.points_scored > 0]
+            if scoring_possessions:
+                buzzer_beater = scoring_possessions[-1]
+                buzzer_beater.is_buzzer_beater = True
+                buzzer_beater.save()
+                special_scenarios.append('buzzer_beater')
+                self.stdout.write(f"  - Buzzer beater by {buzzer_beater.team.team.name}!")
+        
+        # Technical fouls (5% chance per game)
+        if random.random() < 0.05:
+            # Select a random player for technical foul
+            all_players = list(game.home_team.players.all()) + list(game.away_team.players.all())
+            if all_players:
+                tech_foul_player = random.choice(all_players)
+                # Get the correct game rosters
+                home_roster = GameRoster.objects.get(game=game, team=game.home_team)
+                away_roster = GameRoster.objects.get(game=game, team=game.away_team)
+                
+                # Determine which roster the player belongs to
+                if tech_foul_player in game.home_team.players.all():
+                    player_roster = home_roster
+                    opponent_roster = away_roster
+                else:
+                    player_roster = away_roster
+                    opponent_roster = home_roster
+                
+                # Create technical foul possession
+                tech_foul_possession = Possession.objects.create(
+                    game=game,
+                    team=player_roster,
+                    opponent=opponent_roster,
+                    quarter=random.randint(1, 4),
+                    outcome="TECHNICAL_FOUL",
+                    points_scored=0,
+                    duration_seconds=0,
+                    offensive_set="Technical Foul",
+                    defensive_set="Technical Foul",
+                    start_time_in_game="00:00",
+                    created_by=game.created_by,
+                    is_technical_foul=True,
+                    technical_foul_player=tech_foul_player
+                )
+                special_scenarios.append('technical_foul')
+                self.stdout.write(f"  - Technical foul on {tech_foul_player.first_name} {tech_foul_player.last_name}")
+        
+        # Coach's challenges (3% chance per game)
+        if random.random() < 0.03:
+            # Get the correct game rosters
+            home_roster = GameRoster.objects.get(game=game, team=game.home_team)
+            away_roster = GameRoster.objects.get(game=game, team=game.away_team)
+            
+            # Randomly choose which team challenges
+            if random.choice([True, False]):
+                challenge_roster = home_roster
+                opponent_roster = away_roster
+                challenge_team_name = game.home_team.name
+            else:
+                challenge_roster = away_roster
+                opponent_roster = home_roster
+                challenge_team_name = game.away_team.name
+            
+            # Create coach challenge possession
+            challenge_possession = Possession.objects.create(
+                game=game,
+                team=challenge_roster,
+                opponent=opponent_roster,
+                quarter=random.randint(1, 4),
+                outcome="COACH_CHALLENGE",
+                points_scored=0,
+                duration_seconds=0,
+                offensive_set="Coach Challenge",
+                defensive_set="Coach Challenge",
+                start_time_in_game="00:00",
+                created_by=game.created_by,
+                is_coach_challenge=True
+            )
+            special_scenarios.append('coach_challenge')
+            self.stdout.write(f"  - Coach challenge by {challenge_team_name}")
+        
+        return special_scenarios
+
+    def simulate_injuries(self, teams, admin_user):
+        """Simulate injuries for players, making them unavailable for some games"""
+        injured_players = []
+        
+        for team in teams:
+            # 10-20% chance of injury per player per season
+            for player in team.players.all():
+                if random.random() < random.uniform(0.10, 0.20):
+                    # Simulate injury duration (1-10 games)
+                    injury_duration = random.randint(1, 10)
+                    
+                    # Mark player as injured for specific games
+                    injury_info = {
+                        'player': player,
+                        'team': team,
+                        'injury_duration': injury_duration,
+                        'games_missed': 0
+                    }
+                    injured_players.append(injury_info)
+                    
+                    self.stdout.write(f"  - {player.first_name} {player.last_name} ({team.name}) injured for {injury_duration} games")
+        
+        self.stdout.write(f"✓ Simulated injuries for {len(injured_players)} players")
+        return injured_players
+
+    def is_player_available(self, player, game_date, injured_players):
+        """Check if a player is available for a specific game"""
+        for injury in injured_players:
+            if injury['player'] == player and injury['games_missed'] < injury['injury_duration']:
+                return False
+        return True
 
     def generate_playoffs(self, teams, competition, admin_user, season_year):
         """Generate playoff games with realistic bracket"""
@@ -702,6 +1049,10 @@ class Command(BaseCommand):
             # Generate possessions for this game
             possessions = self.generate_game_possessions(game, admin_user)
 
+            # Simulate game flow and special scenarios
+            game_flow = self.simulate_game_flow(game, possessions)
+            special_scenarios = self.add_special_scenarios(game, possessions)
+
             # Update game scores based on possessions
             self.update_game_scores(game, possessions)
 
@@ -711,8 +1062,8 @@ class Command(BaseCommand):
         """Generate realistic possessions for a single game"""
         possessions = []
 
-        # Realistic possession count: 70-80 per team
-        total_possessions = random.randint(70, 80)
+        # Realistic possession count: 70-100 per team
+        total_possessions = random.randint(70, 100)
 
         # Game quarters (4 quarters + potential overtime)
         quarters = [1, 2, 3, 4]
@@ -794,6 +1145,10 @@ class Command(BaseCommand):
         # Determine possession outcome based on realistic basketball probabilities
         outcome = self.determine_possession_outcome(offensive_team, defensive_team)
 
+        # Select realistic plays from the loaded play definitions
+        offensive_play = self.select_realistic_offensive_play()
+        defensive_play = self.select_realistic_defensive_play()
+
         # Create possession
         possession = Possession.objects.create(
             game=game,
@@ -803,8 +1158,8 @@ class Command(BaseCommand):
             outcome=outcome,
             points_scored=self.calculate_points_scored(outcome),
             duration_seconds=random.randint(15, 25),  # 15-25 second possessions
-            offensive_set="Set 1",  # Placeholder
-            defensive_set="Man-to-Man",  # Placeholder
+            offensive_set=offensive_play,
+            defensive_set=defensive_play,
             start_time_in_game=f"{random.randint(0, 9)}:{random.randint(0, 59):02d}",
             created_by=admin_user,
         )
@@ -820,46 +1175,60 @@ class Command(BaseCommand):
         return possession
 
     def determine_possession_outcome(self, offensive_team, defensive_team):
-        """Determine realistic possession outcome based on team strengths"""
-        # Base probabilities for different outcomes
-        outcomes = [
-            ("MADE_2PTS", 0.45),  # 45% chance of made 2-pointer
-            ("MISSED_2PTS", 0.25),  # 25% chance of missed 2-pointer
-            ("MADE_3PTS", 0.15),  # 15% chance of made 3-pointer
-            ("MISSED_3PTS", 0.10),  # 10% chance of missed 3-pointer
-            ("TURNOVER", 0.05),  # 5% chance of turnover
-        ]
-
-        # Adjust based on team characteristics
-        if offensive_team.strength == "offensive":
-            # Offensive teams get better shooting percentages
-            outcomes = [
-                ("MADE_2PTS", 0.50),
-                ("MISSED_2PTS", 0.20),
-                ("MADE_3PTS", 0.18),
-                ("MISSED_3PTS", 0.08),
-                ("TURNOVER", 0.04),
-            ]
-        elif defensive_team.strength == "defensive":
-            # Defensive teams force more misses and turnovers
-            outcomes = [
-                ("MADE_2PTS", 0.40),
-                ("MISSED_2PTS", 0.30),
-                ("MADE_3PTS", 0.12),
-                ("MISSED_3PTS", 0.13),
-                ("TURNOVER", 0.05),
-            ]
-
-        # Select outcome based on probabilities
-        rand = random.random()
-        cumulative_prob = 0
-
-        for outcome, probability in outcomes:
-            cumulative_prob += probability
-            if rand <= cumulative_prob:
-                return outcome
-
-        return "MISSED_2PTS"  # Default fallback
+        """Determine realistic possession outcome based on team strengths and basketball statistics"""
+        # Base probabilities based on realistic basketball statistics
+        # 2PT %: 40-60%, 3PT %: 30-50%, FT %: 60-100%
+        
+        # Determine if this is a 2PT, 3PT, or free throw attempt
+        shot_type_rand = random.random()
+        
+        if shot_type_rand < 0.65:  # 65% chance of 2PT attempt
+            # 2PT shooting percentages: 40-60%
+            base_2pt_percentage = random.uniform(0.40, 0.60)
+            
+            # Adjust based on team characteristics
+            if offensive_team.strength == "offensive":
+                base_2pt_percentage += 0.05
+            elif defensive_team.strength == "defensive":
+                base_2pt_percentage -= 0.05
+            
+            # Clamp to realistic range
+            base_2pt_percentage = max(0.35, min(0.65, base_2pt_percentage))
+            
+            if random.random() < base_2pt_percentage:
+                return "MADE_2PTS"
+            else:
+                return "MISSED_2PTS"
+                
+        elif shot_type_rand < 0.85:  # 20% chance of 3PT attempt
+            # 3PT shooting percentages: 30-50%
+            base_3pt_percentage = random.uniform(0.30, 0.50)
+            
+            # Adjust based on team characteristics
+            if offensive_team.strength == "offensive":
+                base_3pt_percentage += 0.03
+            elif defensive_team.strength == "defensive":
+                base_3pt_percentage -= 0.03
+            
+            # Clamp to realistic range
+            base_3pt_percentage = max(0.25, min(0.55, base_3pt_percentage))
+            
+            if random.random() < base_3pt_percentage:
+                return "MADE_3PTS"
+            else:
+                return "MISSED_3PTS"
+                
+        elif shot_type_rand < 0.95:  # 10% chance of free throw attempt
+            # Free throw percentages: 60-100%
+            ft_percentage = random.uniform(0.60, 1.00)
+            
+            if random.random() < ft_percentage:
+                return "MADE_FTS"
+            else:
+                return "MISSED_FTS"
+                
+        else:  # 5% chance of turnover
+            return "TURNOVER"
 
     def calculate_points_scored(self, outcome):
         """Calculate points scored based on outcome"""
@@ -871,6 +1240,46 @@ class Command(BaseCommand):
             return 1
         else:
             return 0
+
+    def select_realistic_offensive_play(self):
+        """Select a realistic offensive play from the loaded play definitions"""
+        try:
+            # Get offensive plays from the default team
+            default_team = Team.objects.filter(name="Default Play Templates").first()
+            if default_team:
+                offensive_plays = PlayDefinition.objects.filter(
+                    team=default_team,
+                    play_type="OFFENSIVE"
+                ).values_list('name', flat=True)
+                
+                if offensive_plays.exists():
+                    return random.choice(list(offensive_plays))
+            
+            # Fallback to common offensive plays from the JSON
+            fallback_plays = ["Set 1", "Set 2", "FastBreak", "PnR", "ISO", "HighPost", "LowPost", "BoB 1", "SoB 1"]
+            return random.choice(fallback_plays)
+        except Exception:
+            return "Set 1"  # Ultimate fallback
+
+    def select_realistic_defensive_play(self):
+        """Select a realistic defensive play from the loaded play definitions"""
+        try:
+            # Get defensive plays from the default team
+            default_team = Team.objects.filter(name="Default Play Templates").first()
+            if default_team:
+                defensive_plays = PlayDefinition.objects.filter(
+                    team=default_team,
+                    play_type="DEFENSIVE"
+                ).values_list('name', flat=True)
+                
+                if defensive_plays.exists():
+                    return random.choice(list(defensive_plays))
+            
+            # Fallback to common defensive plays from the JSON
+            fallback_plays = ["2-3", "3-2", "1-3-1", "1-2-2", "zone", "SWITCH", "DROP", "HEDGE"]
+            return random.choice(fallback_plays)
+        except Exception:
+            return "2-3"  # Ultimate fallback
 
     def update_game_scores(self, game, possessions):
         """Update game scores based on generated possessions"""
@@ -891,3 +1300,141 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Updated {game}: {game.home_team.name} {home_score} - {away_score} {game.away_team.name}"
         )
+
+    def load_play_definitions(self, admin_user):
+        """Load generic play definitions from JSON fixture"""
+        self.stdout.write("Loading generic play definitions...")
+        
+        # Create a default team for generic play templates
+        default_team, _ = Team.objects.get_or_create(
+            name="Default Play Templates",
+            defaults={
+                "created_by": admin_user,
+                "competition": Competition.objects.first(),  # Use first available competition
+            },
+        )
+
+        # Clear existing play definitions for the default team
+        PlayCategory.objects.all().delete()
+        PlayDefinition.objects.filter(team=default_team).delete()
+
+        # Path to the JSON fixture file - try multiple locations
+        possible_paths = [
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "..",
+                "plays",
+                "fixtures",
+                "initial_play_definitions.json",
+            ),
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "..",
+                "..",
+                "data",
+                "initial_play_definitions.json",
+            ),
+        ]
+        
+        json_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                json_path = path
+                break
+
+        if not json_path:
+            self.stdout.write(
+                self.style.ERROR("No play definitions file found in expected locations")
+            )
+            self.stdout.write("Creating basic play categories instead...")
+            
+            # Create basic play categories as fallback
+            basic_categories = [
+                "Offense", "Defense", "Transition", "Set Plays", "Zone Defense"
+            ]
+            
+            for cat_name in basic_categories:
+                PlayCategory.objects.get_or_create(name=cat_name)
+            
+            self.stdout.write("✓ Created basic play categories")
+            return
+
+        self.stdout.write(f"Using play definitions from: {json_path}")
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            for category_data in data:
+                category, _ = PlayCategory.objects.get_or_create(
+                    name=category_data["category"]
+                )
+                
+                for play_data in category_data["plays"]:
+                    # Determine play type based on category
+                    play_type = "NEUTRAL"  # Default
+                    if "Defense" in category_data["category"]:
+                        play_type = "DEFENSIVE"
+                    elif "Offense" in category_data["category"]:
+                        play_type = "OFFENSIVE"
+                    elif category_data["category"] in ["Transition", "Set"]:
+                        play_type = "OFFENSIVE"
+                    elif category_data["category"] in ["Zone", "Press"]:
+                        play_type = "DEFENSIVE"
+                    elif category_data["category"] == "Control":
+                        play_type = "NEUTRAL"
+                    elif category_data["category"] == "Players":
+                        play_type = "NEUTRAL"
+                    
+                    # Create play definition
+                    play_def, created = PlayDefinition.objects.get_or_create(
+                        name=play_data["name"],
+                        team=default_team,
+                        defaults={
+                            "category": category,
+                            "subcategory": play_data.get("subcategory"),
+                            "action_type": play_data.get("action_type", "NORMAL"),
+                            "play_type": play_type,
+                            "description": f"Generic {play_data['name']} play",
+                        },
+                    )
+                    
+                    if created:
+                        self.stdout.write(f"  - Created play: {play_data['name']}")
+
+            self.stdout.write(f"✓ Loaded {PlayDefinition.objects.count()} play definitions")
+            
+        except FileNotFoundError:
+            self.stdout.write(
+                self.style.ERROR(f"Play definitions file not found at: {json_path}")
+            )
+            self.stdout.write("Creating basic play categories instead...")
+            
+            # Create basic play categories as fallback
+            basic_categories = [
+                "Offense", "Defense", "Transition", "Set Plays", "Zone Defense"
+            ]
+            
+            for cat_name in basic_categories:
+                PlayCategory.objects.get_or_create(name=cat_name)
+            
+            self.stdout.write("✓ Created basic play categories")
+            
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f"Error loading play definitions: {e}")
+            )
+            self.stdout.write("Creating basic play categories instead...")
+            
+            # Create basic play categories as fallback
+            basic_categories = [
+                "Offense", "Defense", "Transition", "Set Plays", "Zone Defense"
+            ]
+            
+            for cat_name in basic_categories:
+                PlayCategory.objects.get_or_create(name=cat_name)
+            
+            self.stdout.write("✓ Created basic play categories")

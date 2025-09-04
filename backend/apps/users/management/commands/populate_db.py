@@ -85,8 +85,8 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "..",
-            "data",
+            "plays",
+            "fixtures",
             "initial_play_definitions.json",
         )
 
@@ -664,8 +664,8 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "..",
-            "data",
+            "plays",
+            "fixtures",
             "initial_play_definitions.json",
         )
         with open(json_path, "r", encoding="utf-8") as f:

@@ -21,6 +21,8 @@ class Possession(models.Model):
         REBOUND = "REBOUND", _("Rebound")
         STEAL = "STEAL", _("Steal")
         BLOCK = "BLOCK", _("Block")
+        TECHNICAL_FOUL = "TECHNICAL_FOUL", _("Technical Foul")
+        COACH_CHALLENGE = "COACH_CHALLENGE", _("Coach Challenge")
 
     class OffensiveSetChoices(models.TextChoices):
         PICK_AND_ROLL = "PICK_AND_ROLL", _("Pick and Roll")
@@ -35,6 +37,53 @@ class Possession(models.Model):
         ISOLATION = "ISOLATION", _("Isolation")
         TRANSITION = "TRANSITION", _("Transition")
         OFFENSIVE_REBOUND = "OFFENSIVE_REBOUND", _("Offensive Rebound")
+        # Additional sets from JSON file
+        SET_1 = "Set 1", _("Set 1")
+        SET_2 = "Set 2", _("Set 2")
+        SET_3 = "Set 3", _("Set 3")
+        SET_4 = "Set 4", _("Set 4")
+        SET_5 = "Set 5", _("Set 5")
+        SET_6 = "Set 6", _("Set 6")
+        SET_7 = "Set 7", _("Set 7")
+        SET_8 = "Set 8", _("Set 8")
+        SET_9 = "Set 9", _("Set 9")
+        SET_10 = "Set 10", _("Set 10")
+        SET_11 = "Set 11", _("Set 11")
+        SET_12 = "Set 12", _("Set 12")
+        SET_13 = "Set 13", _("Set 13")
+        SET_14 = "Set 14", _("Set 14")
+        SET_15 = "Set 15", _("Set 15")
+        SET_16 = "Set 16", _("Set 16")
+        SET_17 = "Set 17", _("Set 17")
+        SET_18 = "Set 18", _("Set 18")
+        SET_19 = "Set 19", _("Set 19")
+        SET_20 = "Set 20", _("Set 20")
+        FASTBREAK = "FastBreak", _("Fast Break")
+        TRANSIT = "Transit", _("Transit")
+        LESS_THAN_14S = "<14s", _("Less than 14s")
+        BOB_1 = "BoB 1", _("BoB 1")
+        BOB_2 = "BoB 2", _("BoB 2")
+        SOB_1 = "SoB 1", _("SoB 1")
+        SOB_2 = "SoB 2", _("SoB 2")
+        SPECIAL_1 = "Special 1", _("Special 1")
+        SPECIAL_2 = "Special 2", _("Special 2")
+        ATO_SPEC = "ATO Spec", _("ATO Special")
+        PNR = "PnR", _("Pick and Roll")
+        SCORE = "Score", _("Score")
+        BIG_GUY = "Big Guy", _("Big Guy")
+        THIRD_GUY = "3rd Guy", _("3rd Guy")
+        ISO = "ISO", _("Isolation")
+        HIGH_POST = "HighPost", _("High Post")
+        LOW_POST = "LowPost", _("Low Post")
+        ATTACK_CLOSEOUT = "Attack CloseOut", _("Attack Close Out")
+        AFTER_KICK_OUT = "After Kick Out", _("After Kick Out")
+        AFTER_EXT_PASS = "After Ext Pass", _("After Extra Pass")
+        CUTS = "Cuts", _("Cuts")
+        AFTER_OFF_REB = "After Off Reb", _("After Offensive Rebound")
+        AFTER_HANDOFF = "After HandOff", _("After Hand Off")
+        AFTER_OFFSCREEN = "After OffScreen", _("After Off Screen")
+        TECHNICAL_FOUL = "Technical Foul", _("Technical Foul")
+        COACH_CHALLENGE = "Coach Challenge", _("Coach Challenge")
         OTHER = "OTHER", _("Other")
 
     class DefensiveSetChoices(models.TextChoices):
@@ -48,6 +97,15 @@ class Possession(models.Model):
         ICE = "ICE", _("Ice")
         GO_OVER = "GO_OVER", _("Go Over")
         GO_UNDER = "GO_UNDER", _("Go Under")
+        # Additional defensive sets from JSON file
+        HEDGE = "HEDGE", _("Hedge")
+        FLAT = "FLAT", _("Flat")
+        WEAK = "WEAK", _("Weak")
+        ZONE = "zone", _("Zone")
+        FULL_COURT_PRESS = "Full court press", _("Full Court Press")
+        THREE_QUARTER_COURT_PRESS = "3/4 court press", _("3/4 Court Press")
+        HALF_COURT_PRESS = "Half court press", _("Half Court Press")
+        TECHNICAL_FOUL = "Technical Foul", _("Technical Foul")
         OTHER = "OTHER", _("Other")
 
     class PnRTypeChoices(models.TextChoices):
@@ -209,6 +267,19 @@ class Possession(models.Model):
         blank=True, help_text="Sequence of defensive actions"
     )
 
+    # Special scenarios
+    is_buzzer_beater = models.BooleanField(default=False, help_text="Game-winning shot at the buzzer")
+    is_technical_foul = models.BooleanField(default=False, help_text="Technical foul possession")
+    technical_foul_player = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        related_name="technical_foul_possessions",
+        null=True,
+        blank=True,
+        help_text="Player who committed the technical foul"
+    )
+    is_coach_challenge = models.BooleanField(default=False, help_text="Coach's challenge possession")
+    
     # Additional metadata
     notes = models.TextField(blank=True)
 
