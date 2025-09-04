@@ -182,6 +182,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       appBar: AppBar(
         title: const Text('Game Analysis'),
         actions: [
+          IconButton(
+            tooltip: 'Match Stats',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/stats');
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(

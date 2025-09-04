@@ -167,9 +167,12 @@ class RealisticPossessionGenerator:
     ):
         """Create a realistic possession with proper sequences and data."""
 
-        # Generate realistic time data
-        start_minute = (quarter - 1) * 12 + random.randint(0, 11)
-        start_second = random.randint(0, 59)
+        # Generate realistic time data based on Brazilian league (10-minute quarters)
+        total_q_seconds = 10 * 60
+        elapsed = random.randint(0, total_q_seconds - 1)
+        final_remaining = total_q_seconds - elapsed
+        start_minute = final_remaining // 60
+        start_second = final_remaining % 60
         duration = random.randint(8, 24)  # 8-24 seconds per possession
 
         # Generate realistic sequences based on outcome

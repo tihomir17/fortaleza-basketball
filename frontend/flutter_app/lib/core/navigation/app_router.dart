@@ -19,6 +19,7 @@ import '../../features/plays/presentation/cubit/playbook_cubit.dart';
 import '../../features/plays/presentation/screens/playbook_screen.dart';
 import '../../features/games/presentation/screens/games_screen.dart';
 import '../../features/games/presentation/screens/game_detail_screen.dart';
+import '../../features/games/presentation/screens/match_stats_screen.dart';
 import '../../features/games/presentation/cubit/game_detail_cubit.dart';
 import '../../features/playbook/presentation/screens/playbook_hub_screen.dart';
 import '../../features/calendar/presentation/screens/calendar_screen.dart';
@@ -120,6 +121,13 @@ class AppRouter {
                   );
                 },
                 routes: [
+                  GoRoute(
+                    path: 'stats', // Matches '/games/:gameId/stats'
+                    builder: (context, state) {
+                      final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return MatchStatsScreen(gameId: gameId);
+                    },
+                  ),
                   GoRoute(
                     path: 'track', // Matches '/games/:gameId/track'
                     builder: (context, state) {

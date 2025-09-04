@@ -116,9 +116,13 @@ class RealisticGameGenerator:
     ):
         """Create a realistic possession with proper sequences and data."""
 
-        # Generate realistic time data
-        start_minute = (quarter - 1) * 12 + random.randint(0, 11)
-        start_second = random.randint(0, 59)
+        # Generate realistic time data based on Brazilian league (10-minute quarters)
+        # Use time remaining in quarter (MM:SS), e.g., 09:58 .. 00:01
+        total_q_seconds = 10 * 60
+        elapsed = random.randint(0, total_q_seconds - 1)
+        remaining = total_q_seconds - elapsed
+        start_minute = remaining // 60
+        start_second = remaining % 60
         duration = random.randint(8, 24)  # 8-24 seconds per possession
 
         # Generate realistic sequences based on outcome

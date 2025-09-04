@@ -142,6 +142,33 @@ class GameRepository {
     }
   }
 
+  /// Fetches all possessions for a game by following pagination until exhausted
+  Future<List<Map<String, dynamic>>> getAllGamePossessions({
+    required String token,
+    required int gameId,
+    int pageSize = 100,
+  }) async {
+    final List<Map<String, dynamic>> all = [];
+    int page = 1;
+    while (true) {
+      final data = await getGamePossessions(
+        token: token,
+        gameId: gameId,
+        page: page,
+        pageSize: pageSize,
+      );
+      final List<dynamic> results = (data['results'] as List<dynamic>? ) ?? const [];
+      all.addAll(results.cast<Map<String, dynamic>>());
+      final next = data['next'];
+      if (next == null) break;
+      page += 1;
+      // Defensive cap to prevent infinite loops
+      if (page > 1000) break;
+    }
+    logger.i('GameRepository: Loaded total ${all.length} possessions for game $gameId');
+    return all;
+  }
+
   // Cache management methods
   static bool _isCacheValid(String cacheKey) {
     if (!_gameListCache.containsKey(cacheKey)) return false;

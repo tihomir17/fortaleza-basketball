@@ -33,7 +33,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Load dashboard data when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        print('DashboardScreen: Loading dashboard data on init');
         context.read<DashboardCubit>().loadDashboardData();
       }
     });
@@ -63,18 +62,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (authState.status == AuthStatus.authenticated && authState.user != null) {
             return BlocBuilder<DashboardCubit, DashboardState>(
               builder: (context, dashboardState) {
-                print('DashboardScreen: Current state: ${dashboardState.runtimeType}');
                 if (dashboardState is DashboardLoading) {
-                  print('DashboardScreen: Showing loading state');
                   return const Center(child: CircularProgressIndicator());
                 } else if (dashboardState is DashboardError) {
-                  print('DashboardScreen: Showing error state: ${dashboardState.message}');
                   return _buildErrorState(dashboardState.message);
                 } else if (dashboardState is DashboardLoaded) {
-                  print('DashboardScreen: Showing loaded state with ${dashboardState.dashboardData.quickStats.totalGames} games');
                   return _buildDashboardContent(dashboardState.dashboardData);
                 } else {
-                  print('DashboardScreen: Showing initial state (loading)');
                   return const Center(child: CircularProgressIndicator());
                 }
               },

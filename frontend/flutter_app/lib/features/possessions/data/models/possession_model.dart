@@ -14,6 +14,7 @@ class Possession {
   final String outcome;
   final String offensiveSequence;
   final String defensiveSequence;  
+  final int pointsScored;
 
   Possession({
     required this.id,
@@ -26,6 +27,7 @@ class Possession {
     required this.outcome,
     required this.offensiveSequence,
     required this.defensiveSequence,
+    required this.pointsScored,
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class Possession {
       outcome: json['outcome'] ?? 'OTHER',
       offensiveSequence: json['offensive_sequence'] ?? '',
       defensiveSequence: json['defensive_sequence'] ?? '',
+      pointsScored: json['points_scored'] ?? 0,
     );
     
     return possession;
