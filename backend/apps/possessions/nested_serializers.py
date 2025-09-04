@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from .models import Possession
 from apps.teams.serializers import TeamReadSerializer
+from apps.users.serializers import UserSerializer
 
 
 # This is a "shallow" serializer. It has NO IMPORTS from other apps' serializers.
@@ -10,6 +11,8 @@ from apps.teams.serializers import TeamReadSerializer
 class PossessionInGameSerializer(serializers.ModelSerializer):
     team = TeamReadSerializer(read_only=True)
     opponent = TeamReadSerializer(read_only=True)
+    scorer = UserSerializer(read_only=True)
+    assisted_by = UserSerializer(read_only=True)
 
     class Meta:
         model = Possession
@@ -29,4 +32,7 @@ class PossessionInGameSerializer(serializers.ModelSerializer):
             "defensive_set",
             "offensive_sequence",
             "defensive_sequence",
+            # Player attributions
+            "scorer",
+            "assisted_by",
         ]

@@ -6,6 +6,7 @@ from apps.games.models import Game
 from apps.possessions.models import Possession
 from apps.teams.serializers import TeamReadSerializer
 from apps.games.serializers import GameReadSerializer, GameWriteSerializer
+from apps.users.serializers import UserSerializer
 
 
 # This is the "deep" serializer for the main /api/possessions/ endpoint.
@@ -13,6 +14,11 @@ class PossessionSerializer(serializers.ModelSerializer):
     game = GameReadSerializer(read_only=True)
     team = TeamReadSerializer(read_only=True)
     opponent = TeamReadSerializer(read_only=True)
+    scorer = UserSerializer(read_only=True)
+    assisted_by = UserSerializer(read_only=True)
+    blocked_by = UserSerializer(read_only=True)
+    stolen_by = UserSerializer(read_only=True)
+    fouled_by = UserSerializer(read_only=True)
 
     # Write-only id fields
     game_id = serializers.PrimaryKeyRelatedField(
@@ -142,6 +148,12 @@ class PossessionSerializer(serializers.ModelSerializer):
             "time_range",
             # Context
             "after_timeout",
+            # Player attributions
+            "scorer",
+            "assisted_by",
+            "blocked_by",
+            "stolen_by",
+            "fouled_by",
             "players_on_court",
             "notes",
             # Sequence fields

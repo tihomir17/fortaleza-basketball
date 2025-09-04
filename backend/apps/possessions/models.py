@@ -3,6 +3,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 
 class Possession(models.Model):
@@ -158,6 +159,43 @@ class Possession(models.Model):
 
     # Context
     after_timeout = models.BooleanField(default=False)
+
+    # Player attributions (for detailed player stats)
+    scorer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="scored_possessions",
+        null=True,
+        blank=True,
+    )
+    assisted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="assisted_possessions",
+        null=True,
+        blank=True,
+    )
+    blocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="blocked_possessions",
+        null=True,
+        blank=True,
+    )
+    stolen_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="stolen_possessions",
+        null=True,
+        blank=True,
+    )
+    fouled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="fouled_possessions",
+        null=True,
+        blank=True,
+    )
 
     # Players on court (for lineup analysis)
     players_on_court = models.ManyToManyField(

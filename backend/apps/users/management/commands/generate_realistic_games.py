@@ -139,6 +139,23 @@ class RealisticGameGenerator:
         if outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.25:
             off_reb = random.randint(1, 2)
 
+        # Pick scorer/assistant based on outcome
+        team_players_qs = team.players.all()
+        scorer = None
+        assisted_by = None
+        blocked_by = None
+        stolen_by = None
+        if team_players_qs.exists():
+            if outcome in ["MADE_2PTS", "MADE_3PTS", "MADE_FTS"]:
+                scorer = random.choice(list(team_players_qs))
+                if random.random() < 0.35:  # 35% assisted probability
+                    assisted_by = random.choice(list(team_players_qs))
+            elif outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.1:
+                # 10% chance the miss was blocked
+                blocked_by = random.choice(list(opponent.players.all())) if opponent.players.exists() else None
+            elif outcome == "TURNOVER" and random.random() < 0.3:
+                stolen_by = random.choice(list(opponent.players.all())) if opponent.players.exists() else None
+
         possession = Possession(
             game=game,
             team=team,
@@ -173,6 +190,10 @@ class RealisticGameGenerator:
             defensive_sequence=defensive_sequence,
             notes=f"Generated possession {possession_number}",
             created_by=game.created_by,
+            scorer=scorer,
+            assisted_by=assisted_by,
+            blocked_by=blocked_by,
+            stolen_by=stolen_by,
         )
 
         return possession
