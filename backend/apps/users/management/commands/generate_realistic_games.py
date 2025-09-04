@@ -46,6 +46,42 @@ class RealisticGameGenerator:
             "TURNOVER": 0.02,  # Turnover
         }
 
+        # Per-game team rosters and on-court lineups
+        # key: (game_id, team_id) -> List[User]
+        self._game_team_roster = {}
+        # key: (game_id, team_id, quarter) -> List[User]
+        self._on_court_players = {}
+
+    def _get_or_create_roster(self, game, team):
+        key = (game.id, team.id)
+        if key in self._game_team_roster:
+            return self._game_team_roster[key]
+        players = list(team.players.all())
+        random.shuffle(players)
+        # Strictly select 12 team members if available; otherwise use all available
+        roster_size = 12 if len(players) >= 12 else len(players)
+        roster = players[:roster_size]
+        self._game_team_roster[key] = roster
+        return roster
+
+    def _get_or_init_on_court(self, game, team, quarter):
+        key = (game.id, team.id, quarter)
+        if key not in self._on_court_players:
+            roster = self._get_or_create_roster(game, team)
+            starting_five = roster[:5] if len(roster) >= 5 else roster
+            self._on_court_players[key] = starting_five[:]
+            return self._on_court_players[key]
+        # Occasionally make a substitution
+        current = self._on_court_players[key]
+        if random.random() < 0.25 and len(current) >= 1:
+            roster = self._get_or_create_roster(game, team)
+            bench = [p for p in roster if p not in current]
+            if bench:
+                out_p = random.choice(current)
+                in_p = random.choice(bench)
+                current[current.index(out_p)] = in_p
+        return current
+
     def generate_quarter_score_target(self):
         """Generate a realistic target score for a quarter (15-30 points)."""
         return random.randint(*self.QUARTER_SCORE_RANGE)
@@ -139,24 +175,37 @@ class RealisticGameGenerator:
         if outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.25:
             off_reb = random.randint(1, 2)
 
-        # Pick scorer/assistant based on outcome
-        team_players_qs = team.players.all()
+        # Pick scorer/assistant/defense based on outcome
+        # Use 12-man roster for all attributions
+        team_roster = self._get_or_create_roster(game, team)
         scorer = None
         assisted_by = None
         blocked_by = None
         stolen_by = None
-        if team_players_qs.exists():
-            if outcome in ["MADE_2PTS", "MADE_3PTS", "MADE_FTS"]:
-                scorer = random.choice(list(team_players_qs))
-                if random.random() < 0.35:  # 35% assisted probability
-                    assisted_by = random.choice(list(team_players_qs))
-            elif outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.1:
-                # 10% chance the miss was blocked
-                blocked_by = random.choice(list(opponent.players.all())) if opponent.players.exists() else None
-            elif outcome == "TURNOVER" and random.random() < 0.3:
-                stolen_by = random.choice(list(opponent.players.all())) if opponent.players.exists() else None
+        fouled_by = None
+        if team_roster:
+            opponent_roster = self._get_or_create_roster(game, opponent) if opponent else []
+            # Shooter attribution on all FG outcomes (made or missed)
+            if outcome in ["MADE_2PTS", "MISSED_2PTS", "MADE_3PTS", "MISSED_3PTS", "MADE_FTS", "MISSED_FTS"]:
+                scorer = random.choice(team_roster)
+                # Assisted probability higher on makes; slightly lower on misses
+                if outcome in ["MADE_2PTS", "MADE_3PTS"] and random.random() < 0.5:
+                    assisted_by = random.choice(team_roster)
+                elif outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.15:
+                    assisted_by = random.choice(team_roster)
+                # Fouls mainly occur on FT trips
+                if outcome in ["MADE_FTS", "MISSED_FTS"] and opponent_roster:
+                    fouled_by = random.choice(opponent_roster)
+            # Blocks on a subset of missed FG
+            if outcome in ["MISSED_2PTS", "MISSED_3PTS"] and opponent_roster and random.random() < 0.12:
+                blocked_by = random.choice(opponent_roster)
+            # Turnover attribution: committer and potential steal
+            if outcome == "TURNOVER":
+                scorer = random.choice(team_roster)  # turnover committer
+                if opponent_roster and random.random() < 0.4:
+                    stolen_by = random.choice(opponent_roster)
 
-        possession = Possession(
+        possession = Possession.objects.create(
             game=game,
             team=team,
             opponent=opponent,
@@ -194,7 +243,19 @@ class RealisticGameGenerator:
             assisted_by=assisted_by,
             blocked_by=blocked_by,
             stolen_by=stolen_by,
+            fouled_by=fouled_by,
         )
+
+        # Assign on-court players and offensive rebounders (M2M)
+        try:
+            offense_five = self._get_or_init_on_court(game, team, quarter)
+            if offense_five:
+                possession.players_on_court.set(offense_five)
+            if off_reb > 0 and offense_five:
+                rebounders = random.sample(offense_five, k=min(off_reb, len(offense_five)))
+                possession.offensive_rebound_players.set(rebounders)
+        except Exception:
+            pass
 
         return possession
 

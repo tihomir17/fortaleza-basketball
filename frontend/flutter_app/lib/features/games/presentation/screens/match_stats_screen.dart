@@ -178,19 +178,43 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
         makes += 1;
         attempts += 1;
         if (isHome) {
-          if (outcome == 'MADE_2PTS') _h2m += 1; else _h3m += 1;
-          if (outcome == 'MADE_2PTS') _h2a += 1; else _h3a += 1;
+          if (outcome == 'MADE_2PTS') {
+            _h2m += 1;
+          } else {
+            _h3m += 1;
+          }
+          if (outcome == 'MADE_2PTS') {
+            _h2a += 1;
+          } else {
+            _h3a += 1;
+          }
         } else {
-          if (outcome == 'MADE_2PTS') _a2m += 1; else _a3m += 1;
-          if (outcome == 'MADE_2PTS') _a2a += 1; else _a3a += 1;
+          if (outcome == 'MADE_2PTS') {
+            _a2m += 1;
+          } else {
+            _a3m += 1;
+          }
+          if (outcome == 'MADE_2PTS') {
+            _a2a += 1;
+          } else {
+            _a3a += 1;
+          }
         }
       } else if (isFgMiss) {
         attempts += 1;
         if (isHome) {
-          if (outcome == 'MISSED_2PTS') _h2a += 1; else _h3a += 1;
+          if (outcome == 'MISSED_2PTS') {
+            _h2a += 1;
+          } else {
+            _h3a += 1;
+          }
           hMissFG++;
         } else {
-          if (outcome == 'MISSED_2PTS') _a2a += 1; else _a3a += 1;
+          if (outcome == 'MISSED_2PTS') {
+            _a2a += 1;
+          } else {
+            _a3a += 1;
+          }
           aMissFG++;
         }
       } else if (outcome == 'MADE_FTS' || outcome == 'MISSED_FTS') {

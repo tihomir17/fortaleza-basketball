@@ -71,7 +71,6 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     try {
       GameRepository.clearAnalyticsCache();
     } catch (e) {
-      print('Cache clearing failed: $e');
     }
     _loadAnalytics();
   }
@@ -127,13 +126,6 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         }
       });
       
-      print('GameAnalyticsScreen: Loading analytics with filters:');
-      print('  - Team ID: $_selectedTeamId');
-      print('  - Quarter: $_selectedQuarter');
-      print('  - Last Games: $lastGamesToUse');
-      print('  - Outcome: $_selectedOutcome');
-      print('  - Home/Away: $_selectedHomeAway');
-      print('  - Min Possessions: $_minPossessions');
       
       final analyticsData = await sl<GameRepository>().getComprehensiveAnalytics(
         token: token,
@@ -145,11 +137,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         minPossessions: _minPossessions,
       );
 
-      print('GameAnalyticsScreen: Received analytics data: ${analyticsData != null ? 'Success' : 'Null'}');
       if (analyticsData != null) {
-        print('GameAnalyticsScreen: Data keys: ${analyticsData.keys.toList()}');
         if (analyticsData['summary'] != null) {
-          print('GameAnalyticsScreen: Summary data: ${analyticsData['summary']}');
         }
       }
 

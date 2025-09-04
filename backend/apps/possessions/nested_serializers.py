@@ -13,6 +13,8 @@ class PossessionInGameSerializer(serializers.ModelSerializer):
     opponent = TeamReadSerializer(read_only=True)
     scorer = UserSerializer(read_only=True)
     assisted_by = UserSerializer(read_only=True)
+    players_on_court = UserSerializer(read_only=True, many=True)
+    offensive_rebound_players = UserSerializer(read_only=True, many=True)
 
     class Meta:
         model = Possession
@@ -28,6 +30,8 @@ class PossessionInGameSerializer(serializers.ModelSerializer):
             # Offensive rebounds
             "is_offensive_rebound",
             "offensive_rebound_count",
+            "players_on_court",
+            "offensive_rebound_players",
             "offensive_set",
             "defensive_set",
             "offensive_sequence",

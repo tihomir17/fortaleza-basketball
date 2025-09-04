@@ -189,6 +189,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               context.go('/games/${widget.gameId}/stats');
             },
           ),
+          IconButton(
+            tooltip: 'Player Stats',
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/player-stats');
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
