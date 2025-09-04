@@ -1,10 +1,32 @@
-django 
-djangorestframework 
-djangorestframework-simplejwt 
+# Core Django dependencies
+django
+djangorestframework
+djangorestframework-simplejwt
 django-filter
-psycopg2-binary
 django-cors-headers
+drf-spectacular
+
+# Database
+psycopg2-binary
+
+# PDF generation
+reportlab
+
+# Development and linting tools
 black
 flake8
-drf-spectacular
-reportlab
+pre-commit
+isort
+flake8-django
+mypy
+django-stubs
+types-requests
+bandit
+
+# Testing tools
+pytest
+pytest-django
+pytest-cov
+
+# Code quality
+coverage
