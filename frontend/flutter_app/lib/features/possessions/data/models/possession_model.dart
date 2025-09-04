@@ -15,6 +15,8 @@ class Possession {
   final String offensiveSequence;
   final String defensiveSequence;  
   final int pointsScored;
+  final bool isOffensiveRebound;
+  final int offensiveReboundCount;
 
   Possession({
     required this.id,
@@ -28,6 +30,8 @@ class Possession {
     required this.offensiveSequence,
     required this.defensiveSequence,
     required this.pointsScored,
+    required this.isOffensiveRebound,
+    required this.offensiveReboundCount,
   });
 
   factory Possession.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,8 @@ class Possession {
       offensiveSequence: json['offensive_sequence'] ?? '',
       defensiveSequence: json['defensive_sequence'] ?? '',
       pointsScored: json['points_scored'] ?? 0,
+      isOffensiveRebound: json['is_offensive_rebound'] ?? false,
+      offensiveReboundCount: json['offensive_rebound_count'] ?? 0,
     );
     
     return possession;

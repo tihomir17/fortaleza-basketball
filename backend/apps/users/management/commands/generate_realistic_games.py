@@ -134,6 +134,11 @@ class RealisticGameGenerator:
             defensive_sequence = self.generate_defensive_sequence()
 
         # Create possession object
+        # Randomize offensive rebound count when applicable
+        off_reb = 0
+        if outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.25:
+            off_reb = random.randint(1, 2)
+
         possession = Possession(
             game=game,
             team=team,
@@ -151,9 +156,8 @@ class RealisticGameGenerator:
             has_kick_out=random.choice([True, False]),
             has_extra_pass=random.choice([True, False]),
             number_of_passes=random.randint(1, 4),
-            is_offensive_rebound=outcome in ["MISSED_2PTS", "MISSED_3PTS"]
-            and random.random() < 0.25,
-            offensive_rebound_count=0,
+            is_offensive_rebound=off_reb > 0,
+            offensive_rebound_count=off_reb,
             # Defensive data
             defensive_set=self.get_random_defensive_set(),
             defensive_pnr=self.get_random_defensive_pnr(),

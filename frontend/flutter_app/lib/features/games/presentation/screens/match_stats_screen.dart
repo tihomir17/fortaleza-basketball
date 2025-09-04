@@ -34,6 +34,9 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   // Shot-type breakdown per team
   int _h2m = 0, _h2a = 0, _h3m = 0, _h3a = 0, _hftm = 0, _hfta = 0;
   int _a2m = 0, _a2a = 0, _a3m = 0, _a3a = 0, _aftm = 0, _afta = 0;
+  // Rebounds & turnovers
+  int _hOffReb = 0, _aOffReb = 0, _hDefReb = 0, _aDefReb = 0;
+  int _hTov = 0, _aTov = 0;
   late TabController _tabController;
 
   @override
@@ -148,6 +151,7 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
 
     int makes = 0;
     int attempts = 0;
+    int hMissFG = 0, aMissFG = 0;
 
     for (final p in possessions) {
       final teamId = p.team?.id;
@@ -184,8 +188,10 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
         attempts += 1;
         if (isHome) {
           if (outcome == 'MISSED_2PTS') _h2a += 1; else _h3a += 1;
+          hMissFG++;
         } else {
           if (outcome == 'MISSED_2PTS') _a2a += 1; else _a3a += 1;
+          aMissFG++;
         }
       } else if (outcome == 'MADE_FTS' || outcome == 'MISSED_FTS') {
         if (isHome) {
@@ -194,6 +200,24 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
         } else {
           if (outcome == 'MADE_FTS') _aftm += 1;
           _afta += 1;
+        }
+      } else if (outcome == 'TURNOVER') {
+        if (isHome) {
+          _hTov++;
+        } else {
+          _aTov++;
+        }
+      }
+
+      // Offensive rebounds counting
+      final offRebCount = p.offensiveReboundCount > 0
+          ? p.offensiveReboundCount
+          : (p.isOffensiveRebound ? 1 : 0);
+      if (offRebCount > 0) {
+        if (isHome) {
+          _hOffReb += offRebCount;
+        } else {
+          _aOffReb += offRebCount;
         }
       }
     }
@@ -204,6 +228,10 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     final totalPoints = _homeTotal + _awayTotal;
     _offPpp = _totalPossessions > 0 ? totalPoints / _totalPossessions : 0.0;
     _defPpp = _offPpp; // combined view
+
+    // Derive defensive rebounds as opponent missed FGs minus opponent offensive rebounds
+    _hDefReb = (aMissFG - _aOffReb).clamp(0, 1000000);
+    _aDefReb = (hMissFG - _hOffReb).clamp(0, 1000000);
   }
 
   Widget _buildContent(ThemeData theme) {
@@ -259,6 +287,26 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
               _Metric('Free Throws Made', _hftm, _aftm),
               _Metric('Free Throws %', _hfta > 0 ? ((_hftm / _hfta) * 100).round() : 0,
                   _afta > 0 ? ((_aftm / _afta) * 100).round() : 0, isPercent: true),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          _sectionTitle('Rebounds'),
+          _compareBlock(
+            game,
+            rows: [
+              _Metric('Offensive Rebounds', _hOffReb, _aOffReb),
+              _Metric('Defensive Rebounds', _hDefReb, _aDefReb),
+              _Metric('Total Rebounds', _hOffReb + _hDefReb, _aOffReb + _aDefReb),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          _sectionTitle('Other'),
+          _compareBlock(
+            game,
+            rows: [
+              _Metric('Turnovers', _hTov, _aTov),
             ],
           ),
         ],

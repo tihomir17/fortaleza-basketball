@@ -22,6 +22,9 @@ class PossessionInGameSerializer(serializers.ModelSerializer):
             "duration_seconds",
             "outcome",
             "points_scored",
+            # Offensive rebounds
+            "is_offensive_rebound",
+            "offensive_rebound_count",
             "offensive_set",
             "defensive_set",
             "offensive_sequence",
