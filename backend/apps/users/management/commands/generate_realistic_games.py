@@ -1,0 +1,569 @@
+# backend/apps/users/management/commands/generate_realistic_games.py
+
+import datetime
+import json
+import os
+import random
+from django.core.management.base import BaseCommand
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from decimal import Decimal
+
+# Import all necessary models
+from apps.competitions.models import Competition
+from apps.teams.models import Team
+from apps.games.models import Game
+from apps.plays.models import PlayCategory, PlayDefinition
+from apps.events.models import CalendarEvent
+from apps.possessions.models import Possession
+
+User = get_user_model()
+
+
+class RealisticGameGenerator:
+    """Generates realistic basketball games with proper possession-based scoring."""
+
+    def __init__(self, plays_by_category):
+        self.plays_by_category = plays_by_category
+
+        # Basketball constants
+        self.POSSESSIONS_PER_QUARTER = (18, 25)  # Range of possessions per quarter
+        self.QUARTER_SCORE_RANGE = (15, 30)  # Points per quarter range
+        self.SCORE_PROBABILITIES = {
+            "2PTS": 0.45,  # 45% chance of 2-point field goal
+            "3PTS": 0.25,  # 25% chance of 3-point field goal
+            "FT": 0.20,  # 20% chance of free throws
+            "0PTS": 0.10,  # 10% chance of no points (turnover, missed shot)
+        }
+
+        # Possession outcome probabilities (using actual model choices)
+        self.POSSESSION_OUTCOMES = {
+            "MADE_2PTS": 0.45,  # Made 2-point field goal
+            "MADE_3PTS": 0.25,  # Made 3-point field goal
+            "MADE_FTS": 0.20,  # Made free throws
+            "MISSED_2PTS": 0.05,  # Missed 2-point shot
+            "MISSED_3PTS": 0.03,  # Missed 3-point shot
+            "TURNOVER": 0.02,  # Turnover
+        }
+
+    def generate_quarter_score_target(self):
+        """Generate a realistic target score for a quarter (15-30 points)."""
+        return random.randint(*self.QUARTER_SCORE_RANGE)
+
+    def generate_possessions_for_quarter(
+        self, target_score, team, opponent, game, quarter
+    ):
+        """Generate possessions that realistically reach the target score."""
+        possessions = []
+        current_score = 0
+        possession_count = random.randint(*self.POSSESSIONS_PER_QUARTER)
+
+        # Calculate how many possessions we need to reach target
+        remaining_possessions = possession_count
+        remaining_score = target_score - current_score
+
+        for i in range(possession_count):
+            # Determine if this possession should score based on remaining needs
+            should_score = False
+            if remaining_score > 0 and remaining_possessions > 0:
+                # Higher probability of scoring if we need more points
+                score_probability = min(0.8, remaining_score / remaining_possessions)
+                should_score = random.random() < score_probability
+
+            # Generate possession outcome
+            if should_score and remaining_score > 0:
+                # Determine scoring type based on remaining score and possessions
+                if remaining_score >= 3 and random.random() < 0.3:
+                    outcome = "MADE_3PTS"
+                    points = 3
+                elif remaining_score >= 2:
+                    outcome = "MADE_2PTS"
+                    points = 2
+                else:
+                    outcome = "MADE_FTS"
+                    points = min(remaining_score, 2)  # Max 2 points for free throws
+
+                current_score += points
+                remaining_score -= points
+            else:
+                # Choose from non-scoring outcomes
+                non_scoring_outcomes = ["MISSED_2PTS", "MISSED_3PTS", "TURNOVER"]
+                outcome = random.choice(non_scoring_outcomes)
+                points = 0
+
+            # Create possession
+            possession = self.create_realistic_possession(
+                game=game,
+                team=team,
+                opponent=opponent,
+                quarter=quarter,
+                outcome=outcome,
+                points_scored=points,
+                possession_number=i + 1,
+            )
+
+            possessions.append(possession)
+            remaining_possessions -= 1
+
+            # Stop if we've reached our target score
+            if current_score >= target_score:
+                break
+
+        return possessions, current_score
+
+    def create_realistic_possession(
+        self, game, team, opponent, quarter, outcome, points_scored, possession_number
+    ):
+        """Create a realistic possession with proper sequences and data."""
+
+        # Generate realistic time data
+        start_minute = (quarter - 1) * 12 + random.randint(0, 11)
+        start_second = random.randint(0, 59)
+        duration = random.randint(8, 24)  # 8-24 seconds per possession
+
+        # Generate realistic sequences based on outcome
+        if outcome in ["MADE_2PTS", "MADE_3PTS", "MADE_FTS"]:
+            offensive_sequence = self.generate_scoring_offensive_sequence()
+            defensive_sequence = ""
+        else:
+            offensive_sequence = self.generate_missed_offensive_sequence()
+            defensive_sequence = self.generate_defensive_sequence()
+
+        # Create possession object
+        possession = Possession(
+            game=game,
+            team=team,
+            opponent=opponent,
+            quarter=quarter,
+            start_time_in_game=f"{start_minute:02}:{start_second:02}",
+            duration_seconds=duration,
+            outcome=outcome,
+            points_scored=points_scored,
+            # Offensive data
+            offensive_set=self.get_random_offensive_set(),
+            pnr_type=self.get_random_pnr_type(),
+            pnr_result=self.get_random_pnr_result(),
+            has_paint_touch=random.choice([True, False]),
+            has_kick_out=random.choice([True, False]),
+            has_extra_pass=random.choice([True, False]),
+            number_of_passes=random.randint(1, 4),
+            is_offensive_rebound=outcome in ["MISSED_2PTS", "MISSED_3PTS"]
+            and random.random() < 0.25,
+            offensive_rebound_count=0,
+            # Defensive data
+            defensive_set=self.get_random_defensive_set(),
+            defensive_pnr=self.get_random_defensive_pnr(),
+            box_out_count=random.randint(0, 3),
+            offensive_rebounds_allowed=0,
+            # Shot data
+            shoot_time=random.randint(5, duration),
+            shoot_quality=self.get_random_shoot_quality(),
+            time_range=self.get_random_time_range(),
+            # Other
+            after_timeout=random.random() < 0.1,  # 10% chance of being after timeout
+            offensive_sequence=offensive_sequence,
+            defensive_sequence=defensive_sequence,
+            notes=f"Generated possession {possession_number}",
+            created_by=game.created_by,
+        )
+
+        return possession
+
+    def generate_scoring_offensive_sequence(self):
+        """Generate offensive sequence for scoring possessions."""
+        sequence_parts = []
+
+        # Add offensive set
+        if "Offense" in self.plays_by_category:
+            offensive_sets = [
+                play
+                for play in self.plays_by_category["Offense"]
+                if play.startswith("Set")
+            ]
+            if offensive_sets:
+                sequence_parts.append(random.choice(offensive_sets))
+
+        # Add half court action
+        if "Offense Half Court" in self.plays_by_category:
+            half_court_actions = self.plays_by_category["Offense Half Court"]
+            if half_court_actions:
+                sequence_parts.append(random.choice(half_court_actions))
+
+        # Add shot type
+        if "Outcome" in self.plays_by_category:
+            shot_types = [
+                play
+                for play in self.plays_by_category["Outcome"]
+                if any(
+                    keyword in play.lower()
+                    for keyword in ["2pt", "3pt", "lay up", "shot"]
+                )
+            ]
+            if shot_types:
+                sequence_parts.append(random.choice(shot_types))
+
+        # Add made result
+        if "Outcome" in self.plays_by_category:
+            made_results = [
+                play
+                for play in self.plays_by_category["Outcome"]
+                if "made" in play.lower()
+            ]
+            if made_results:
+                sequence_parts.append(random.choice(made_results))
+
+        return " / ".join(sequence_parts) if sequence_parts else "Scoring Play"
+
+    def generate_missed_offensive_sequence(self):
+        """Generate offensive sequence for missed possessions."""
+        sequence_parts = []
+
+        # Add offensive set
+        if "Offense" in self.plays_by_category:
+            offensive_sets = [
+                play
+                for play in self.plays_by_category["Offense"]
+                if play.startswith("Set")
+            ]
+            if offensive_sets:
+                sequence_parts.append(random.choice(offensive_sets))
+
+        # Add missed shot
+        if "Outcome" in self.plays_by_category:
+            missed_results = [
+                play
+                for play in self.plays_by_category["Outcome"]
+                if "miss" in play.lower()
+            ]
+            if missed_results:
+                sequence_parts.append(random.choice(missed_results))
+
+        return " / ".join(sequence_parts) if sequence_parts else "Missed Play"
+
+    def generate_defensive_sequence(self):
+        """Generate defensive sequence."""
+        sequence_parts = []
+
+        # Add defensive formation
+        if "Defense" in self.plays_by_category:
+            defensive_formations = [
+                play
+                for play in self.plays_by_category["Defense"]
+                if any(
+                    keyword in play.lower()
+                    for keyword in ["2-3", "3-2", "1-3-1", "1-2-2", "zone"]
+                )
+            ]
+            if defensive_formations:
+                sequence_parts.append(random.choice(defensive_formations))
+
+        # Add defensive action
+        if "Defense" in self.plays_by_category:
+            defensive_actions = [
+                play
+                for play in self.plays_by_category["Defense"]
+                if any(
+                    keyword in play.lower()
+                    for keyword in ["switch", "drop", "hedge", "trap"]
+                )
+            ]
+            if defensive_actions:
+                sequence_parts.append(random.choice(defensive_actions))
+
+        return " / ".join(sequence_parts) if sequence_parts else "Defensive Play"
+
+    def get_random_offensive_set(self):
+        """Get random offensive set from choices."""
+        choices = [choice[0] for choice in Possession.OffensiveSetChoices.choices]
+        return random.choice(choices)
+
+    def get_random_pnr_type(self):
+        """Get random PnR type from choices."""
+        choices = [choice[0] for choice in Possession.PnRTypeChoices.choices]
+        return random.choice(choices)
+
+    def get_random_pnr_result(self):
+        """Get random PnR result from choices."""
+        choices = [choice[0] for choice in Possession.PnRResultChoices.choices]
+        return random.choice(choices)
+
+    def get_random_defensive_set(self):
+        """Get random defensive set from choices."""
+        choices = [choice[0] for choice in Possession.DefensiveSetChoices.choices]
+        return random.choice(choices)
+
+    def get_random_defensive_pnr(self):
+        """Get random defensive PnR from choices."""
+        choices = [choice[0] for choice in Possession.DefensivePnRChoices.choices]
+        return random.choice(choices)
+
+    def get_random_shoot_quality(self):
+        """Get random shoot quality from choices."""
+        choices = [choice[0] for choice in Possession.ShootQualityChoices.choices]
+        return random.choice(choices)
+
+    def get_random_time_range(self):
+        """Get random time range from choices."""
+        choices = [choice[0] for choice in Possession.TimeRangeChoices.choices]
+        return random.choice(choices)
+
+
+class Command(BaseCommand):
+    help = "Generates realistic basketball games with possession-based scoring and realistic quarter scores."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--games",
+            type=int,
+            default=20,
+            help="Number of games to generate (default: 20)",
+        )
+        parser.add_argument(
+            "--fortaleza-games",
+            type=int,
+            default=10,
+            help="Number of Fortaleza games to generate (default: 10)",
+        )
+        parser.add_argument(
+            "--clear-existing",
+            action="store_true",
+            help="Clear existing games and possessions before generating new ones",
+        )
+
+    def load_play_definitions(self):
+        """Load play definitions from JSON file."""
+        json_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "..",
+            "..",
+            "data",
+            "initial_play_definitions.json",
+        )
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        plays_by_category = {}
+        for category_data in data:
+            category_name = category_data["category"]
+            plays_by_category[category_name] = []
+            for play_data in category_data["plays"]:
+                plays_by_category[category_name].append(play_data["name"])
+
+        return plays_by_category
+
+    @transaction.atomic
+    def handle(self, *args, **options):
+        self.stdout.write(
+            self.style.SUCCESS("--- Starting Realistic Game Generation ---")
+        )
+
+        num_games = options["games"]
+        num_fortaleza_games = options["fortaleza_games"]
+        clear_existing = options["clear_existing"]
+
+        # Clear existing data if requested
+        if clear_existing:
+            self.stdout.write("Clearing existing games and possessions...")
+            Possession.objects.all().delete()
+            Game.objects.all().delete()
+            self.stdout.write("Existing data cleared.")
+
+        # Get superuser
+        superuser = User.objects.filter(is_superuser=True).order_by("pk").first()
+        if not superuser:
+            self.stdout.write(
+                self.style.ERROR(
+                    'FATAL: No superuser found. Please create one first with "python manage.py createsuperuser".'
+                )
+            )
+            return
+
+        # Get or create competition
+        nbb_competition, _ = Competition.objects.get_or_create(
+            name="Novo Basquete Brasil",
+            defaults={"season": "2025-2026", "created_by": superuser},
+        )
+
+        # Get teams
+        teams = list(Team.objects.all())
+        if not teams:
+            self.stdout.write(
+                self.style.ERROR(
+                    'No teams found. Please run "python manage.py populate_db" first to create teams.'
+                )
+            )
+            return
+
+        # Find Fortaleza team
+        fortaleza_team = None
+        for team in teams:
+            if "Fortaleza" in team.name:
+                fortaleza_team = team
+                break
+
+        if not fortaleza_team:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Fortaleza team not found. Will generate games with random teams."
+                )
+            )
+
+        # Load play definitions
+        self.stdout.write("Loading play definitions...")
+        plays_by_category = self.load_play_definitions()
+
+        # Initialize game generator
+        game_generator = RealisticGameGenerator(plays_by_category)
+
+        # Generate games
+        self.stdout.write(f"Generating {num_games} realistic games...")
+
+        games_created = 0
+
+        # Generate Fortaleza games first
+        if fortaleza_team:
+            self.stdout.write(f"Generating {num_fortaleza_games} Fortaleza games...")
+            for i in range(num_fortaleza_games):
+                # Fortaleza plays against different teams
+                opponent = random.choice(
+                    [team for team in teams if team != fortaleza_team]
+                )
+
+                # Randomly decide if Fortaleza is home or away
+                if random.choice([True, False]):
+                    home_team = fortaleza_team
+                    away_team = opponent
+                else:
+                    home_team = opponent
+                    away_team = fortaleza_team
+
+                game = self.generate_realistic_game(
+                    game_generator,
+                    home_team,
+                    away_team,
+                    nbb_competition,
+                    superuser,
+                    i + 1,
+                )
+                games_created += 1
+
+                self.stdout.write(
+                    f"  - Created Fortaleza game {i+1}: {home_team.name} vs {away_team.name} "
+                    f"({game.home_team_score}-{game.away_team_score})"
+                )
+
+        # Generate remaining games
+        remaining_games = num_games - num_fortaleza_games
+        if remaining_games > 0:
+            self.stdout.write(f"Generating {remaining_games} additional games...")
+            for i in range(remaining_games):
+                # Random teams
+                home_team = random.choice(teams)
+                away_team = random.choice([team for team in teams if team != home_team])
+
+                game = self.generate_realistic_game(
+                    game_generator,
+                    home_team,
+                    away_team,
+                    nbb_competition,
+                    superuser,
+                    num_fortaleza_games + i + 1,
+                )
+                games_created += 1
+
+                self.stdout.write(
+                    f"  - Created game {num_fortaleza_games + i+1}: {home_team.name} vs {away_team.name} "
+                    f"({game.home_team_score}-{game.away_team_score})"
+                )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"--- Realistic Game Generation Complete! ---\n"
+                f"Created {games_created} games with realistic scoring and possessions."
+            )
+        )
+
+    def generate_realistic_game(
+        self, game_generator, home_team, away_team, competition, created_by, game_number
+    ):
+        """Generate a single realistic game with proper quarter scoring."""
+
+        # Random game date in the last 6 months
+        game_date = datetime.datetime.now() - datetime.timedelta(
+            days=random.randint(1, 180)
+        )
+
+        # Generate quarter scores
+        home_quarter_scores = []
+        away_quarter_scores = []
+        home_total = 0
+        away_total = 0
+
+        # Generate scores for each quarter
+        for quarter in range(1, 5):
+            home_quarter_score = game_generator.generate_quarter_score_target()
+            away_quarter_score = game_generator.generate_quarter_score_target()
+
+            home_quarter_scores.append(home_quarter_score)
+            away_quarter_scores.append(away_quarter_score)
+            home_total += home_quarter_score
+            away_total += away_quarter_score
+
+        # Create game
+        game = Game.objects.create(
+            competition=competition,
+            home_team=home_team,
+            away_team=away_team,
+            game_date=game_date,
+            home_team_score=home_total,
+            away_team_score=away_total,
+            created_by=created_by,
+        )
+
+        # Generate possessions for each quarter
+        all_possessions = []
+
+        for quarter in range(1, 5):
+            # Generate possessions for home team in this quarter
+            home_possessions, home_actual_score = (
+                game_generator.generate_possessions_for_quarter(
+                    home_quarter_scores[quarter - 1],
+                    home_team,
+                    away_team,
+                    game,
+                    quarter,
+                )
+            )
+
+            # Generate possessions for away team in this quarter
+            away_possessions, away_actual_score = (
+                game_generator.generate_possessions_for_quarter(
+                    away_quarter_scores[quarter - 1],
+                    away_team,
+                    home_team,
+                    game,
+                    quarter,
+                )
+            )
+
+            all_possessions.extend(home_possessions)
+            all_possessions.extend(away_possessions)
+
+            # Log quarter scores
+            self.stdout.write(
+                f"    Q{quarter}: {home_team.name} {home_actual_score} - "
+                f"{away_team.name} {away_actual_score}"
+            )
+
+        # Bulk create all possessions
+        Possession.objects.bulk_create(all_possessions)
+
+        self.stdout.write(
+            f"    Total: {home_team.name} {home_total} - {away_team.name} {away_total} "
+            f"({len(all_possessions)} possessions)"
+        )
+
+        return game

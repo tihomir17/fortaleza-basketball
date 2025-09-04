@@ -42,7 +42,17 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_analyticsData == null && !_isLoading) {
+    
+    // Get user teams and set default team if none selected
+    final userTeams = context.read<TeamCubit>().state.teams;
+    if (userTeams.isNotEmpty && _selectedTeamId == null) {
+      setState(() {
+        _selectedTeamId = userTeams.first.id;
+      });
+    }
+    
+    // Only load analytics if we have a team selected and no data
+    if (_analyticsData == null && !_isLoading && _selectedTeamId != null) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadAnalytics();
@@ -117,6 +127,14 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         }
       });
       
+      print('GameAnalyticsScreen: Loading analytics with filters:');
+      print('  - Team ID: $_selectedTeamId');
+      print('  - Quarter: $_selectedQuarter');
+      print('  - Last Games: $lastGamesToUse');
+      print('  - Outcome: $_selectedOutcome');
+      print('  - Home/Away: $_selectedHomeAway');
+      print('  - Min Possessions: $_minPossessions');
+      
       final analyticsData = await sl<GameRepository>().getComprehensiveAnalytics(
         token: token,
         teamId: _selectedTeamId,
@@ -126,6 +144,14 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         homeAway: _selectedHomeAway,
         minPossessions: _minPossessions,
       );
+
+      print('GameAnalyticsScreen: Received analytics data: ${analyticsData != null ? 'Success' : 'Null'}');
+      if (analyticsData != null) {
+        print('GameAnalyticsScreen: Data keys: ${analyticsData.keys.toList()}');
+        if (analyticsData['summary'] != null) {
+          print('GameAnalyticsScreen: Summary data: ${analyticsData['summary']}');
+        }
+      }
 
       // Validate the analytics data structure
       if (analyticsData == null) {
@@ -241,6 +267,17 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
               ),
             ],
           ),
+          if (userTeams.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'No teams available. Please ensure you are associated with a team.',
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           const SizedBox(height: 20),
           
           // Team and Quarter Row
@@ -513,10 +550,55 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         ),
       );
     }
+    // Check if team is selected
+    if (_selectedTeamId == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.sports_basketball, size: 64, color: Colors.blue[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Select a team to view analytics',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Choose a team from the filters above to start analyzing game data',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
     if (_analyticsData == null) {
-      return const Center(
-        child: Text('No analytics data available.'),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.analytics, size: 64, color: Colors.orange[300]),
+            const SizedBox(height: 16),
+            Text(
+              'No analytics data available',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Try adjusting your filters or check if there are games with possessions for the selected team',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _safeClearCacheAndReload,
+              child: const Text('Refresh Data'),
+            ),
+          ],
+        ),
       );
     }
 

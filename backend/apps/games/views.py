@@ -575,7 +575,7 @@ class GameViewSet(viewsets.ModelViewSet):
             # Quick Stats
             quick_stats = {}
             team_ids = [team.id for team in user_teams]
-            
+
             if user_teams:
                 # Total games
                 total_games = Game.objects.filter(

@@ -15,12 +15,69 @@ from apps.games.models import Game
 from apps.plays.models import PlayCategory, PlayDefinition
 from apps.events.models import CalendarEvent
 from apps.possessions.models import Possession
+from apps.users.management.commands.generate_realistic_games import RealisticGameGenerator
 
 User = get_user_model()
 
 
 class Command(BaseCommand):
     help = "Populates the database with a large, realistic set of NBB league data."
+
+    def _generate_realistic_game(
+        self,
+        game_generator: RealisticGameGenerator,
+        home_team: Team,
+        away_team: Team,
+        competition: Competition,
+        created_by: User,
+    ) -> Game:
+        """Generate a single realistic game with quarter targets and possession-based scoring."""
+        # Random game date in the last 6 months
+        game_date = datetime.datetime.now() - datetime.timedelta(
+            days=random.randint(1, 180)
+        )
+
+        # Generate quarter scores
+        home_quarter_scores = []
+        away_quarter_scores = []
+        home_total = 0
+        away_total = 0
+
+        for _ in range(4):
+            hq = game_generator.generate_quarter_score_target()
+            aq = game_generator.generate_quarter_score_target()
+            home_quarter_scores.append(hq)
+            away_quarter_scores.append(aq)
+            home_total += hq
+            away_total += aq
+
+        # Create game with totals
+        game = Game.objects.create(
+            competition=competition,
+            home_team=home_team,
+            away_team=away_team,
+            game_date=game_date,
+            home_team_score=home_total,
+            away_team_score=away_total,
+            created_by=created_by,
+        )
+
+        # Generate possessions for each quarter and both teams
+        all_possessions = []
+        for quarter in range(1, 5):
+            home_possessions, _ = game_generator.generate_possessions_for_quarter(
+                home_quarter_scores[quarter - 1], home_team, away_team, game, quarter
+            )
+            away_possessions, _ = game_generator.generate_possessions_for_quarter(
+                away_quarter_scores[quarter - 1], away_team, home_team, game, quarter
+            )
+            all_possessions.extend(home_possessions)
+            all_possessions.extend(away_possessions)
+
+        if all_possessions:
+            Possession.objects.bulk_create(all_possessions)
+
+        return game
 
     def load_play_definitions(self):
         """Load play definitions from JSON file and organize them by category."""
@@ -636,8 +693,8 @@ class Command(BaseCommand):
                 )
         self.stdout.write("Play definitions loaded.")
 
-        # Create sample games
-        self.stdout.write("Creating 50 sample games (20 Fortaleza games)...")
+        # Create sample games (realistic, possession-driven)
+        self.stdout.write("Creating 50 realistic sample games (20 Fortaleza games)...")
 
         # Fortaleza team should already be found from the coaches section
         if not fortaleza_team:
@@ -645,6 +702,10 @@ class Command(BaseCommand):
             return
 
         games = []
+        # Prepare realistic generator (needs play definitions)
+        self.stdout.write("Loading play definitions for realistic generation...")
+        plays_by_category_for_realistic = self.load_play_definitions()
+        realistic_generator = RealisticGameGenerator(plays_by_category_for_realistic)
 
         # Create 20 Fortaleza games
         for i in range(20):
@@ -661,22 +722,8 @@ class Command(BaseCommand):
                 home_team = opponent
                 away_team = fortaleza_team
 
-            # Random scores
-            home_score = random.randint(70, 120)
-            away_score = random.randint(70, 120)
-
-            # Random game date in the last 6 months
-            game_date = datetime.datetime.now() - datetime.timedelta(
-                days=random.randint(1, 180)
-            )
-
-            game = Game.objects.create(
-                competition=nbb_competition,
-                home_team=home_team,
-                away_team=away_team,
-                game_date=game_date,
-                home_team_score=home_score,
-                away_team_score=away_score,
+            game = self._generate_realistic_game(
+                realistic_generator, home_team, away_team, nbb_competition, superuser
             )
             games.append(game)
 
@@ -686,129 +733,10 @@ class Command(BaseCommand):
             home_team = random.choice(all_teams)
             away_team = random.choice([team for team in all_teams if team != home_team])
 
-            # Random scores
-            home_score = random.randint(70, 120)
-            away_score = random.randint(70, 120)
-
-            # Random game date in the last 6 months
-            game_date = datetime.datetime.now() - datetime.timedelta(
-                days=random.randint(1, 180)
-            )
-
-            game = Game.objects.create(
-                competition=nbb_competition,
-                home_team=home_team,
-                away_team=away_team,
-                game_date=game_date,
-                home_team_score=home_score,
-                away_team_score=away_score,
+            game = self._generate_realistic_game(
+                realistic_generator, home_team, away_team, nbb_competition, superuser
             )
             games.append(game)
 
-        # Load play definitions for sequence generation
-        self.stdout.write("Loading play definitions for sequence generation...")
-        plays_by_category = self.load_play_definitions()
-
-        # Create possessions with realistic sequences
-        self.stdout.write("Creating possessions with realistic sequences...")
-
-        # Get all possible values for other fields
-        outcomes = [choice[0] for choice in Possession.OutcomeChoices.choices]
-        offensive_sets = [
-            choice[0] for choice in Possession.OffensiveSetChoices.choices
-        ]
-        pnr_types = [choice[0] for choice in Possession.PnRTypeChoices.choices]
-        pnr_results = [choice[0] for choice in Possession.PnRResultChoices.choices]
-        defensive_sets = [
-            choice[0] for choice in Possession.DefensiveSetChoices.choices
-        ]
-        defensive_pnr = [choice[0] for choice in Possession.DefensivePnRChoices.choices]
-        shoot_qualities = [
-            choice[0] for choice in Possession.ShootQualityChoices.choices
-        ]
-        time_ranges = [choice[0] for choice in Possession.TimeRangeChoices.choices]
-
-        # Create possessions in batches for better performance
-        possession_batch = []
-        batch_size = 1000
-
-        for game in games:
-            possession_count = random.randint(
-                120, 200
-            )  # Reduced: Create a random number of possessions (20-40 per game)
-
-            for i in range(possession_count):
-                possession_team = random.choice([game.home_team, game.away_team])
-                opponent_team = (
-                    game.away_team
-                    if possession_team == game.home_team
-                    else game.home_team
-                )
-                quarter = random.randint(1, 4)
-
-                # Determine if this is an offensive or defensive possession
-                is_offensive_possession = random.choice([True, False])
-
-                # Generate sequences using play definitions
-                if is_offensive_possession:
-                    offensive_sequence = self.generate_offensive_sequence(
-                        plays_by_category
-                    )
-                    defensive_sequence = ""
-                else:
-                    offensive_sequence = ""
-                    defensive_sequence = self.generate_defensive_sequence(
-                        plays_by_category
-                    )
-
-                # Create possession object without saving to database yet
-                possession = Possession(
-                    game=game,
-                    team=possession_team,
-                    opponent=opponent_team,
-                    quarter=quarter,
-                    start_time_in_game=f"{random.randint(0,11):02}:{random.randint(0,59):02}",
-                    duration_seconds=random.randint(5, 24),
-                    outcome=random.choice(outcomes),
-                    points_scored=random.randint(0, 3),
-                    offensive_set=random.choice(offensive_sets),
-                    pnr_type=random.choice(pnr_types),
-                    pnr_result=random.choice(pnr_results),
-                    has_paint_touch=random.choice([True, False]),
-                    has_kick_out=random.choice([True, False]),
-                    has_extra_pass=random.choice([True, False]),
-                    number_of_passes=random.randint(1, 5),
-                    is_offensive_rebound=random.choice([True, False]),
-                    offensive_rebound_count=random.randint(0, 3),
-                    defensive_set=random.choice(defensive_sets),
-                    defensive_pnr=random.choice(defensive_pnr),
-                    box_out_count=random.randint(0, 4),
-                    offensive_rebounds_allowed=random.randint(0, 2),
-                    shoot_time=random.randint(5, 20),
-                    shoot_quality=random.choice(shoot_qualities),
-                    time_range=random.choice(time_ranges),
-                    after_timeout=random.choice([True, False]),
-                    offensive_sequence=offensive_sequence,
-                    defensive_sequence=defensive_sequence,
-                    notes=f"Sample possession {i+1}",
-                    created_by=superuser,
-                )
-
-                possession_batch.append(possession)
-
-                # Bulk create when batch is full
-                if len(possession_batch) >= batch_size:
-                    Possession.objects.bulk_create(possession_batch)
-                    self.stdout.write(
-                        f"  - Created batch of {len(possession_batch)} possessions"
-                    )
-                    possession_batch = []
-
-        # Create remaining possessions
-        if possession_batch:
-            Possession.objects.bulk_create(possession_batch)
-            self.stdout.write(
-                f"  - Created final batch of {len(possession_batch)} possessions"
-            )
 
         self.stdout.write(self.style.SUCCESS("--- Database Population Complete! ---"))
