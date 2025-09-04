@@ -1,6 +1,5 @@
 // lib/features/games/data/models/player_minutes_tracker.dart
 
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 
 class PlayerMinutesTracker {

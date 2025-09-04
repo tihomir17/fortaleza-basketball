@@ -614,8 +614,6 @@ class GameViewSet(viewsets.ModelViewSet):
                     "avg_possessions_per_game": 0.0,
                 }
 
-
-
             # Upcoming Games (next 7 days)
             upcoming_games = []
             if user_teams and team_ids:

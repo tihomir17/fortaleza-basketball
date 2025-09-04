@@ -1,7 +1,6 @@
 // lib/features/possessions/data/models/possession_model.dart
 
 import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
 
