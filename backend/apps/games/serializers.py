@@ -143,19 +143,29 @@ class ScoutingReportSerializer(serializers.ModelSerializer):
     created_by = serializers.StringRelatedField(read_only=True)
     file_size_mb = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ScoutingReport
         fields = [
-            'id', 'title', 'description', 'file_size', 'file_size_mb', 
-            'download_url', 'team', 'quarter_filter', 'last_games', 
-            'outcome_filter', 'home_away_filter', 'min_possessions',
-            'created_by', 'created_at'
+            "id",
+            "title",
+            "description",
+            "file_size",
+            "file_size_mb",
+            "download_url",
+            "team",
+            "quarter_filter",
+            "last_games",
+            "outcome_filter",
+            "home_away_filter",
+            "min_possessions",
+            "created_by",
+            "created_at",
         ]
-        read_only_fields = ['file_size', 'created_by', 'created_at']
-    
+        read_only_fields = ["file_size", "created_by", "created_at"]
+
     def get_file_size_mb(self, obj):
         return obj.get_file_size_mb()
-    
+
     def get_download_url(self, obj):
         return obj.get_download_url()

@@ -5,6 +5,7 @@ import 'package:flutter_app/main.dart'; // To access GetIt (sl)
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
+import 'package:flutter_app/core/services/api_service.dart';
 // Import all the cubits that need to be triggered
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../competitions/presentation/cubit/competition_cubit.dart';
@@ -24,6 +25,9 @@ class AuthCubit extends Cubit<AuthState> {
   /// This is a centralized helper method called after any successful login.
   /// It fetches all initial data needed for a user session.
   Future<void> _onLoginSuccess(String token, User user) async {
+    // Set the auth token in the ApiService
+    sl<ApiService>().setAuthToken(token);
+    
     // Get instances of the other global/session-wide cubits from the service locator.
     final teamCubit = sl<TeamCubit>();
     final competitionCubit = sl<CompetitionCubit>();
@@ -89,6 +93,9 @@ class AuthCubit extends Cubit<AuthState> {
     logger.i('User logging out.');
     // Clear the token from storage first.
     await _authRepository.logout();
+
+    // Clear the auth token from ApiService
+    sl<ApiService>().clearAuthToken();
 
     // This tells GoRouter to navigate to the login screen RIGHT NOW.
     // The old screens (HomeScreen, etc.) will be disposed.

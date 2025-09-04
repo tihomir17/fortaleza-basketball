@@ -44,4 +44,16 @@ class Team {
       logoUrl: json['logo_url'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'createdBy': createdBy?.toJson(),
+      'players': players.map((p) => p.toJson()).toList(),
+      'coaches': coaches.map((c) => c.toJson()).toList(),
+      'competitionId': competitionId,
+      'logoUrl': logoUrl,
+    };
+  }
 }

@@ -182,31 +182,64 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       appBar: AppBar(
         title: const Text('Game Analysis'),
         actions: [
+          IconButton(
+            tooltip: 'Match Stats',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/stats');
+            },
+          ),
+          IconButton(
+            tooltip: 'Player Stats',
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/player-stats');
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF0066CC),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.analytics_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-              onPressed: () {
-                // Get the user's team ID from the game
-                final game = context.read<GameDetailCubit>().state.game;
-                if (game != null) {
-                  final userTeams = context.read<TeamCubit>().state.teams;
-                  final userTeamInGame = userTeams.firstWhere(
-                    (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
-                    orElse: () => game.homeTeam,
-                  );
-                  context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
-                }
-              },
-              tooltip: 'Post Game Report',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.analytics_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    // Get the user's team ID from the game
+                    final game = context.read<GameDetailCubit>().state.game;
+                    if (game != null) {
+                      final userTeams = context.read<TeamCubit>().state.teams;
+                      final userTeamInGame = userTeams.firstWhere(
+                        (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                        orElse: () => game.homeTeam,
+                      );
+                      context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+                    }
+                  },
+                  tooltip: 'Post Game Report',
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.assessment,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    final game = context.read<GameDetailCubit>().state.game;
+                    if (game != null) {
+                      context.go('/games/${game.id}/advanced-report');
+                    }
+                  },
+                  tooltip: 'Advanced Post-Game Report',
+                ),
+              ],
             ),
           ),
                      Padding(
@@ -509,7 +542,7 @@ class _PossessionCardState extends State<_PossessionCard> {
     final theme = Theme.of(context);
     final possession = widget.possession;
     final game = widget.game;
-    final teamWithBall = possession.team;
+    final teamWithBall = possession.team?.team;
 
     if (teamWithBall == null) {
       return const Card(
@@ -608,7 +641,162 @@ class _PossessionCardState extends State<_PossessionCard> {
                     possession.defensiveSequence,
                     style: const TextStyle(fontFamily: 'monospace'),
                   ),
+                  const SizedBox(height: 12),
                 ],
+                
+                // --- PLAYER INFORMATION SECTION ---
+                if (possession.playersOnCourt.isNotEmpty || possession.defensivePlayersOnCourt.isNotEmpty) ...[
+                  Text(
+                    'Players on Court:',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Offensive team players
+                  if (possession.playersOnCourt.isNotEmpty) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${teamWithBall.name}: ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            children: possession.playersOnCourt.map((player) => 
+                              Chip(
+                                label: Text(
+                                  '${player.displayName}${player.jerseyNumber != null ? ' #${player.jerseyNumber}' : ''}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                backgroundColor: Colors.blue.shade100,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  
+                  // Defensive team players
+                  if (possession.defensivePlayersOnCourt.isNotEmpty) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${opponent.name}: ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            children: possession.defensivePlayersOnCourt.map((player) => 
+                              Chip(
+                                label: Text(
+                                  '${player.displayName}${player.jerseyNumber != null ? ' #${player.jerseyNumber}' : ''}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                backgroundColor: Colors.red.shade100,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  
+                  // Player attribution (who scored, assisted, etc.)
+                  if (possession.scorer != null || possession.assistedBy != null) ...[
+                    const Divider(height: 16),
+                    Text(
+                      'Player Attribution:',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    if (possession.scorer != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.sports_basketball, size: 16, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Scored by: ${possession.scorer!.displayName}${possession.scorer!.jerseyNumber != null ? ' #${possession.scorer!.jerseyNumber}' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    
+                    if (possession.assistedBy != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.handshake, size: 16, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Assisted by: ${possession.assistedBy!.displayName}${possession.assistedBy!.jerseyNumber != null ? ' #${possession.assistedBy!.jerseyNumber}' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    
+                    if (possession.blockedBy != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.block, size: 16, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Blocked by: ${possession.blockedBy!.displayName}${possession.blockedBy!.jerseyNumber != null ? ' #${possession.blockedBy!.jerseyNumber}' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    
+                    if (possession.stolenBy != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.trending_up, size: 16, color: Colors.purple),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Stolen by: ${possession.stolenBy!.displayName}${possession.stolenBy!.jerseyNumber != null ? ' #${possession.stolenBy!.jerseyNumber}' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    
+                    if (possession.fouledBy != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.warning, size: 16, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Fouled by: ${possession.fouledBy!.displayName}${possession.fouledBy!.jerseyNumber != null ? ' #${possession.fouledBy!.jerseyNumber}' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                  ],
+                  
+                  const SizedBox(height: 12),
+                ],
+                
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,

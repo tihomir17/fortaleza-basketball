@@ -19,6 +19,8 @@ import '../../features/plays/presentation/cubit/playbook_cubit.dart';
 import '../../features/plays/presentation/screens/playbook_screen.dart';
 import '../../features/games/presentation/screens/games_screen.dart';
 import '../../features/games/presentation/screens/game_detail_screen.dart';
+import '../../features/games/presentation/screens/match_stats_screen.dart';
+import '../../features/games/presentation/screens/player_stats_screen.dart';
 import '../../features/games/presentation/cubit/game_detail_cubit.dart';
 import '../../features/playbook/presentation/screens/playbook_hub_screen.dart';
 import '../../features/calendar/presentation/screens/calendar_screen.dart';
@@ -27,6 +29,9 @@ import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';
+import '../../features/games/presentation/screens/advanced_post_game_report_screen.dart';
+import '../../features/games/presentation/screens/schedule_game_screen.dart';
+import '../../features/calendar/presentation/screens/schedule_event_screen.dart';
 import '../debug/debug_screen.dart';
 
 class AppRouter {
@@ -99,6 +104,10 @@ class AppRouter {
             builder: (context, state) => const GamesScreen(),
             routes: [
               GoRoute(
+                path: 'add',
+                builder: (context, state) => const ScheduleGameScreen(),
+              ),
+              GoRoute(
                 path: ':gameId',
                 builder: (context, state) {
                   final gameId =
@@ -113,6 +122,20 @@ class AppRouter {
                   );
                 },
                 routes: [
+                  GoRoute(
+                    path: 'stats', // Matches '/games/:gameId/stats'
+                    builder: (context, state) {
+                      final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return MatchStatsScreen(gameId: gameId);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'player-stats', // Matches '/games/:gameId/player-stats'
+                    builder: (context, state) {
+                      final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return PlayerStatsScreen(gameId: gameId);
+                    },
+                  ),
                   GoRoute(
                     path: 'track', // Matches '/games/:gameId/track'
                     builder: (context, state) {
@@ -136,6 +159,14 @@ class AppRouter {
                       );
                     },
                   ),
+                  GoRoute(
+                    path: 'advanced-report', // Matches '/games/:gameId/advanced-report'
+                    builder: (context, state) {
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return AdvancedPostGameReportScreen(gameId: gameId);
+                    },
+                  ),
                 ],
               ),
             ],
@@ -156,8 +187,27 @@ class AppRouter {
             builder: (context, state) => const CalendarScreen(),
           ),
           GoRoute(
+            path: '/events',
+            builder: (context, state) => const CalendarScreen(),
+            routes: [
+              GoRoute(
+                path: 'add',
+                builder: (context, state) => ScheduleEventScreen(
+                  initialDate: DateTime.now(),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
             path: '/scouting-reports',
             builder: (context, state) => const ScoutingReportsScreen(),
+          ),
+          GoRoute(
+            path: '/games/:gameId/player-stats',
+            builder: (context, state) {
+              final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+              return PlayerStatsScreen(gameId: gameId);
+            },
           ),
           GoRoute(
             path: '/self-scouting',

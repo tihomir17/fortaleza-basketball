@@ -1,0 +1,43 @@
+repos:
+  # Backend Python checks
+  - repo: local
+    hooks:
+      - id: backend-lint
+        name: Backend Lint
+        entry: bash -c 'cd backend && pre-commit run --all-files'
+        language: system
+        pass_filenames: false
+        always_run: true
+        types: [python]
+
+  # Frontend Flutter checks
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: Frontend Lint
+        entry: bash -c 'cd frontend && pre-commit run --all-files'
+        language: system
+        pass_filenames: false
+        always_run: true
+        types: [dart]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-docstring-first
+
+  # Git hooks
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        types: [markdown, yaml, json]
+        args: [--prose-wrap=always]

@@ -142,6 +142,33 @@ class GameRepository {
     }
   }
 
+  /// Fetches all possessions for a game by following pagination until exhausted
+  Future<List<Map<String, dynamic>>> getAllGamePossessions({
+    required String token,
+    required int gameId,
+    int pageSize = 100,
+  }) async {
+    final List<Map<String, dynamic>> all = [];
+    int page = 1;
+    while (true) {
+      final data = await getGamePossessions(
+        token: token,
+        gameId: gameId,
+        page: page,
+        pageSize: pageSize,
+      );
+      final List<dynamic> results = (data['results'] as List<dynamic>? ) ?? const [];
+      all.addAll(results.cast<Map<String, dynamic>>());
+      final next = data['next'];
+      if (next == null) break;
+      page += 1;
+      // Defensive cap to prevent infinite loops
+      if (page > 1000) break;
+    }
+    logger.i('GameRepository: Loaded total ${all.length} possessions for game $gameId');
+    return all;
+  }
+
   // Cache management methods
   static bool _isCacheValid(String cacheKey) {
     if (!_gameListCache.containsKey(cacheKey)) return false;
@@ -305,6 +332,9 @@ class GameRepository {
     String? homeAway,
     int? minPossessions,
   }) async {
+    // Ensure analytics cache is initialized
+    _ensureAnalyticsCacheInitialized();
+    
     final queryParams = <String, String>{};
     
     if (teamId != null) queryParams['team_id'] = teamId.toString();
@@ -321,12 +351,17 @@ class GameRepository {
     
     // Check cache
     final now = DateTime.now();
-    if (_analyticsCache.containsKey(cacheKey)) {
-      final cacheTime = _analyticsCacheTime[cacheKey];
-      if (cacheTime != null && now.difference(cacheTime).inMinutes < 5) {
-        logger.d('GameRepository: Returning cached comprehensive analytics');
-        return _analyticsCache[cacheKey]!;
+    try {
+      if (_analyticsCache.containsKey(cacheKey)) {
+        final cacheTime = _analyticsCacheTime[cacheKey];
+        if (cacheTime != null && now.difference(cacheTime).inMinutes < 5) {
+          logger.d('GameRepository: Returning cached comprehensive analytics');
+          return _analyticsCache[cacheKey]!;
+        }
       }
+    } catch (e) {
+      logger.w('GameRepository: Error checking analytics cache: $e');
+      // Continue without cache if there's an error
     }
     
     final url = Uri.parse('${ApiClient.baseUrl}/games/comprehensive_analytics/').replace(
@@ -346,8 +381,13 @@ class GameRepository {
         final data = json.decode(response.body);
         
         // Cache the result
-        _analyticsCache[cacheKey] = data;
-        _analyticsCacheTime[cacheKey] = now;
+        try {
+          _analyticsCache[cacheKey] = data;
+          _analyticsCacheTime[cacheKey] = now;
+        } catch (e) {
+          logger.w('GameRepository: Error caching analytics data: $e');
+          // Continue without caching if there's an error
+        }
         
         return data;
       } else {
@@ -517,8 +557,31 @@ class GameRepository {
 
   /// Clear the analytics cache
   static void clearAnalyticsCache() {
-    _analyticsCache.clear();
-    _analyticsCacheTime.clear();
-    logger.d('GameRepository: Analytics cache cleared');
+    try {
+      // Check if the maps exist and are accessible
+      if (_analyticsCache.isNotEmpty) {
+        _analyticsCache.clear();
+      }
+      if (_analyticsCacheTime.isNotEmpty) {
+        _analyticsCacheTime.clear();
+      }
+      logger.d('GameRepository: Analytics cache cleared');
+    } catch (e) {
+      logger.w('GameRepository: Error clearing analytics cache: $e');
+      // Don't try to reinitialize - just log the error and continue
+      // The cache will be recreated when needed
+    }
+  }
+
+  /// Initialize analytics cache if needed
+  static void _ensureAnalyticsCacheInitialized() {
+    try {
+      // This will trigger the static initialization if not already done
+      if (_analyticsCache.isEmpty && _analyticsCacheTime.isEmpty) {
+        logger.d('GameRepository: Analytics cache initialized');
+      }
+    } catch (e) {
+      logger.w('GameRepository: Error initializing analytics cache: $e');
+    }
   }
 }

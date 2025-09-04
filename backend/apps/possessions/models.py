@@ -3,6 +3,9 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+from apps.games.models import Game, GameRoster
+from apps.users.models import User
 
 
 class Possession(models.Model):
@@ -83,26 +86,20 @@ class Possession(models.Model):
         SHOT_CLOCK_VIOLATION = "SHOT_CLOCK_VIOLATION", _("Shot Clock Violation")
 
     # Basic possession fields
-    game = models.ForeignKey(
-        "games.Game", on_delete=models.CASCADE, related_name="possessions"
-    )
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="possessions")
     team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="offensive_possessions"
+        GameRoster, on_delete=models.CASCADE, related_name="offensive_possessions"
     )
     opponent = models.ForeignKey(
-        "teams.Team",
-        on_delete=models.CASCADE,
-        related_name="defensive_possessions",
-        null=True,
-        blank=True,
+        GameRoster, on_delete=models.CASCADE, related_name="defensive_possessions"
     )
-    quarter = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(4)]
-    )
-    start_time_in_game = models.CharField(max_length=10)  # Format: "MM:SS"
-    duration_seconds = models.PositiveIntegerField()
-    outcome = models.CharField(max_length=20, choices=OutcomeChoices.choices)
-    points_scored = models.PositiveIntegerField(default=0)
+    quarter = models.IntegerField()
+    start_time_in_game = models.CharField(
+        max_length=10
+    )  # Format: "MM:SS" (time remaining in quarter)
+    duration_seconds = models.IntegerField(default=0)
+    outcome = models.CharField(max_length=50)
+    points_scored = models.IntegerField(default=0)
     created_by = models.ForeignKey("users.User", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -159,9 +156,49 @@ class Possession(models.Model):
     # Context
     after_timeout = models.BooleanField(default=False)
 
+    # Player attributions (for detailed player stats)
+    scorer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="scored_possessions",
+        null=True,
+        blank=True,
+    )
+    assisted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="assisted_possessions",
+        null=True,
+        blank=True,
+    )
+    blocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="blocked_possessions",
+        null=True,
+        blank=True,
+    )
+    stolen_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="stolen_possessions",
+        null=True,
+        blank=True,
+    )
+    fouled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="fouled_possessions",
+        null=True,
+        blank=True,
+    )
+
     # Players on court (for lineup analysis)
     players_on_court = models.ManyToManyField(
         "users.User", related_name="possessions_on_court", blank=True
+    )
+    defensive_players_on_court = models.ManyToManyField(
+        "users.User", related_name="defensive_possessions_on_court", blank=True
     )
 
     # Sequence fields for tracking possession actions

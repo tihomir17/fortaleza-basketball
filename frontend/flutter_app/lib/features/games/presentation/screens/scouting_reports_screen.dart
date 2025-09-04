@@ -140,7 +140,6 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
         unawaited(_savePDFToFileSystem(pdfBytes, title));
       }
     } catch (e) {
-      print('Error saving PDF: $e');
       // Don't rethrow - just log the error to prevent UI blocking
     }
   }
