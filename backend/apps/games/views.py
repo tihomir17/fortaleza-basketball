@@ -614,39 +614,7 @@ class GameViewSet(viewsets.ModelViewSet):
                     "avg_possessions_per_game": 0.0,
                 }
 
-            # Recent Activity (last 10 possessions)
-            recent_activity = []
-            if user_teams and team_ids:
-                recent_possessions = (
-                    Possession.objects.filter(
-                        Q(team__team_id__in=team_ids) | Q(opponent__team_id__in=team_ids)
-                    )
-                    .select_related("game", "team__team", "opponent__team")
-                    .order_by("-game__game_date")[:10]
-                )
 
-                for possession in recent_possessions:
-                    recent_activity.append(
-                        {
-                            "id": possession.id,
-                            "game": {
-                                "id": possession.game.id,
-                                "home_team": possession.game.home_team.name,
-                                "away_team": possession.game.away_team.name,
-                                "game_date": possession.game.game_date,
-                            },
-                            "team": possession.team.team.name if possession.team else None,
-                            "opponent": (
-                                possession.opponent.team.name
-                                if possession.opponent
-                                else None
-                            ),
-                            "quarter": possession.quarter,
-                            "outcome": possession.outcome,
-                            "offensive_set": possession.offensive_set,
-                            "created_at": possession.created_at,
-                        }
-                    )
 
             # Upcoming Games (next 7 days)
             upcoming_games = []
@@ -777,7 +745,6 @@ class GameViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "quick_stats": quick_stats,
-                    "recent_activity": recent_activity,
                     "upcoming_games": upcoming_games,
                     "recent_games": recent_games,
                     "recent_reports": recent_reports,
