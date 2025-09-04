@@ -27,14 +27,14 @@ class PossessionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         queryset = Possession.objects.select_related(
-            "game", "team", "opponent", "created_by"
+            "game", "team__team", "opponent__team", "created_by"
         ).prefetch_related("players_on_court", "offensive_rebound_players")
 
-        # Filter by team membership
+        # Filter by team membership - now team and opponent are GameRoster instances
         if hasattr(user, "teams"):
             user_teams = user.teams.all()
             queryset = queryset.filter(
-                Q(team__in=user_teams) | Q(opponent__in=user_teams)
+                Q(team__team__in=user_teams) | Q(opponent__team__in=user_teams)
             )
 
         return queryset

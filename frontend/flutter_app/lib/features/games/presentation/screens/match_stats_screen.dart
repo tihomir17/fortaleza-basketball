@@ -1,5 +1,6 @@
 // lib/features/games/presentation/screens/match_stats_screen.dart
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
@@ -135,6 +136,18 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   }
  
   void _computeStats(Game game, List<Possession> possessions) {
+    print('🔍 [MatchStats] Computing stats for game: ${game.homeTeam.name} vs ${game.awayTeam.name}');
+    print('🔍 [MatchStats] Total possessions: ${possessions.length}');
+    
+    // Debug: Show first few possessions
+    if (possessions.isNotEmpty) {
+      print('🔍 [MatchStats] Sample possession data:');
+      for (int i = 0; i < math.min(3, possessions.length); i++) {
+        final p = possessions[i];
+        print('🔍 [MatchStats] Possession $i: team=${p.team?.team.name} (ID: ${p.team?.team.id}), outcome=${p.outcome}, points=${p.pointsScored}, quarter=${p.quarter}');
+      }
+    }
+    
     // Track all four quarters plus potential Overtime (5)
     _homePointsByQ = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
     _awayPointsByQ = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
@@ -154,14 +167,38 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     int hMissFG = 0, aMissFG = 0;
 
     for (final p in possessions) {
-      final teamId = p.team?.id;
+      final teamId = p.team?.team.id;
       if (teamId == null) {
         // Skip malformed possession entries without team
+        print('🔍 [MatchStats] Skipping possession without team: ${p.outcome}');
         continue;
       }
-      final isHome = teamId == game.homeTeam.id;
+      
+      // More robust team identification
+      bool isHome;
+      if (teamId == game.homeTeam.id) {
+        isHome = true;
+      } else if (teamId == game.awayTeam.id) {
+        isHome = false;
+      } else {
+        // If team ID doesn't match either home or away, try to determine by team name
+        final teamName = p.team?.team.name;
+        if (teamName == game.homeTeam.name) {
+          isHome = true;
+        } else if (teamName == game.awayTeam.name) {
+          isHome = false;
+        } else {
+          print('🔍 [MatchStats] WARNING: Team ID $teamId (${p.team?.team.name}) does not match game teams');
+          print('🔍 [MatchStats] Game home: ${game.homeTeam.id} (${game.homeTeam.name})');
+          print('🔍 [MatchStats] Game away: ${game.awayTeam.id} (${game.awayTeam.name})');
+          continue; // Skip this possession
+        }
+      }
+      
       final pts = p.pointsScored;
+      
       if (pts > 0) {
+        print('🔍 [MatchStats] ${isHome ? game.homeTeam.name : game.awayTeam.name} scored $pts in Q${p.quarter}');
         if (isHome) {
           _homeTotal += pts;
           _homePointsByQ[p.quarter] = (_homePointsByQ[p.quarter] ?? 0) + pts;
@@ -256,6 +293,12 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     // Derive defensive rebounds as opponent missed FGs minus opponent offensive rebounds
     _hDefReb = (aMissFG - _aOffReb).clamp(0, 1000000);
     _aDefReb = (hMissFG - _hOffReb).clamp(0, 1000000);
+    
+    print('🔍 [MatchStats] Final totals:');
+    print('🔍 [MatchStats] Home (${game.homeTeam.name}): $_homeTotal points');
+    print('🔍 [MatchStats] Away (${game.awayTeam.name}): $_awayTotal points');
+    print('🔍 [MatchStats] Home 2PT: $_h2m/$_h2a, 3PT: $_h3m/$_h3a, FT: $_hftm/$_hfta');
+    print('🔍 [MatchStats] Away 2PT: $_a2m/$_a2a, 3PT: $_a3m/$_a3a, FT: $_aftm/$_afta');
   }
 
   Widget _buildContent(ThemeData theme) {
@@ -346,7 +389,7 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     int h2m = 0, h2a = 0, h3m = 0, h3a = 0, hftm = 0, hfta = 0;
     int a2m = 0, a2a = 0, a3m = 0, a3a = 0, aftm = 0, afta = 0;
     for (final p in qPoss) {
-      final teamId = p.team?.id;
+      final teamId = p.team?.team.id;
       if (teamId == null) continue;
       final isHome = teamId == game.homeTeam.id;
       final o = p.outcome;

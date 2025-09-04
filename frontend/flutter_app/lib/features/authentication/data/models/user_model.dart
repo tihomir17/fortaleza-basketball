@@ -44,4 +44,17 @@ class User {
       jerseyNumber: json['jersey_number'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'role': role,
+      'coachType': coachType,
+      'jerseyNumber': jerseyNumber,
+    };
+  }
 }

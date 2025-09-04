@@ -2,18 +2,19 @@
 
 from rest_framework import serializers  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
-from apps.games.models import Game
+from apps.games.models import Game, GameRoster
 from apps.possessions.models import Possession
 from apps.teams.serializers import TeamReadSerializer
 from apps.games.serializers import GameReadSerializer, GameWriteSerializer
+from apps.games.roster_serializers import GameRosterSerializer
 from apps.users.serializers import UserSerializer
 
 
 # This is the "deep" serializer for the main /api/possessions/ endpoint.
 class PossessionSerializer(serializers.ModelSerializer):
     game = GameReadSerializer(read_only=True)
-    team = TeamReadSerializer(read_only=True)
-    opponent = TeamReadSerializer(read_only=True)
+    team = GameRosterSerializer(read_only=True)
+    opponent = GameRosterSerializer(read_only=True)
     scorer = UserSerializer(read_only=True)
     assisted_by = UserSerializer(read_only=True)
     blocked_by = UserSerializer(read_only=True)
@@ -25,10 +26,10 @@ class PossessionSerializer(serializers.ModelSerializer):
         queryset=Game.objects.all(), source="game", write_only=True, required=True
     )
     team_id = serializers.PrimaryKeyRelatedField(
-        queryset=Team.objects.all(), source="team", write_only=True, required=True
+        queryset=GameRoster.objects.all(), source="team", write_only=True, required=True
     )
     opponent_id = serializers.PrimaryKeyRelatedField(
-        queryset=Team.objects.all(),
+        queryset=GameRoster.objects.all(),
         source="opponent",
         write_only=True,
         required=False,
@@ -51,7 +52,8 @@ class PossessionSerializer(serializers.ModelSerializer):
         errors = {}
 
         if game and team:
-            if team.id not in {game.home_team_id, game.away_team_id}:
+            # team is now a GameRoster, so we check team.team.id
+            if team.team.id not in {game.home_team_id, game.away_team_id}:
                 errors["team_id"] = [
                     "Team must be either the home or away team for the selected game."
                 ]
@@ -59,17 +61,17 @@ class PossessionSerializer(serializers.ModelSerializer):
             expected_opponent_id = (
                 (
                     game.away_team_id
-                    if team and team.id == game.home_team_id
+                    if team and team.team.id == game.home_team_id
                     else game.home_team_id
                 )
                 if team
                 else None
             )
-            if opponent.id not in {game.home_team_id, game.away_team_id}:
+            if opponent.team.id not in {game.home_team_id, game.away_team_id}:
                 errors["opponent_id"] = [
                     "Opponent must be either the home or away team for the selected game."
                 ]
-            elif expected_opponent_id and opponent.id != expected_opponent_id:
+            elif expected_opponent_id and opponent.team.id != expected_opponent_id:
                 errors["opponent_id"] = [
                     "Opponent must be the other team in the game, not the same as the possession team."
                 ]

@@ -53,29 +53,53 @@ class RealisticGameGenerator:
         self._on_court_players = {}
 
     def _get_or_create_roster(self, game, team):
-        key = (game.id, team.id)
-        if key in self._game_team_roster:
-            return self._game_team_roster[key]
+        """Get the list of players from the game roster"""
+        game_roster = self._get_or_create_game_roster(game, team)
+        return list(game_roster.players.all())
+
+    def _get_or_create_game_roster(self, game, team):
+        """Get or create a GameRoster for a team in a specific game"""
+        from apps.games.models import GameRoster
+
+        # Check if roster already exists
+        existing_roster = GameRoster.objects.filter(game=game, team=team).first()
+        if existing_roster:
+            return existing_roster
+
+        # Create new roster
         players = list(team.players.all())
-        random.shuffle(players)
-        # Strictly select 12 team members if available; otherwise use all available
-        roster_size = 12 if len(players) >= 12 else len(players)
-        roster = players[:roster_size]
-        self._game_team_roster[key] = roster
+        if len(players) >= 12:
+            # Randomly select 12 players
+            selected_players = random.sample(players, 12)
+        else:
+            # Use all available players
+            selected_players = players
+
+        # Create the roster
+        roster = GameRoster.objects.create(game=game, team=team)
+        roster.players.set(selected_players)
+
+        # Select 5 players as starting five
+        starting_five = (
+            selected_players[:5] if len(selected_players) >= 5 else selected_players
+        )
+        roster.starting_five.set(starting_five)
+
         return roster
 
     def _get_or_init_on_court(self, game, team, quarter):
         key = (game.id, team.id, quarter)
         if key not in self._on_court_players:
-            roster = self._get_or_create_roster(game, team)
-            starting_five = roster[:5] if len(roster) >= 5 else roster
+            # Get the game roster and use its starting five
+            game_roster = self._get_or_create_game_roster(game, team)
+            starting_five = list(game_roster.starting_five.all())
             self._on_court_players[key] = starting_five[:]
             return self._on_court_players[key]
         # Occasionally make a substitution
         current = self._on_court_players[key]
         if random.random() < 0.25 and len(current) >= 1:
-            roster = self._get_or_create_roster(game, team)
-            bench = [p for p in roster if p not in current]
+            game_roster = self._get_or_create_game_roster(game, team)
+            bench = [p for p in game_roster.players.all() if p not in current]
             if bench:
                 out_p = random.choice(current)
                 in_p = random.choice(bench)
@@ -184,20 +208,35 @@ class RealisticGameGenerator:
         stolen_by = None
         fouled_by = None
         if team_roster:
-            opponent_roster = self._get_or_create_roster(game, opponent) if opponent else []
+            opponent_roster = (
+                self._get_or_create_roster(game, opponent) if opponent else []
+            )
             # Shooter attribution on all FG outcomes (made or missed)
-            if outcome in ["MADE_2PTS", "MISSED_2PTS", "MADE_3PTS", "MISSED_3PTS", "MADE_FTS", "MISSED_FTS"]:
+            if outcome in [
+                "MADE_2PTS",
+                "MISSED_2PTS",
+                "MADE_3PTS",
+                "MISSED_3PTS",
+                "MADE_FTS",
+                "MISSED_FTS",
+            ]:
                 scorer = random.choice(team_roster)
                 # Assisted probability higher on makes; slightly lower on misses
                 if outcome in ["MADE_2PTS", "MADE_3PTS"] and random.random() < 0.5:
                     assisted_by = random.choice(team_roster)
-                elif outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.15:
+                elif (
+                    outcome in ["MISSED_2PTS", "MISSED_3PTS"] and random.random() < 0.15
+                ):
                     assisted_by = random.choice(team_roster)
                 # Fouls mainly occur on FT trips
                 if outcome in ["MADE_FTS", "MISSED_FTS"] and opponent_roster:
                     fouled_by = random.choice(opponent_roster)
             # Blocks on a subset of missed FG
-            if outcome in ["MISSED_2PTS", "MISSED_3PTS"] and opponent_roster and random.random() < 0.12:
+            if (
+                outcome in ["MISSED_2PTS", "MISSED_3PTS"]
+                and opponent_roster
+                and random.random() < 0.12
+            ):
                 blocked_by = random.choice(opponent_roster)
             # Turnover attribution: committer and potential steal
             if outcome == "TURNOVER":
@@ -205,39 +244,23 @@ class RealisticGameGenerator:
                 if opponent_roster and random.random() < 0.4:
                     stolen_by = random.choice(opponent_roster)
 
+        # Get or create GameRoster instances for this game
+        home_roster = self._get_or_create_game_roster(game, team)
+        away_roster = (
+            self._get_or_create_game_roster(game, opponent) if opponent else None
+        )
+
         possession = Possession.objects.create(
             game=game,
-            team=team,
-            opponent=opponent,
+            team=home_roster,
+            opponent=away_roster,
             quarter=quarter,
             start_time_in_game=f"{start_minute:02}:{start_second:02}",
             duration_seconds=duration,
             outcome=outcome,
-            points_scored=points_scored,
-            # Offensive data
-            offensive_set=self.get_random_offensive_set(),
-            pnr_type=self.get_random_pnr_type(),
-            pnr_result=self.get_random_pnr_result(),
-            has_paint_touch=random.choice([True, False]),
-            has_kick_out=random.choice([True, False]),
-            has_extra_pass=random.choice([True, False]),
-            number_of_passes=random.randint(1, 4),
-            is_offensive_rebound=off_reb > 0,
-            offensive_rebound_count=off_reb,
-            # Defensive data
-            defensive_set=self.get_random_defensive_set(),
-            defensive_pnr=self.get_random_defensive_pnr(),
-            box_out_count=random.randint(0, 3),
-            offensive_rebounds_allowed=0,
-            # Shot data
-            shoot_time=random.randint(5, duration),
-            shoot_quality=self.get_random_shoot_quality(),
-            time_range=self.get_random_time_range(),
-            # Other
-            after_timeout=random.random() < 0.1,  # 10% chance of being after timeout
             offensive_sequence=offensive_sequence,
             defensive_sequence=defensive_sequence,
-            notes=f"Generated possession {possession_number}",
+            points_scored=points_scored,
             created_by=game.created_by,
             scorer=scorer,
             assisted_by=assisted_by,
@@ -246,13 +269,24 @@ class RealisticGameGenerator:
             fouled_by=fouled_by,
         )
 
-        # Assign on-court players and offensive rebounders (M2M)
+        # Assign on-court players for BOTH teams and offensive rebounders (M2M)
         try:
+            # Offensive team lineup
             offense_five = self._get_or_init_on_court(game, team, quarter)
             if offense_five:
                 possession.players_on_court.set(offense_five)
+
+            # Defensive team lineup (opponent)
+            if opponent:
+                defense_five = self._get_or_init_on_court(game, opponent, quarter)
+                if defense_five:
+                    possession.defensive_players_on_court.set(defense_five)
+
+            # Offensive rebounders
             if off_reb > 0 and offense_five:
-                rebounders = random.sample(offense_five, k=min(off_reb, len(offense_five)))
+                rebounders = random.sample(
+                    offense_five, k=min(off_reb, len(offense_five))
+                )
                 possession.offensive_rebound_players.set(rebounders)
         except Exception:
             pass

@@ -83,3 +83,34 @@ class ScoutingReport(models.Model):
     def get_download_url(self):
         """Return the download URL for the PDF file"""
         return self.pdf_file.url if self.pdf_file else None
+
+
+class GameRoster(models.Model):
+    """Tracks which 12 players are active for each team in a specific game"""
+
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="rosters")
+    team = models.ForeignKey(
+        Team, on_delete=models.CASCADE, related_name="game_rosters"
+    )
+    players = models.ManyToManyField(User, related_name="game_rosters")
+    starting_five = models.ManyToManyField(User, related_name="starting_five_rosters")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["game", "team"]
+        ordering = ["game", "team"]
+
+    def __str__(self):
+        return f"{self.team.name} roster for {self.game}"
+
+    @property
+    def bench_players(self):
+        """Returns the 7 bench players (non-starting five)"""
+        return self.players.exclude(
+            id__in=self.starting_five.values_list("id", flat=True)
+        )
+
+    @property
+    def is_valid(self):
+        """Ensures exactly 12 players total and 5 starting five"""
+        return self.players.count() == 12 and self.starting_five.count() == 5

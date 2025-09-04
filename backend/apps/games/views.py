@@ -582,14 +582,14 @@ class GameViewSet(viewsets.ModelViewSet):
                     Q(home_team_id__in=team_ids) | Q(away_team_id__in=team_ids)
                 ).count()
 
-                # Total possessions
+                # Total possessions - need to filter by GameRoster that contains these teams
                 total_possessions = Possession.objects.filter(
-                    Q(team_id__in=team_ids) | Q(opponent_id__in=team_ids)
+                    Q(team__team_id__in=team_ids) | Q(opponent__team_id__in=team_ids)
                 ).count()
 
                 # Recent possessions (last 7 days)
                 recent_possessions = Possession.objects.filter(
-                    Q(team_id__in=team_ids) | Q(opponent_id__in=team_ids),
+                    Q(team__team_id__in=team_ids) | Q(opponent__team_id__in=team_ids),
                     game__game_date__gte=today - timedelta(days=7),
                 ).count()
 
@@ -619,9 +619,9 @@ class GameViewSet(viewsets.ModelViewSet):
             if user_teams and team_ids:
                 recent_possessions = (
                     Possession.objects.filter(
-                        Q(team_id__in=team_ids) | Q(opponent_id__in=team_ids)
+                        Q(team__team_id__in=team_ids) | Q(opponent__team_id__in=team_ids)
                     )
-                    .select_related("game", "team", "opponent")
+                    .select_related("game", "team__team", "opponent__team")
                     .order_by("-game__game_date")[:10]
                 )
 
@@ -635,9 +635,9 @@ class GameViewSet(viewsets.ModelViewSet):
                                 "away_team": possession.game.away_team.name,
                                 "game_date": possession.game.game_date,
                             },
-                            "team": possession.team.name,
+                            "team": possession.team.team.name if possession.team else None,
                             "opponent": (
-                                possession.opponent.name
+                                possession.opponent.team.name
                                 if possession.opponent
                                 else None
                             ),

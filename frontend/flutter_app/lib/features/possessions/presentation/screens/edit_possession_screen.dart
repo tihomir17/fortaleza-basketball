@@ -62,7 +62,7 @@ class _EditPossessionScreenState extends State<EditPossessionScreen> {
   }
 
   void _showAddActionDialog() {
-    final teamForPlaybook = widget.possession.team;
+    final teamForPlaybook = widget.possession.team?.team;
     if (teamForPlaybook == null) return;
 
     showModalBottomSheet(
@@ -135,7 +135,7 @@ class _EditPossessionScreenState extends State<EditPossessionScreen> {
       return;
     }
 
-    final opponent = widget.game.homeTeam.id == widget.possession.team!.id
+    final opponent = widget.game.homeTeam.id == widget.possession.team!.team.id
         ? widget.game.awayTeam
         : widget.game.homeTeam;
     if (opponent == null) {
@@ -155,7 +155,7 @@ class _EditPossessionScreenState extends State<EditPossessionScreen> {
         token: token,
         possessionId: widget.possession.id,
         gameId: widget.game.id,
-        teamId: widget.possession.team!.id,
+        teamId: widget.possession.team!.team.id,
         opponentId: opponent.id,
         startTime: _startTimeController.text,
         duration: int.tryParse(_durationController.text) ?? 0,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/game_model.dart';
 import '../../../possessions/data/models/possession_model.dart';
+import '../../data/models/game_roster_model.dart';
+import '../../data/models/player_minutes_tracker.dart';
 import '../../data/repositories/game_repository.dart';
 import '../../../authentication/data/models/user_model.dart';
 import '../../../teams/data/models/team_model.dart';
@@ -22,6 +24,8 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   Game? _game;
   List<Possession> _possessions = [];
   final Map<String, PlayerStats> _playerStats = {};
+  final Map<String, GameRoster> _gameRoster = {}; // teamId -> GameRoster
+  final Map<String, PlayerMinutesTracker> _minutesTrackers = {}; // teamId -> PlayerMinutesTracker
   bool _isLoading = true;
   String? _selectedQuarter;
   String? _sortBy;
@@ -68,120 +72,286 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   }
 
   void _computePlayerStats() {
-    _playerStats.clear();
+    print('🔍 [PlayerStats] Starting _computePlayerStats');
+    print('🔍 [PlayerStats] Total possessions: ${_possessions.length}');
     
+    _playerStats.clear();
+    _gameRoster.clear();
+    _minutesTrackers.clear();
+    
+    if (_game == null) return;
+    
+    // Step 1: Create game rosters (12 players per team)
+    _createGameRosters();
+    
+    // Step 2: Initialize player stats from rosters (not from possessions)
+    _initializePlayerStatsFromRosters();
+    
+    // Step 3: Process possessions to add stats
+    _processPossessionsForStats();
+    
+    // Step 4: Calculate minutes and validate time
+    _calculateAndValidateMinutes();
+    
+    // Step 5: Calculate totals and mark starting five
+    _finalizeStats();
+    
+    setState(() {});
+    }
+  
+  void _createGameRosters() {
+    print('🔍 [PlayerStats] Creating game rosters from backend data...');
+    
+    if (_game == null) return;
+    
+    // Get unique teams from possessions
+    final Set<String> teamIds = {};
+    for (final possession in _possessions) {
+      if (possession.team != null) {
+        teamIds.add(possession.team!.team.id.toString());
+      }
+      if (possession.opponent != null) {
+        teamIds.add(possession.opponent!.team.id.toString());
+      }
+    }
+    
+    print('🔍 [PlayerStats] Found team IDs: $teamIds');
+    
+    // Create rosters from the actual GameRoster data in possessions
+    for (final teamId in teamIds) {
+      // Find the first possession for this team to get the roster
+      final teamPossession = _possessions.firstWhere(
+        (p) => p.team?.team.id.toString() == teamId || p.opponent?.team.id.toString() == teamId,
+        orElse: () => _possessions.first,
+      );
+      
+      if (teamPossession.team?.team.id.toString() == teamId) {
+        // This team was the offensive team
+        final roster = teamPossession.team!;
+        _gameRoster[teamId] = roster;
+        print('🔍 [PlayerStats] Added roster for ${roster.team.name}: ${roster.players.length} players');
+      } else if (teamPossession.opponent?.team.id.toString() == teamId) {
+        // This team was the defensive team
+        final roster = teamPossession.opponent!;
+        _gameRoster[teamId] = roster;
+        print('🔍 [PlayerStats] Added roster for ${roster.team.name}: ${roster.players.length} players');
+      }
+    }
+  }
+  
+  void _initializePlayerStatsFromRosters() {
+    print('🔍 [PlayerStats] Initializing player stats from rosters...');
+    
+    for (final entry in _gameRoster.entries) {
+      final teamId = entry.key;
+      final roster = entry.value;
+      
+      // Create PlayerStats for this team
+      _playerStats[teamId] = PlayerStats(team: roster.team);
+      
+      // Initialize stats for all 12 players in roster
+      for (final player in roster.players) {
+        final playerStat = IndividualPlayerStats(player: player);
+        playerStat.isStartingFive = roster.isStartingFive(player.id);
+        _playerStats[teamId]!.playerStats[player.id] = playerStat;
+      }
+      
+      print('🔍 [PlayerStats] Initialized stats for ${roster.team.name}: ${roster.players.length} players');
+    }
+  }
+  
+  void _processPossessionsForStats() {
+    print('🔍 [PlayerStats] Processing possessions for stats...');
+    
+    // Process each possession for both offensive and defensive teams
     for (final possession in _possessions) {
       if (possession.team == null) continue;
       
-      final teamId = possession.team!.id.toString();
-      final quarter = possession.quarter.toString();
+      final offensiveTeamId = possession.team!.team.id.toString();
+      final defensiveTeamId = possession.opponent?.team.id.toString();
       
-      // Initialize player stats if not exists
-      if (!_playerStats.containsKey(teamId)) {
-        _playerStats[teamId] = PlayerStats(team: possession.team!);
+      // Process offensive team stats
+      if (_playerStats.containsKey(offensiveTeamId)) {
+        _processOffensiveTeamStats(possession, offensiveTeamId);
       }
       
-      final stats = _playerStats[teamId]!;
-      
-      // Add possession to quarter stats
-      if (!stats.quarterStats.containsKey(quarter)) {
-        stats.quarterStats[quarter] = QuarterStats();
+      // Process defensive team stats
+      if (defensiveTeamId != null && _playerStats.containsKey(defensiveTeamId)) {
+        _processDefensiveTeamStats(possession, defensiveTeamId);
       }
+    }
+  }
+  
+  void _processOffensiveTeamStats(Possession possession, String teamId) {
+    final stats = _playerStats[teamId]!;
+    
+    // Update quarter stats
+    final quarter = possession.quarter.toString();
+    if (!stats.quarterStats.containsKey(quarter)) {
+      stats.quarterStats[quarter] = QuarterStats();
+    }
+    final quarterStats = stats.quarterStats[quarter]!;
+    quarterStats.possessions++;
+    quarterStats.points += possession.pointsScored;
+    
+    // Process offensive stats (scoring, assists, etc.)
+    if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+      _updatePlayerStat(stats, possession.scorer!, 'points', possession.pointsScored);
       
-      final quarterStats = stats.quarterStats[quarter]!;
-      
-      // Update quarter stats
-      quarterStats.possessions++;
-      quarterStats.points += possession.pointsScored ?? 0;
-
-      // Minutes: add duration to all players listed on court for this possession
-      if (possession.playersOnCourt.isNotEmpty) {
-        for (final u in possession.playersOnCourt) {
-          _updatePlayerStat(stats, u, 'seconds', possession.durationSeconds);
-        }
-      }
-      
-      // Update player stats if scorer/assistant exists
-      if (possession.scorer != null) {
-        _updatePlayerStat(stats, possession.scorer!, 'points', possession.pointsScored ?? 0);
-        _updatePlayerStat(stats, possession.scorer!, 'fieldGoalsMade', 1);
-        
-        if (possession.outcome == 'MADE_2PTS') {
-          _updatePlayerStat(stats, possession.scorer!, 'twoPointsMade', 1);
-          _updatePlayerStat(stats, possession.scorer!, 'twoPointsAttempted', 1);
-        } else if (possession.outcome == 'MADE_3PTS') {
-          _updatePlayerStat(stats, possession.scorer!, 'threePointsMade', 1);
-          _updatePlayerStat(stats, possession.scorer!, 'threePointsAttempted', 1);
-        } else if (possession.outcome == 'MADE_FTS') {
-          _updatePlayerStat(stats, possession.scorer!, 'freeThrowsMade', 1);
-          _updatePlayerStat(stats, possession.scorer!, 'freeThrowsAttempted', 1);
-        }
-      }
-      
-      if (possession.assistedBy != null) {
-        _updatePlayerStat(stats, possession.assistedBy!, 'assists', 1);
-      }
-      
-      if (possession.blockedBy != null) {
-        _updatePlayerStat(stats, possession.blockedBy!, 'blocks', 1);
-      }
-      
-      if (possession.stolenBy != null) {
-        _updatePlayerStat(stats, possession.stolenBy!, 'steals', 1);
-      }
-      
-      // Handle missed shots and turnovers
-      if (possession.outcome == 'MISSED_2PTS') {
-        if (possession.scorer != null) {
-          _updatePlayerStat(stats, possession.scorer!, 'twoPointsAttempted', 1);
-        }
-      } else if (possession.outcome == 'MISSED_3PTS') {
-        if (possession.scorer != null) {
-          _updatePlayerStat(stats, possession.scorer!, 'threePointsAttempted', 1);
-        }
-      } else if (possession.outcome == 'MISSED_FTS') {
-        if (possession.scorer != null) {
-          _updatePlayerStat(stats, possession.scorer!, 'freeThrowsAttempted', 1);
-        }
-      } else if (possession.outcome == 'TURNOVER') {
-        if (possession.scorer != null) {
-          _updatePlayerStat(stats, possession.scorer!, 'turnovers', 1);
-        }
-      }
-      
-      // Handle rebounds
-      if (possession.isOffensiveRebound == true && possession.offensiveReboundCount != null) {
-        if (possession.scorer != null) {
-          _updatePlayerStat(stats, possession.scorer!, 'offensiveRebounds', possession.offensiveReboundCount);
-        }
-      }
-      
-      // Handle defensive rebounds (when opponent misses and we get the rebound)
-      if ((possession.outcome == 'MISSED_2PTS' || possession.outcome == 'MISSED_3PTS') && !possession.isOffensiveRebound) {
-        // This would need to be tracked separately, for now we'll estimate
-        // TODO: Add defensive rebound tracking in backend
-      }
-      
-      // Handle fouls
-      if (possession.fouledBy != null) {
-        _updatePlayerStat(stats, possession.fouledBy!, 'fouls', 1);
+      if (possession.outcome == 'MADE_2PTS') {
+        _updatePlayerStat(stats, possession.scorer!, 'twoPointsMade', 1);
+        _updatePlayerStat(stats, possession.scorer!, 'twoPointsAttempted', 1);
+      } else if (possession.outcome == 'MADE_3PTS') {
+        _updatePlayerStat(stats, possession.scorer!, 'threePointsMade', 1);
+        _updatePlayerStat(stats, possession.scorer!, 'threePointsAttempted', 1);
+      } else if (possession.outcome == 'MADE_FTS') {
+        _updatePlayerStat(stats, possession.scorer!, 'freeThrowsMade', 1);
+        _updatePlayerStat(stats, possession.scorer!, 'freeThrowsAttempted', 1);
       }
     }
     
-    // Calculate totals and percentages
+    if (possession.assistedBy != null && _isPlayerInRoster(teamId, possession.assistedBy!.id)) {
+      _updatePlayerStat(stats, possession.assistedBy!, 'assists', 1);
+    }
+    
+    // Handle missed shots and turnovers
+    if (possession.outcome == 'MISSED_2PTS') {
+      if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+        _updatePlayerStat(stats, possession.scorer!, 'twoPointsAttempted', 1);
+      }
+    } else if (possession.outcome == 'MISSED_3PTS') {
+      if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+        _updatePlayerStat(stats, possession.scorer!, 'threePointsAttempted', 1);
+      }
+    } else if (possession.outcome == 'MISSED_FTS') {
+      if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+        _updatePlayerStat(stats, possession.scorer!, 'freeThrowsAttempted', 1);
+      }
+    } else if (possession.outcome == 'TURNOVER') {
+      if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+        _updatePlayerStat(stats, possession.scorer!, 'turnovers', 1);
+      }
+    }
+    
+    // Handle offensive rebounds
+    if (possession.isOffensiveRebound == true && possession.offensiveReboundCount > 0) {
+      if (possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+        _updatePlayerStat(stats, possession.scorer!, 'offensiveRebounds', possession.offensiveReboundCount);
+      }
+    }
+    
+    // Handle fouls committed
+    if (possession.outcome == 'FOUL' && possession.scorer != null && _isPlayerInRoster(teamId, possession.scorer!.id)) {
+      _updatePlayerStat(stats, possession.scorer!, 'personalFouls', 1);
+    }
+    
+    // Calculate +/- (hardcoded to 0 for now)
+    for (final player in possession.playersOnCourt) {
+      if (_isPlayerInRoster(teamId, player.id)) {
+        _updatePlayerStat(stats, player, 'plusMinus', 0); // Hardcoded as requested
+      }
+    }
+  }
+  
+  void _processDefensiveTeamStats(Possession possession, String teamId) {
+    final stats = _playerStats[teamId]!;
+    
+    // Handle defensive rebounds
+    if ((possession.outcome == 'MISSED_2PTS' || possession.outcome == 'MISSED_3PTS') && !possession.isOffensiveRebound) {
+      if (possession.defensivePlayersOnCourt.isNotEmpty) {
+        final rebounder = possession.defensivePlayersOnCourt.first;
+        if (_isPlayerInRoster(teamId, rebounder.id)) {
+          _updatePlayerStat(stats, rebounder, 'defensiveRebounds', 1);
+        }
+      }
+    }
+    
+    // Handle blocks
+    if (possession.blockedBy != null && _isPlayerInRoster(teamId, possession.blockedBy!.id)) {
+      _updatePlayerStat(stats, possession.blockedBy!, 'blocks', 1);
+    }
+    
+    // Handle steals
+    if (possession.stolenBy != null && _isPlayerInRoster(teamId, possession.stolenBy!.id)) {
+      _updatePlayerStat(stats, possession.stolenBy!, 'steals', 1);
+    }
+    
+    // Handle fouls drawn
+    if (possession.fouledBy != null && _isPlayerInRoster(teamId, possession.fouledBy!.id)) {
+      _updatePlayerStat(stats, possession.fouledBy!, 'fouls', 1);
+    }
+  }
+  
+  void _calculateAndValidateMinutes() {
+    print('🔍 [PlayerStats] Calculating and validating minutes...');
+    
+    for (final entry in _gameRoster.entries) {
+      final teamId = entry.key;
+      final roster = entry.value;
+      
+      // Create minutes tracker for this team
+      final tracker = PlayerMinutesTracker();
+      _minutesTrackers[teamId] = tracker;
+      
+      // Process possessions to build time tracking for this specific team
+      tracker.processPossessionsForTeam(_possessions, teamId);
+      
+      // Update player stats with calculated minutes
+      if (_playerStats.containsKey(teamId)) {
+        final stats = _playerStats[teamId]!;
+        
+        for (final player in roster.players) {
+          final minutes = tracker.getPlayerMinutes(player.id);
+          _updatePlayerStat(stats, player, 'seconds', minutes);
+        }
+        
+        // Validate total team time
+        final overtimePeriods = _getOvertimePeriods();
+        final isValid = tracker.validateTeamTime(overtimePeriods);
+        final totalTime = tracker.getTotalTeamTimeFormatted();
+        
+        print('🔍 [PlayerStats] ${roster.team.name} total time: $totalTime (valid: $isValid)');
+        print('🔍 [PlayerStats] Expected: ${roster.getTotalTeamMinutes(overtimePeriods)}:00');
+      }
+    }
+  }
+  
+  void _finalizeStats() {
+    print('🔍 [PlayerStats] Finalizing stats...');
+    
     for (final stats in _playerStats.values) {
       stats.calculateTotals();
+      
+      print('🔍 [PlayerStats] Team: ${stats.team.name}');
+      print('🔍 [PlayerStats] Total players in stats: ${stats.playerStats.length}');
+      print('🔍 [PlayerStats] Player IDs: ${stats.playerStats.keys.toList()}');
+      print('🔍 [PlayerStats] Total players in stats: ${stats.playerStats.values.map((p) => p.player.username).toList()}');
     }
+  }
+  
+  // Helper method to check if a player is in a team's roster
+  bool _isPlayerInRoster(String teamId, int playerId) {
+    return _gameRoster[teamId]?.isPlayerInRoster(playerId) ?? false;
+  }
+  
+  // Helper method to get overtime periods
+  int _getOvertimePeriods() {
+    if (_game == null) return 0;
     
-    setState(() {});
+    // Count quarters beyond 4
+    final maxQuarter = _possessions.fold<int>(1, (max, p) => p.quarter > max ? p.quarter : max);
+    return maxQuarter > 4 ? maxQuarter - 4 : 0;
   }
 
   void _updatePlayerStat(PlayerStats teamStats, User player, String statType, int value) {
+    // Stats are now initialized from rosters, so we just need to update them
     if (!teamStats.playerStats.containsKey(player.id)) {
+      print('🔍 [PlayerStats] _updatePlayerStat: Creating new stats for ${player.username} (${player.id}) in team ${teamStats.team.name}');
       teamStats.playerStats[player.id] = IndividualPlayerStats(player: player);
     }
     
     final playerStat = teamStats.playerStats[player.id]!;
+    print('🔍 [PlayerStats] _updatePlayerStat: Updating ${player.username} (${player.id}) in team ${teamStats.team.name} - $statType: $value');
     
     switch (statType) {
       case 'points':
@@ -223,8 +393,17 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
       case 'offensiveRebounds':
         playerStat.offensiveRebounds += value;
         break;
+      case 'defensiveRebounds':
+        playerStat.defensiveRebounds += value;
+        break;
       case 'fouls':
         playerStat.fouls += value;
+        break;
+      case 'personalFouls':
+        playerStat.personalFouls += value;
+        break;
+      case 'plusMinus':
+        playerStat.plusMinus += value;
         break;
     }
   }
@@ -480,6 +659,8 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         child: DataTable(
           columns: [
             const DataColumn(label: Text('Player')),
+            const DataColumn(label: Text('#')),
+            const DataColumn(label: Text('ST')),
             const DataColumn(label: Text('MIN')),
             const DataColumn(label: Text('PTS')),
             const DataColumn(label: Text('2PM/A')),
@@ -498,6 +679,8 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
             return DataRow(
               cells: [
                 DataCell(Text(player.player.displayName)),
+                DataCell(Text(player.player.jerseyNumber?.toString() ?? '--')),
+                DataCell(Text(player.isStartingFive ? 'ST' : '')),
                 DataCell(Text(_formatSeconds(player.secondsPlayed))),
                 DataCell(Text(player.points.toString())),
                 DataCell(Text('${player.twoPointsMade}/${player.twoPointsAttempted}')),
@@ -509,8 +692,8 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
                 DataCell(Text(player.steals.toString())),
                 DataCell(Text(player.blocks.toString())),
                 DataCell(Text(player.turnovers.toString())),
-                DataCell(Text(player.fouls.toString())),
-                DataCell(Text('--')), // TODO: Calculate plus/minus
+                DataCell(Text(player.personalFouls.toString())),
+                DataCell(Text(player.plusMinus >= 0 ? '+${player.plusMinus}' : '${player.plusMinus}')),
               ],
             );
           }).toList(),
@@ -570,7 +753,10 @@ class IndividualPlayerStats {
   int offensiveRebounds = 0;
   int defensiveRebounds = 0;
   int fouls = 0;
+  int personalFouls = 0;
   int secondsPlayed = 0;
+  int plusMinus = 0;
+  bool isStartingFive = false;
 
   IndividualPlayerStats({required this.player});
 }

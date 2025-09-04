@@ -15,7 +15,9 @@ from apps.games.models import Game
 from apps.plays.models import PlayCategory, PlayDefinition
 from apps.events.models import CalendarEvent
 from apps.possessions.models import Possession
-from apps.users.management.commands.generate_realistic_games import RealisticGameGenerator
+from apps.users.management.commands.generate_realistic_games import (
+    RealisticGameGenerator,
+)
 
 User = get_user_model()
 
@@ -62,20 +64,17 @@ class Command(BaseCommand):
             created_by=created_by,
         )
 
-        # Generate possessions for each quarter and both teams
-        all_possessions = []
+        # Generate possessions for each quarter using the new generator
         for quarter in range(1, 5):
+            # Home team possessions
             home_possessions, _ = game_generator.generate_possessions_for_quarter(
                 home_quarter_scores[quarter - 1], home_team, away_team, game, quarter
             )
+            # Away team possessions
             away_possessions, _ = game_generator.generate_possessions_for_quarter(
                 away_quarter_scores[quarter - 1], away_team, home_team, game, quarter
             )
-            all_possessions.extend(home_possessions)
-            all_possessions.extend(away_possessions)
-
-        if all_possessions:
-            Possession.objects.bulk_create(all_possessions)
+            # Possessions are already created by the generator (no bulk_create needed)
 
         return game
 
@@ -737,6 +736,5 @@ class Command(BaseCommand):
                 realistic_generator, home_team, away_team, nbb_competition, superuser
             )
             games.append(game)
-
 
         self.stdout.write(self.style.SUCCESS("--- Database Population Complete! ---"))
