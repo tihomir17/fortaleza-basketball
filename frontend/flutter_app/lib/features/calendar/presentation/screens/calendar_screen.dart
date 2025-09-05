@@ -341,12 +341,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
           builder: (context) {
             final user = context.read<AuthCubit>().state.user;
             final isPlayer = user?.role == 'PLAYER';
+            final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
             
             if (isPlayer) {
               // Players can only view events, no edit/delete buttons
               return const SizedBox.shrink();
+            } else if (isManagement) {
+              // Management can only edit specific event types
+              final allowedEventTypes = ['TRAVEL_BUS', 'TRAVEL_PLANE', 'TEAM_BUILDING'];
+              final canEdit = allowedEventTypes.contains(event.eventType);
+              
+              if (canEdit) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      tooltip: 'Edit Event',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EditEventScreen(event: event),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      tooltip: 'Delete Event',
+                      onPressed: () => _showDeleteConfirmation(context, event),
+                    ),
+                  ],
+                );
+              } else {
+                // Management cannot edit other event types
+                return const SizedBox.shrink();
+              }
             } else {
-              // Coaches and other roles can edit/delete events
+              // Coaches and other roles can edit/delete all events
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -505,12 +541,33 @@ class _EventDetailScreen extends StatelessWidget {
             builder: (context) {
               final user = context.read<AuthCubit>().state.user;
               final isPlayer = user?.role == 'PLAYER';
+              final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
               
               if (isPlayer) {
                 // Players can only view events, no edit button
                 return const SizedBox.shrink();
+              } else if (isManagement) {
+                // Management can only edit specific event types
+                final allowedEventTypes = ['TRAVEL_BUS', 'TRAVEL_PLANE', 'TEAM_BUILDING'];
+                final canEdit = allowedEventTypes.contains(event.eventType);
+                
+                if (canEdit) {
+                  return IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
+                    },
+                  );
+                } else {
+                  // Management cannot edit other event types
+                  return const SizedBox.shrink();
+                }
               } else {
-                // Coaches and other roles can edit events
+                // Coaches and other roles can edit all events
                 return IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () {

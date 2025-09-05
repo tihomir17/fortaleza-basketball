@@ -163,49 +163,80 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
               validator: (v) => v!.isEmpty ? 'Title is required' : null,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedEventType,
-              items: const [
-                DropdownMenuItem(
-                  value: 'PRACTICE_TEAM',
-                  child: Text('Team Practice'),
-                ),
-                DropdownMenuItem(
-                  value: 'PRACTICE_INDIVIDUAL',
-                  child: Text('Individual Practice'),
-                ),
-                DropdownMenuItem(
-                  value: 'SCOUTING_MEETING',
-                  child: Text('Scouting Meeting'),
-                ),
-                DropdownMenuItem(
-                  value: 'STRENGTH_CONDITIONING',
-                  child: Text('Strength & Conditioning'),
-                ),
-                DropdownMenuItem(
-                  value: 'GAME',
-                  child: Text('Game'),
-                ),
-                DropdownMenuItem(
-                  value: 'TEAM_MEETING',
-                  child: Text('Team Meeting'),
-                ),
-                DropdownMenuItem(
-                  value: 'TRAVEL_BUS',
-                  child: Text('Travel (Bus)'),
-                ),
-                DropdownMenuItem(
-                  value: 'TRAVEL_PLANE',
-                  child: Text('Travel (Plane)'),
-                ),
-                DropdownMenuItem(
-                  value: 'TEAM_BUILDING',
-                  child: Text('Team Building'),
-                ),
-                DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-              ],
-              onChanged: (v) => setState(() => _selectedEventType = v!),
-              decoration: const InputDecoration(labelText: 'Event Type *'),
+            Builder(
+              builder: (context) {
+                final user = context.read<AuthCubit>().state.user;
+                final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
+                
+                if (isManagement) {
+                  // Management can only create specific event types
+                  return DropdownButtonFormField<String>(
+                    value: _selectedEventType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'TRAVEL_BUS',
+                        child: Text('Travel (Bus)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TRAVEL_PLANE',
+                        child: Text('Travel (Plane)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_BUILDING',
+                        child: Text('Team Building'),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _selectedEventType = v!),
+                    decoration: const InputDecoration(labelText: 'Event Type *'),
+                  );
+                } else {
+                  // All other users can create all event types
+                  return DropdownButtonFormField<String>(
+                    value: _selectedEventType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'PRACTICE_TEAM',
+                        child: Text('Team Practice'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PRACTICE_INDIVIDUAL',
+                        child: Text('Individual Practice'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'SCOUTING_MEETING',
+                        child: Text('Scouting Meeting'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'STRENGTH_CONDITIONING',
+                        child: Text('Strength & Conditioning'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'GAME',
+                        child: Text('Game'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_MEETING',
+                        child: Text('Team Meeting'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TRAVEL_BUS',
+                        child: Text('Travel (Bus)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TRAVEL_PLANE',
+                        child: Text('Travel (Plane)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_BUILDING',
+                        child: Text('Team Building'),
+                      ),
+                      DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                    ],
+                    onChanged: (v) => setState(() => _selectedEventType = v!),
+                    decoration: const InputDecoration(labelText: 'Event Type *'),
+                  );
+                }
+              },
             ),
             if (_selectedEventType == 'PRACTICE_TEAM' || 
                 _selectedEventType == 'SCOUTING_MEETING' ||

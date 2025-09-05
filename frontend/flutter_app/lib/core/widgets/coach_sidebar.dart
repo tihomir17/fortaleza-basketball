@@ -52,7 +52,8 @@ class CoachSidebar extends StatelessWidget {
                 ),
               ),
               
-              // Dashboard - Visible for coaches, players, and staff
+              // Dashboard - Visible for coaches, players, and management staff
+              if (!isStaff || isManagement) ...[
                 ListTile(
                   leading: const Icon(Icons.dashboard_outlined),
                   title: const Text('Dashboard'),
@@ -62,6 +63,7 @@ class CoachSidebar extends StatelessWidget {
                     context.go('/');
                   },
                 ),
+              ],
               
               // Calendar - Always visible
               ListTile(
@@ -117,35 +119,7 @@ class CoachSidebar extends StatelessWidget {
                 ),
               ],
               
-              if (isManagement) ...[
-                ListTile(
-                  leading: const Icon(Icons.business_outlined),
-                  title: const Text('Team Management'),
-                  selected: currentRoute.startsWith('/teams'),
-                  onTap: () {
-                    logger.i('CoachSidebar: Navigating to Team Management (/teams).');
-                    context.go('/teams');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.analytics_outlined),
-                  title: const Text('Team Analytics Reports'),
-                  selected: currentRoute.startsWith('/scouting-reports'),
-                  onTap: () {
-                    logger.i('CoachSidebar: Navigating to Team Analytics Reports (/scouting-reports).');
-                    context.go('/scouting-reports');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.search_outlined),
-                  title: const Text('Opponent Scouting'),
-                  selected: currentRoute.startsWith('/opponent-scouting'),
-                  onTap: () {
-                    logger.i('CoachSidebar: Navigating to Opponent Scouting (/opponent-scouting).');
-                    context.go('/opponent-scouting');
-                  },
-                ),
-              ],
+              // Management staff has no additional menu items - only Calendar
               
               // Player-only menu items (not visible to staff)
               if (isPlayer && !isStaff) ...[
