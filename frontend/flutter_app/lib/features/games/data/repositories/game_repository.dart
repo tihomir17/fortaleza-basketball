@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/game_model.dart';
 import '../models/post_game_report_model.dart';
+import '../models/game_roster_model.dart';
 import 'package:flutter_app/main.dart'; // Import for global logger
 import 'package:flutter_app/core/logging/file_logger.dart';
 
@@ -681,6 +682,157 @@ class GameRepository {
       }
     } catch (e) {
       logger.w('GameRepository: Error initializing analytics cache: $e');
+    }
+  }
+
+  // Roster Management Methods
+  Future<GameRoster> createGameRoster({
+    required String token,
+    required int gameId,
+    required int teamId,
+    required List<int> playerIds,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/roster/');
+    logger.d('GameRepository: Creating game roster for game $gameId, team $teamId');
+    
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'team_id': teamId,
+          'player_ids': playerIds,
+        }),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        logger.i('GameRepository: Game roster created successfully');
+        // Invalidate cache since we added a new roster
+        invalidateCache();
+        return GameRoster.fromJson(json.decode(response.body));
+      } else {
+        logger.e('GameRepository: Failed to create game roster. Status: ${response.statusCode}');
+        throw Exception('Failed to create game roster. Server response: ${response.body}');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error creating game roster: $e');
+      throw Exception('An error occurred while creating the game roster: $e');
+    }
+  }
+
+  Future<GameRoster> updateStartingFive({
+    required String token,
+    required int gameId,
+    required int teamId,
+    required List<int> startingFiveIds,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/roster/starting-five/');
+    logger.d('GameRepository: Updating starting five for game $gameId, team $teamId');
+    
+    try {
+      final response = await _client.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'team_id': teamId,
+          'starting_five_ids': startingFiveIds,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Starting five updated successfully');
+        // Invalidate cache since we updated roster
+        invalidateCache();
+        return GameRoster.fromJson(json.decode(response.body));
+      } else {
+        logger.e('GameRepository: Failed to update starting five. Status: ${response.statusCode}');
+        throw Exception('Failed to update starting five. Server response: ${response.body}');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error updating starting five: $e');
+      throw Exception('An error occurred while updating the starting five: $e');
+    }
+  }
+
+  Future<List<GameRoster>> getGameRosters({
+    required String token,
+    required int gameId,
+    int? teamId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/roster/');
+    if (teamId != null) {
+      url.replace(queryParameters: {'team_id': teamId.toString()});
+    }
+    logger.d('GameRepository: Getting game rosters for game $gameId');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = json.decode(response.body);
+        List<dynamic> rosterData;
+        
+        if (decoded is List) {
+          rosterData = decoded;
+        } else {
+          rosterData = [decoded];
+        }
+        
+        logger.i('GameRepository: Retrieved ${rosterData.length} rosters');
+        return rosterData.map((data) => GameRoster.fromJson(data)).toList();
+      } else {
+        logger.e('GameRepository: Failed to get game rosters. Status: ${response.statusCode}');
+        throw Exception('Failed to get game rosters. Server response: ${response.body}');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error getting game rosters: $e');
+      throw Exception('An error occurred while getting game rosters: $e');
+    }
+  }
+
+  Future<void> deleteGameRoster({
+    required String token,
+    required int gameId,
+    required int teamId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$gameId/roster/');
+    logger.d('GameRepository: Deleting game roster for game $gameId, team $teamId');
+    
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'team_id': teamId,
+        }),
+      );
+
+      if (response.statusCode == 204) {
+        logger.i('GameRepository: Game roster deleted successfully');
+        // Invalidate cache since we deleted a roster
+        invalidateCache();
+      } else {
+        logger.e('GameRepository: Failed to delete game roster. Status: ${response.statusCode}');
+        throw Exception('Failed to delete game roster. Server response: ${response.body}');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error deleting game roster: $e');
+      throw Exception('An error occurred while deleting the game roster: $e');
     }
   }
 }

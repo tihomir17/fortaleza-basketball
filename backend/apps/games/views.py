@@ -10,9 +10,10 @@ from django.db.models import Count, Q, Avg, Sum, QuerySet
 from django.db.models.functions import TruncDate
 from django.http import HttpRequest
 
-from .models import Game, ScoutingReport
+from .models import Game, ScoutingReport, GameRoster
 from apps.teams.models import Team
 from .serializers import GameReadSerializer, GameWriteSerializer, GameListSerializer
+from .roster_serializers import GameRosterSerializer
 from .filters import GameFilter
 from .services import GameAnalyticsService
 from .pdf_export import AnalyticsPDFExporter
@@ -20,10 +21,48 @@ from .models import ScoutingReport
 from .serializers import ScoutingReportSerializer
 from django.db.models import Q  # Import Q
 from apps.users.permissions import IsTeamScopedObject  # New import
+from rest_framework.permissions import BasePermission
 from .serializers import GameReadLightweightSerializer  # New import
 from apps.possessions.models import Possession
 from apps.events.models import CalendarEvent
 from apps.core.cache_utils import cache_analytics_data, cache_dashboard_data, CacheManager
+
+
+class IsGameRosterPermission(BasePermission):
+    """
+    Custom permission for game roster management.
+    Allows coaches to create rosters for both teams in a game they're involved in.
+    """
+    message = "You do not have permission to manage rosters for this game."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        
+        # Only coaches can manage rosters
+        if user.role != 'COACH':
+            return False
+            
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+            
+        # For Game objects, check if user coaches either team in the game
+        if isinstance(obj, Game):
+            # Check if user coaches the home team or away team
+            home_team_coached = obj.home_team.coaches.filter(id=user.id).exists()
+            away_team_coached = obj.away_team.coaches.filter(id=user.id).exists()
+            return home_team_coached or away_team_coached
+            
+        return False
 
 
 class GamePagination(PageNumberPagination):
@@ -934,6 +973,195 @@ class GameViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    # Roster Management Endpoints
+    @action(detail=True, methods=["post"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def create_roster(self, request, pk=None):
+        """
+        Create or update a game roster for a team.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            player_ids = request.data.get('player_ids', [])
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(player_ids) < 10 or len(player_ids) > 12:
+                return Response(
+                    {"error": "Roster must have between 10 and 12 players"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if team is part of this game
+            if game.home_team.id != team_id and game.away_team.id != team_id:
+                return Response(
+                    {"error": "Team is not part of this game"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            
+            # Get or create roster
+            roster, created = GameRoster.objects.get_or_create(
+                game=game,
+                team=team,
+                defaults={}
+            )
+            
+            # Set players
+            from apps.users.models import User
+            players = User.objects.filter(id__in=player_ids, role='PLAYER')
+            roster.players.set(players)
+            
+            serializer = GameRosterSerializer(roster)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except Team.DoesNotExist:
+            return Response(
+                {"error": "Team not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["patch"], url_path="roster/starting-five", permission_classes=[IsGameRosterPermission])
+    def update_starting_five(self, request, pk=None):
+        """
+        Update the starting five for a team's roster.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            starting_five_ids = request.data.get('starting_five_ids', [])
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(starting_five_ids) != 5:
+                return Response(
+                    {"error": "Starting five must have exactly 5 players"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if team is part of this game
+            if game.home_team.id != team_id and game.away_team.id != team_id:
+                return Response(
+                    {"error": "Team is not part of this game"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            
+            try:
+                roster = GameRoster.objects.get(game=game, team=team)
+            except GameRoster.DoesNotExist:
+                return Response(
+                    {"error": "Roster not found. Create roster first."}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Validate that starting five players are in the roster
+            roster_player_ids = set(roster.players.values_list('id', flat=True))
+            if not set(starting_five_ids).issubset(roster_player_ids):
+                return Response(
+                    {"error": "Starting five players must be in the roster"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set starting five
+            from apps.users.models import User
+            starting_five = User.objects.filter(id__in=starting_five_ids)
+            roster.starting_five.set(starting_five)
+            
+            serializer = GameRosterSerializer(roster)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Team.DoesNotExist:
+            return Response(
+                {"error": "Team not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["get"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def get_roster(self, request, pk=None):
+        """
+        Get roster information for a game.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.query_params.get('team_id')
+            
+            if team_id:
+                # Get specific team roster
+                try:
+                    team = Team.objects.get(id=team_id)
+                    roster = GameRoster.objects.get(game=game, team=team)
+                    serializer = GameRosterSerializer(roster)
+                    return Response(serializer.data)
+                except (Team.DoesNotExist, GameRoster.DoesNotExist):
+                    return Response(
+                        {"error": "Roster not found"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                # Get all rosters for the game
+                rosters = GameRoster.objects.filter(game=game)
+                serializer = GameRosterSerializer(rosters, many=True)
+                return Response(serializer.data)
+                
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["delete"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def delete_roster(self, request, pk=None):
+        """
+        Delete a roster for a team.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            roster = GameRoster.objects.get(game=game, team=team)
+            roster.delete()
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except (Team.DoesNotExist, GameRoster.DoesNotExist):
+            return Response(
+                {"error": "Roster not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=True, methods=["delete"])

@@ -12,7 +12,9 @@ import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
@@ -20,6 +22,8 @@ import 'package:flutter_app/core/logging/file_logger.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
 import '../../data/repositories/game_repository.dart';
+import 'roster_management_screen.dart';
+import 'starting_five_screen.dart';
 
 class GameDetailScreen extends StatefulWidget {
   final int gameId;
@@ -55,6 +59,70 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         gameId: widget.gameId,
         loadPossessions: true, // Load possessions for detail view
       );
+    }
+  }
+
+  // Helper methods for game setup flow
+  bool _hasRosters(Game? game) {
+    if (game == null) return false;
+    return game.homeTeamRoster != null && game.awayTeamRoster != null;
+  }
+
+  bool _hasHomeRoster(Game? game) {
+    if (game == null) return false;
+    return game.homeTeamRoster != null;
+  }
+
+  bool _hasAwayRoster(Game? game) {
+    if (game == null) return false;
+    return game.awayTeamRoster != null;
+  }
+
+  bool _hasStartingFives(Game? game) {
+    if (!_hasRosters(game)) return false;
+    return game!.homeTeamRoster!.startingFive.length == 5 && 
+           game.awayTeamRoster!.startingFive.length == 5;
+  }
+
+  bool _canAddPossessions(Game? game) {
+    return _hasStartingFives(game);
+  }
+
+  // Navigation methods
+  Future<void> _navigateToRosterManagement(Team team) async {
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) return;
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RosterManagementScreen(
+          game: game,
+          team: team,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      _refreshGameDetails();
+    }
+  }
+
+  Future<void> _navigateToStartingFive(Team team, GameRoster roster) async {
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) return;
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => StartingFiveScreen(
+          game: game,
+          team: team,
+          rosterPlayers: roster.players,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      _refreshGameDetails();
     }
   }
 
@@ -178,6 +246,113 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
   }
 
+  Widget _buildGameSetupSection(Game game) {
+    final hasRosters = _hasRosters(game);
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
+    final hasStartingFives = _hasStartingFives(game);
+    final canAddPossessions = _canAddPossessions(game);
+
+    // Don't show setup section if everything is complete
+    if (canAddPossessions) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Game Setup',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (!hasRosters) ...[
+                  // Step 1: Create rosters for both teams
+                  if (!hasHomeRoster) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToRosterManagement(game.homeTeam),
+                      icon: const Icon(Icons.people, size: 18),
+                      label: Text('${game.homeTeam.name} Roster'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                  if (!hasAwayRoster) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToRosterManagement(game.awayTeam),
+                      icon: const Icon(Icons.people, size: 18),
+                      label: Text('${game.awayTeam.name} Roster'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ] else if (!hasStartingFives) ...[
+                  // Step 2: Select starting fives for both teams
+                  if (game.homeTeamRoster!.startingFive.length != 5) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToStartingFive(game.homeTeam, game.homeTeamRoster!),
+                      icon: const Icon(Icons.star, size: 18),
+                      label: Text('${game.homeTeam.name} Starting Five'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                  if (game.awayTeamRoster!.startingFive.length != 5) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToStartingFive(game.awayTeam, game.awayTeamRoster!),
+                      icon: const Icon(Icons.star, size: 18),
+                      label: Text('${game.awayTeam.name} Starting Five'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _getSetupStatusText(game),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getSetupStatusText(Game game) {
+    final hasRosters = _hasRosters(game);
+    final hasStartingFives = _hasStartingFives(game);
+
+    if (!hasRosters) {
+      return 'Create rosters for both teams to continue (10-12 players each)';
+    } else if (!hasStartingFives) {
+      return 'Select starting five for both teams to enable possession logging';
+    } else {
+      return 'Game setup complete! You can now log possessions.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -244,67 +419,35 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               ],
             ),
           ),
-                     Padding(
-             padding: const EdgeInsets.only(
-               right: 8.0,
-             ), // Add some space from the edge
-             child: Center(
-               // Use Center to vertically align the button
-               child: BlocBuilder<GameDetailCubit, GameDetailState>(
-                 builder: (context, state) {
-                   final game = state.game;
-                   final hasPossessions = game?.possessions.isNotEmpty ?? false;
-                   final isLoading = _isLoadingMorePossessions;
-                   
-                   return TextButton.icon(
-                     onPressed: isLoading ? null : _loadPossessionsFromDatabase,
-                     icon: Icon(
-                       isLoading ? Icons.hourglass_empty : Icons.download,
-                       size: 18,
-                     ),
-                     label: Text(
-                       isLoading ? 'Loading...' : (hasPossessions ? 'Reload' : 'Load Possessions'),
-                     ),
-                     style: TextButton.styleFrom(
-                       // Use different colors based on state
-                       foregroundColor: Colors.white,
-                       backgroundColor: isLoading 
-                           ? Colors.grey 
-                           : (hasPossessions ? Colors.orange : Colors.green),
-                       // Add a subtle border
-                       shape: RoundedRectangleBorder(
-                         borderRadius: BorderRadius.circular(20),
-                       ),
-                     ),
-                   );
-                 },
-               ),
-             ),
-           ),
-          Padding(
-            padding: const EdgeInsets.only(
-              right: 8.0,
-            ), // Add some space from the edge
-            child: Center(
-              // Use Center to vertically align the button
-              child: TextButton.icon(
-                onPressed: () {
-                  // The router will get the ID from the URL.
-                  context.go('/games/${widget.gameId}/track');
-                },
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Add Possession'),
-                style: TextButton.styleFrom(
-                  // Use the theme's accent color for high visibility
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.blueGrey,
-                  // Add a subtle border
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+          // Load/Reload possessions button (always available)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final hasPossessions = game?.possessions.isNotEmpty ?? false;
+              
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: TextButton.icon(
+                  onPressed: _isLoadingMorePossessions ? null : _loadPossessionsFromDatabase,
+                  icon: Icon(
+                    _isLoadingMorePossessions ? Icons.hourglass_empty : Icons.download,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _isLoadingMorePossessions ? 'Loading...' : (hasPossessions ? 'Reload' : 'Load Possessions'),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: _isLoadingMorePossessions 
+                        ? Colors.grey 
+                        : (hasPossessions ? Colors.orange : Colors.blueGrey),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -341,6 +484,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
           return Column(
             children: [
+              // Game Setup Section
+              _buildGameSetupSection(game),
               Card(
                 margin: const EdgeInsets.all(8.0),
                 child: Padding(

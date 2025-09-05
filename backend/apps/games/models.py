@@ -66,6 +66,22 @@ class Game(models.Model):
         # Invalidate analytics cache
         CacheManager.invalidate_pattern("analytics:*")
 
+    @property
+    def home_team_roster(self):
+        """Get the home team roster for this game"""
+        try:
+            return self.rosters.get(team=self.home_team)
+        except GameRoster.DoesNotExist:
+            return None
+
+    @property
+    def away_team_roster(self):
+        """Get the away team roster for this game"""
+        try:
+            return self.rosters.get(team=self.away_team)
+        except GameRoster.DoesNotExist:
+            return None
+
     def __str__(self):
         return f"{self.home_team.name} vs {self.away_team.name} - {self.game_date.strftime('%Y-%m-%d')}"
 
