@@ -50,7 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _refreshDashboard() {
     if (mounted) {
-      context.read<DashboardCubit>().loadDashboardData();
+      context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
     }
   }
 
@@ -59,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: UserProfileAppBar(
         title: 'DASHBOARD',
-        onRefresh: () => context.read<DashboardCubit>().loadDashboardData(),
+        onRefresh: () => context.read<DashboardCubit>().loadDashboardData(forceRefresh: true),
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, authState) {
@@ -153,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDashboardContent(dashboardData, bool isPlayer, bool isStaff, String? staffType) {
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<DashboardCubit>().refresh();
+        context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),

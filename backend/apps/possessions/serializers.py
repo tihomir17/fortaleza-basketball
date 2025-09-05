@@ -93,6 +93,33 @@ class PossessionSerializer(serializers.ModelSerializer):
                 errors["opponent_id"] = [
                     "Opponent must be the other team in the game, not the same as the possession team."
                 ]
+
+        # Validate that rosters are properly created before allowing possession logging
+        if game and team and opponent:
+            from apps.games.models import GameRoster
+            
+            # Check if both rosters exist
+            try:
+                home_roster = GameRoster.objects.get(game=game, team=game.home_team)
+                away_roster = GameRoster.objects.get(game=game, team=game.away_team)
+                
+                # Check if rosters have minimum required players (10)
+                if home_roster.players.count() < 10:
+                    errors["roster"] = [
+                        f"Home team ({game.home_team.name}) roster has only {home_roster.players.count()} players. Minimum 10 players required before logging possessions."
+                    ]
+                
+                if away_roster.players.count() < 10:
+                    errors["roster"] = [
+                        f"Away team ({game.away_team.name}) roster has only {away_roster.players.count()} players. Minimum 10 players required before logging possessions."
+                    ]
+                    
+            except GameRoster.DoesNotExist as e:
+                missing_team = game.home_team.name if "home" in str(e) else game.away_team.name
+                errors["roster"] = [
+                    f"Game roster for {missing_team} not found. Please create rosters for both teams before logging possessions."
+                ]
+
         if errors:
             raise serializers.ValidationError(errors)
         return attrs

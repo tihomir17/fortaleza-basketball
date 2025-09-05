@@ -95,6 +95,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       appBar: UserProfileAppBar(
         title: 'CALENDAR',
+        onRefresh: () => _refreshCalendar(),
         actions: [
           BlocBuilder<AuthCubit, AuthState>(
             builder: (context, authState) {
@@ -155,8 +156,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: BlocBuilder<CalendarCubit, CalendarState>(
-        builder: (context, state) {
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _refreshCalendar();
+        },
+        child: BlocBuilder<CalendarCubit, CalendarState>(
+          builder: (context, state) {
           if (state.status == CalendarStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -239,6 +244,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -482,22 +488,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onPressed: () async {
                 final token = context.read<AuthCubit>().state.token;
                 if (token == null) return;
+                
                 try {
                   if (isGame) {
                     await sl<GameRepository>().deleteGame(
                       token: token,
                       gameId: event.id,
                     );
+                    logger.i('Calendar: Game ${event.id} deleted successfully');
                   } else {
                     await sl<EventRepository>().deleteEvent(
                       token: token,
                       eventId: event.id,
                     );
+                    logger.i('Calendar: Event ${event.id} deleted successfully');
                   }
+                  
+                  // Close dialog
                   Navigator.of(dialogContext).pop();
-                  sl<RefreshSignal>().notify();
+                  
+                  // Show success message
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(isGame ? 'Game deleted successfully' : 'Event deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                  
+                  // Refresh calendar data
+                  _refreshCalendar();
+                  
                 } catch (e) {
-                  // handle error
+                  logger.e('Calendar: Failed to delete ${isGame ? 'game' : 'event'}: $e');
+                  
+                  // Show error message
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete ${isGame ? 'game' : 'event'}: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
             ),

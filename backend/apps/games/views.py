@@ -745,11 +745,11 @@ class GameViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["get"])
-    @cache_dashboard_data(timeout=300)  # Cache for 5 minutes
+    @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
     def dashboard_data(self, request):
         """
         Get dashboard data including quick stats, recent activity, and upcoming games
-        Cached for 5 minutes to improve performance
+        Cached for 1 minute to improve performance while maintaining real-time updates
         """
         try:
             user = request.user
@@ -1371,3 +1371,80 @@ class GameViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(detail=False, methods=["post"], url_path="invalidate-cache")
+    def invalidate_cache(self, request):
+        """
+        Manually invalidate dashboard cache for immediate updates
+        """
+        try:
+            # Invalidate dashboard cache
+            CacheManager.invalidate_dashboard_cache()
+            
+            return Response({
+                "message": "Dashboard cache invalidated successfully",
+                "timestamp": timezone.now().isoformat(),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["get"], url_path="calendar-data")
+    def get_calendar_data(self, request):
+        """
+        Get all games for calendar display (no team scoping restrictions)
+        This endpoint allows authenticated users to see all games for calendar purposes
+        """
+        try:
+            user = request.user
+            if not user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            # Get all games without team scoping for calendar display
+            games = Game.objects.all().select_related(
+                "home_team", "away_team", "competition"
+            ).order_by("game_date")
+
+            # Serialize games for calendar
+            games_data = []
+            for game in games:
+                games_data.append({
+                    "id": game.id,
+                    "home_team": {
+                        "id": game.home_team.id,
+                        "name": game.home_team.name,
+                    },
+                    "away_team": {
+                        "id": game.away_team.id,
+                        "name": game.away_team.name,
+                    },
+                    "competition": {
+                        "id": game.competition.id,
+                        "name": game.competition.name,
+                    },
+                    "game_date": game.game_date,
+                    "home_team_score": game.home_team_score,
+                    "away_team_score": game.away_team_score,
+                    "quarter": game.quarter,
+                    "created_by": game.created_by.id if game.created_by else None,
+                    "created_at": game.created_at,
+                    "updated_at": game.updated_at,
+                })
+
+            return Response({
+                "games": games_data,
+                "count": len(games_data),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

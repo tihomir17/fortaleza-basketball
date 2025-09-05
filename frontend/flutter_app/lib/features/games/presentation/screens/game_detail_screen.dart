@@ -311,6 +311,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
   }
 
+
   int _parseTimeToSeconds(String time) {
     try {
       final parts = time.split(':');
@@ -420,12 +421,35 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              _getSetupStatusText(game),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
+                                  Text(
+                        _getSetupStatusText(game),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Both teams need rosters with minimum 10 players and complete starting fives before logging possessions.',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
           ],
         ),
       ),
@@ -528,19 +552,64 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           ),
           const SizedBox(height: 4),
           if (hasRoster) ...[
-            Text(
-              'Players: ${roster!.players.length}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.green[700],
-              ),
+            // Show player count with validation
+            Row(
+              children: [
+                Icon(
+                  roster!.players.length >= 10 ? Icons.check : Icons.warning,
+                  color: roster.players.length >= 10 ? Colors.green : Colors.orange,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Players: ${roster.players.length}${roster.players.length < 10 ? " (Min: 10)" : ""}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: roster.players.length >= 10 ? Colors.green[700] : Colors.orange[700],
+                    fontWeight: roster.players.length < 10 ? FontWeight.w500 : FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              'Starting Five: ${isStartingFiveComplete ? "✓ Complete" : "✗ Incomplete"}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: isStartingFiveComplete ? Colors.green[700] : Colors.orange[700],
-                fontWeight: FontWeight.w500,
-              ),
+            const SizedBox(height: 2),
+            // Show starting five status
+            Row(
+              children: [
+                Icon(
+                  isStartingFiveComplete ? Icons.check : Icons.warning,
+                  color: isStartingFiveComplete ? Colors.green : Colors.orange,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Starting Five: ${isStartingFiveComplete ? "✓ Complete" : "✗ Incomplete"}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isStartingFiveComplete ? Colors.green[700] : Colors.orange[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
+            // Show possession readiness
+            if (roster.players.length >= 10 && isStartingFiveComplete) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.play_arrow,
+                    color: Colors.green,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ready for possessions',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ] else ...[
             Text(
               'No roster created',
@@ -591,127 +660,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Analysis'),
-        actions: [
-          IconButton(
-            tooltip: 'Match Stats',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () {
-              context.go('/games/${widget.gameId}/stats');
-            },
-          ),
-          IconButton(
-            tooltip: 'Player Stats',
-            icon: const Icon(Icons.people),
-            onPressed: () {
-              context.go('/games/${widget.gameId}/player-stats');
-            },
-          ),
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0066CC),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.analytics_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    // Get the user's team ID from the game
-                    final game = context.read<GameDetailCubit>().state.game;
-                    if (game != null) {
-                      final userTeams = context.read<TeamCubit>().state.teams;
-                      final userTeamInGame = userTeams.firstWhere(
-                        (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
-                        orElse: () => game.homeTeam,
-                      );
-                      context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
-                    }
-                  },
-                  tooltip: 'Post Game Report',
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.assessment,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    final game = context.read<GameDetailCubit>().state.game;
-                    if (game != null) {
-                      context.go('/games/${game.id}/advanced-report');
-                    }
-                  },
-                  tooltip: 'Advanced Post-Game Report',
-                ),
-              ],
-            ),
-          ),
-          // Add New Possession button (only when setup is complete)
-          BlocBuilder<GameDetailCubit, GameDetailState>(
-            builder: (context, state) {
-              final game = state.game;
-              final canAddPossessions = _canAddPossessions(game);
-              
-              if (!canAddPossessions) {
-                return const SizedBox.shrink();
-              }
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    context.go('/games/${widget.gameId}/add-possession');
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Possession'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          // Load/Reload possessions button (always available)
-          BlocBuilder<GameDetailCubit, GameDetailState>(
-            builder: (context, state) {
-              final game = state.game;
-              final hasPossessions = game?.possessions.isNotEmpty ?? false;
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: TextButton.icon(
-                  onPressed: _isLoadingMorePossessions ? null : _loadPossessionsFromDatabase,
-                  icon: Icon(
-                    _isLoadingMorePossessions ? Icons.hourglass_empty : Icons.download,
-                    size: 18,
-                  ),
-                  label: Text(
-                    _isLoadingMorePossessions ? 'Loading...' : (hasPossessions ? 'Reload' : 'Load Possessions'),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: _isLoadingMorePossessions 
-                        ? Colors.grey 
-                        : (hasPossessions ? Colors.orange : Colors.blueGrey),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+        actions: [],
       ),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
@@ -744,10 +693,14 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
             return timeB.compareTo(timeA);
           });
 
-          return Column(
+          return Row(
             children: [
-              // Game Setup Section
-              _buildGameSetupSection(game),
+              // Main content area
+              Expanded(
+                child: Column(
+                  children: [
+                    // Game Setup Section
+                    _buildGameSetupSection(game),
               Card(
                 margin: const EdgeInsets.all(8.0),
                 child: Padding(
@@ -890,9 +843,192 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                         ],
                       ),
               ),
+                  ],
+                ),
+              ),
+              // Right sidebar
+              _buildRightSidebar(game),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRightSidebar(Game game) {
+    return Container(
+      width: 80,
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(left: BorderSide(color: Colors.grey[300]!)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          
+          // Analytics buttons section
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0066CC),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.analytics_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    final userTeams = context.read<TeamCubit>().state.teams;
+                    final userTeamInGame = userTeams.firstWhere(
+                      (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                      orElse: () => game.homeTeam,
+                    );
+                    context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+                  },
+                  tooltip: 'Post Game Report',
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.assessment,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    context.go('/games/${game.id}/advanced-report');
+                  },
+                  tooltip: 'Advanced Post-Game Report',
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Match Stats button
+          IconButton(
+            tooltip: 'Match Stats',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/stats');
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue[100],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Player Stats button
+          IconButton(
+            tooltip: 'Player Stats',
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/player-stats');
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue[100],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Add New Possession button (only when setup is complete)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final canAddPossessions = _canAddPossessions(game);
+              
+              if (!canAddPossessions) {
+                return const SizedBox.shrink();
+              }
+              
+              return Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.go('/games/${widget.gameId}/add-possession');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 20),
+                      SizedBox(height: 4),
+                      Text(
+                        'Add\nPossession',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Load/Reload possessions button (always available)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final hasPossessions = game?.possessions.isNotEmpty ?? false;
+              
+              return Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoadingMorePossessions ? null : _loadPossessionsFromDatabase,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: _isLoadingMorePossessions 
+                        ? Colors.grey 
+                        : (hasPossessions ? Colors.orange : Colors.blueGrey),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isLoadingMorePossessions ? Icons.hourglass_empty : Icons.download,
+                        size: 20,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _isLoadingMorePossessions 
+                            ? 'Loading...' 
+                            : (hasPossessions ? 'Reload' : 'Load\nPossessions'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          const Spacer(),
+        ],
       ),
     );
   }

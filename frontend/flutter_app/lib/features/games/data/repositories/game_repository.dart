@@ -22,6 +22,36 @@ class GameRepository {
   static DateTime _lastCacheTime = DateTime.now();
   static const Duration _cacheValidDuration = Duration(minutes: 10); // Increased cache duration
 
+  Future<List<Game>> getCalendarGames(String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/calendar-data/');
+    logger.d('GameRepository: Fetching calendar games from $url');
+    
+    try {
+      final response = await _client.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (response.statusCode == 200) {
+        final dynamic decoded = json.decode(response.body);
+        final gamesData = decoded['games'] as List<dynamic>;
+        
+        final games = gamesData
+            .map((jsonItem) => Game.fromJson(jsonItem as Map<String, dynamic>))
+            .toList();
+            
+        logger.i('GameRepository: Loaded ${games.length} games for calendar');
+        return games;
+      } else {
+        logger.e('GameRepository: Failed to load calendar games. Status: ${response.statusCode}');
+        throw Exception('Failed to load calendar games');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error fetching calendar games: $e');
+      throw Exception('Error fetching calendar games: $e');
+    }
+  }
+
   Future<List<Game>> getAllGames(String token, {int page = 1, int pageSize = 50}) async {
     // Check cache first
     final cacheKey = 'games_list_${page}_${pageSize}_$token';
@@ -835,4 +865,5 @@ class GameRepository {
       throw Exception('An error occurred while deleting the game roster: $e');
     }
   }
+
 }

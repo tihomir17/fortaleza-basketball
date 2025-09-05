@@ -275,7 +275,7 @@ class __LiveTrackingStatefulWrapperState
         startTime: "00:00", // Placeholder
         duration: 10, // Placeholder
         quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
-        outcome: _finalOutcome!,
+        outcome: _finalOutcome ?? 'TURNOVER', // Default to TURNOVER if no outcome specified
         offensiveSequence: _isHomeTeamPossession! ? sequence : '',
         defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
       );
@@ -325,11 +325,50 @@ class __LiveTrackingStatefulWrapperState
     final teamRoster = _isHomeTeamPossession! ? game.homeTeamRoster : game.awayTeamRoster;
     final opponentRoster = _isHomeTeamPossession! ? game.awayTeamRoster : game.homeTeamRoster;
 
+    // Check if rosters are created
     if (teamRoster == null || opponentRoster == null) {
+      final missingRosters = <String>[];
+      if (teamRoster == null) {
+        missingRosters.add(teamWithBall.name);
+      }
+      if (opponentRoster == null) {
+        missingRosters.add(opponentTeam.name);
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Error: Game rosters not found. Please create rosters first."),
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${missingRosters.join(' and ')} roster${missingRosters.length > 1 ? 's' : ''} not created yet. Please create rosters first.",
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    // Check if rosters have enough players (minimum 10)
+    if (teamRoster.players.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${teamWithBall.name} roster has only ${teamRoster.players.length} players. Minimum 10 players required.",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    if (opponentRoster.players.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${opponentTeam.name} roster has only ${opponentRoster.players.length} players. Minimum 10 players required.",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
       return;
@@ -350,7 +389,38 @@ class __LiveTrackingStatefulWrapperState
               ),
               Text(sequenceString),
               const SizedBox(height: 16),
-              // TODO: Add outcome and other details to this summary
+              if (_finalOutcome == null) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange[700], size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "No specific outcome selected. Will be saved as 'TURNOVER'.",
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                Text(
+                  "Outcome: $_finalOutcome",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+              ],
             ],
           ),
         ),

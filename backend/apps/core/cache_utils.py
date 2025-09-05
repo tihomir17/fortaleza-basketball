@@ -72,10 +72,29 @@ class CacheManager:
     def invalidate_pattern(pattern: str, cache_alias: str = 'default') -> int:
         """Invalidate all cache keys matching a pattern"""
         try:
-            # This is a simplified version - in production you'd use Redis SCAN
-            # For now, we'll just log the pattern
-            logger.info(f"Cache invalidation requested for pattern: {pattern}")
-            return 0
+            # For Redis backend, we can use pattern matching
+            if hasattr(cache, '_cache') and hasattr(cache._cache, 'delete_pattern'):
+                # Redis backend with pattern support
+                deleted_count = cache._cache.delete_pattern(pattern)
+                logger.info(f"Cache invalidation: deleted {deleted_count} keys matching pattern: {pattern}")
+                return deleted_count
+            else:
+                # Fallback: try to delete common cache keys
+                common_keys = [
+                    f"dashboard:dashboard_data",
+                    f"analytics:*",
+                    f"team_data:*",
+                    f"user_data:*",
+                ]
+                
+                deleted_count = 0
+                for key in common_keys:
+                    if pattern in key or key in pattern:
+                        if cache.delete(key, using=cache_alias):
+                            deleted_count += 1
+                
+                logger.info(f"Cache invalidation: deleted {deleted_count} keys for pattern: {pattern}")
+                return deleted_count
         except Exception as e:
             logger.error(f"Cache invalidation error for pattern {pattern}: {e}")
             return 0
@@ -103,6 +122,19 @@ class CacheManager:
         
         for pattern in patterns:
             CacheManager.invalidate_pattern(pattern)
+    
+    @staticmethod
+    def invalidate_dashboard_cache() -> None:
+        """Invalidate all dashboard cache entries"""
+        patterns = [
+            "dashboard:*",
+            "dashboard_data:*",
+        ]
+        
+        for pattern in patterns:
+            CacheManager.invalidate_pattern(pattern)
+        
+        logger.info("Dashboard cache invalidated")
 
 
 def cache_analytics_data(timeout: int = 3600):

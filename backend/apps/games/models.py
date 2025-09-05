@@ -65,6 +65,24 @@ class Game(models.Model):
         CacheManager.invalidate_team_cache(self.away_team.id)
         # Invalidate analytics cache
         CacheManager.invalidate_pattern("analytics:*")
+        # Invalidate dashboard cache to show new/updated games immediately
+        CacheManager.invalidate_dashboard_cache()
+
+    def delete(self, *args, **kwargs):
+        """Override delete to invalidate cache when game is deleted"""
+        # Store team IDs before deletion
+        home_team_id = self.home_team.id
+        away_team_id = self.away_team.id
+        
+        super().delete(*args, **kwargs)
+        
+        # Invalidate cache for both teams
+        CacheManager.invalidate_team_cache(home_team_id)
+        CacheManager.invalidate_team_cache(away_team_id)
+        # Invalidate analytics cache
+        CacheManager.invalidate_pattern("analytics:*")
+        # Invalidate dashboard cache to remove deleted games immediately
+        CacheManager.invalidate_dashboard_cache()
 
     @property
     def home_team_roster(self):
