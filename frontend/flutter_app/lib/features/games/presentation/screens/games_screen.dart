@@ -44,6 +44,19 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Get user teams and set default team if none selected
+    final userTeams = context.read<TeamCubit>().state.teams;
+    if (userTeams.isNotEmpty && _selectedTeamId == null) {
+      setState(() {
+        _selectedTeamId = userTeams.first.id;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userTeams = context.watch<TeamCubit>().state.teams;
 
@@ -127,18 +140,12 @@ class _GamesScreenState extends State<GamesScreen> {
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('All Teams'),
+                  items: userTeams.map(
+                    (team) => DropdownMenuItem(
+                      value: team.id, 
+                      child: Text(team.name),
                     ),
-                    ...userTeams.map(
-                      (team) => DropdownMenuItem(
-                        value: team.id, 
-                        child: Text(team.name),
-                      ),
-                    ),
-                  ],
+                  ).toList(),
                   onChanged: (teamId) {
                     setState(() => _selectedTeamId = teamId);
                     _applyFilters();

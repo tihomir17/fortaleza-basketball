@@ -98,7 +98,11 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
         startTime: finalStartTime,
         endTime: finalEndTime,
         eventType: _selectedEventType,
-        teamId: _selectedEventType == 'PRACTICE_TEAM'
+        teamId: (_selectedEventType == 'PRACTICE_TEAM' || 
+                 _selectedEventType == 'SCOUTING_MEETING' ||
+                 _selectedEventType == 'STRENGTH_CONDITIONING' ||
+                 _selectedEventType == 'TEAM_MEETING' ||
+                 _selectedEventType == 'TEAM_BUILDING')
             ? _selectedTeamId
             : _selectedTeamIdForPractice,
         attendeeIds: _selectedAttendeeIds,
@@ -147,12 +151,44 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
                   value: 'PRACTICE_INDIVIDUAL',
                   child: Text('Individual Practice'),
                 ),
+                DropdownMenuItem(
+                  value: 'SCOUTING_MEETING',
+                  child: Text('Scouting Meeting'),
+                ),
+                DropdownMenuItem(
+                  value: 'STRENGTH_CONDITIONING',
+                  child: Text('Strength & Conditioning'),
+                ),
+                DropdownMenuItem(
+                  value: 'GAME',
+                  child: Text('Game'),
+                ),
+                DropdownMenuItem(
+                  value: 'TEAM_MEETING',
+                  child: Text('Team Meeting'),
+                ),
+                DropdownMenuItem(
+                  value: 'TRAVEL_BUS',
+                  child: Text('Travel (Bus)'),
+                ),
+                DropdownMenuItem(
+                  value: 'TRAVEL_PLANE',
+                  child: Text('Travel (Plane)'),
+                ),
+                DropdownMenuItem(
+                  value: 'TEAM_BUILDING',
+                  child: Text('Team Building'),
+                ),
                 DropdownMenuItem(value: 'OTHER', child: Text('Other')),
               ],
               onChanged: (v) => setState(() => _selectedEventType = v!),
               decoration: const InputDecoration(labelText: 'Event Type *'),
             ),
-            if (_selectedEventType == 'PRACTICE_TEAM') ...[
+            if (_selectedEventType == 'PRACTICE_TEAM' || 
+                _selectedEventType == 'SCOUTING_MEETING' ||
+                _selectedEventType == 'STRENGTH_CONDITIONING' ||
+                _selectedEventType == 'TEAM_MEETING' ||
+                _selectedEventType == 'TEAM_BUILDING') ...[
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 value: _selectedTeamId,

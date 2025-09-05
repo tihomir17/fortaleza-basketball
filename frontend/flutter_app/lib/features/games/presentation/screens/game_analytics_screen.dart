@@ -21,11 +21,11 @@ class GameAnalyticsScreen extends StatefulWidget {
 class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   // Filter states
   int? _selectedTeamId;
+  int? _selectedOpponentId;
   int? _selectedQuarter;
   int? _selectedLastGames;
   String? _selectedOutcome;
   String? _selectedHomeAway;
-  int _minPossessions = 10;
   int? _customLastGames;
   final TextEditingController _customGamesController = TextEditingController();
   
@@ -43,11 +43,11 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     
-    // Get user teams and set default team if none selected
+    // Get user teams and set default team (coach's team) if none selected
     final userTeams = context.read<TeamCubit>().state.teams;
     if (userTeams.isNotEmpty && _selectedTeamId == null) {
       setState(() {
-        _selectedTeamId = userTeams.first.id;
+        _selectedTeamId = userTeams.first.id; // Use coach's team automatically
       });
     }
     
@@ -134,7 +134,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         lastGames: lastGamesToUse,
         outcome: _selectedOutcome,
         homeAway: _selectedHomeAway,
-        minPossessions: _minPossessions,
+        opponent: _selectedOpponentId,
+        minPossessions: 10, // Fixed minimum possessions
       );
 
       if (analyticsData != null) {
@@ -167,14 +168,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: Text(
-          'Game Analytics',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 24,
-            // Font suggestions: 'Poppins', 'Inter', 'Roboto', 'SF Pro Display'
-          ),
-        ),
+        title: _buildAppBarTitle(userTeams),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         actions: [
@@ -212,6 +206,70 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildAppBarTitle(List<Team> userTeams) {
+    final selectedTeam = userTeams.firstWhere(
+      (team) => team.id == _selectedTeamId,
+      orElse: () => userTeams.isNotEmpty ? userTeams.first : Team(
+        id: 0, 
+        name: 'No Team',
+        players: [],
+        coaches: [],
+      ),
+    );
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Game Analytics',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        if (selectedTeam.id != 0) ...[
+          const SizedBox(height: 2),
+          Text(
+            selectedTeam.name,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _getTeamResultText(selectedTeam),
+            style: TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _getTeamResultText(Team team) {
+    if (_analyticsData == null || _analyticsData!['summary'] == null) {
+      return 'Loading results...';
+    }
+    
+    final summary = _analyticsData!['summary'] as Map<String, dynamic>;
+    final totalGames = summary['total_games'] ?? 0;
+    final wins = summary['wins'] ?? 0;
+    final losses = summary['losses'] ?? 0;
+    
+    if (totalGames == 0) {
+      return 'No games played';
+    }
+    
+    return 'Record: $wins-$losses ($totalGames games)';
   }
 
   Widget _buildEnhancedFilters(List<Team> userTeams) {
@@ -269,22 +327,22 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
             ),
           const SizedBox(height: 20),
           
-          // Team and Quarter Row
+          // Opponent and Quarter Row
           Row(
             children: [
               Expanded(
                 child: _buildFilterDropdown<int?>(
-                  value: _selectedTeamId,
-                  hint: 'Select Team',
+                  value: _selectedOpponentId,
+                  hint: 'Select Opponent',
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('All Teams')),
+                    const DropdownMenuItem<int?>(value: null, child: Text('All Opponents')),
                     ...userTeams.map((team) => DropdownMenuItem(
                       value: team.id,
                       child: Text(team.name),
                     )),
                   ],
-                    onChanged: (teamId) {
-                      setState(() => _selectedTeamId = teamId);
+                    onChanged: (opponentId) {
+                      setState(() => _selectedOpponentId = opponentId);
                       _safeClearCacheAndReload();
                     },
                 ),
@@ -386,7 +444,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
           
           const SizedBox(height: 16),
           
-          // Home/Away and Min Possessions Row
+          // Home/Away Row
           Row(
             children: [
               Expanded(
@@ -405,22 +463,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: _buildFilterDropdown<int>(
-                  value: _minPossessions,
-                  hint: 'Min Possessions',
-                  items: const [
-                    DropdownMenuItem(value: 5, child: Text('5+ Possessions')),
-                    DropdownMenuItem(value: 10, child: Text('10+ Possessions')),
-                    DropdownMenuItem(value: 15, child: Text('15+ Possessions')),
-                    DropdownMenuItem(value: 20, child: Text('20+ Possessions')),
-                  ],
-                  onChanged: (minPoss) {
-                    setState(() => _minPossessions = minPoss!);
-                    _safeClearCacheAndReload();
-                  },
-                ),
-              ),
+              const Expanded(child: SizedBox()), // Empty space to maintain layout
             ],
           ),
         ],
@@ -1147,7 +1190,8 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         lastGames: lastGamesToUse,
         outcome: _selectedOutcome,
         homeAway: _selectedHomeAway,
-        minPossessions: _minPossessions,
+        opponent: _selectedOpponentId,
+        minPossessions: 10, // Fixed minimum possessions
       );
 
       setState(() {

@@ -9,6 +9,19 @@ from apps.teams.models import Team
 User = get_user_model()
 
 
+def has_admin_rights(user):
+    """Check if user has admin rights (Head Coach or Assistant Coach)"""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    if user.role == User.Role.ADMIN:
+        return True
+    if user.role == User.Role.COACH and user.coach_type in [User.CoachType.HEAD_COACH, User.CoachType.ASSISTANT_COACH]:
+        return True
+    return False
+
+
 class IsTeamScopedObject(BasePermission):
     message = "You do not have permission to access this resource."
 

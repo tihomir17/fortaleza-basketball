@@ -23,6 +23,9 @@ class CoachSidebar extends StatelessWidget {
           final isPlayer = authState.status == AuthStatus.authenticated && 
                           authState.user != null && 
                           authState.user!.role == 'PLAYER';
+          final isStaff = authState.status == AuthStatus.authenticated && 
+                         authState.user != null && 
+                         authState.user!.role == 'STAFF';
           
           return ListView(
             padding: EdgeInsets.zero,
@@ -33,7 +36,8 @@ class CoachSidebar extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: Text(
-                  isPlayer ? 'Player Menu' : 'Coach Menu',
+                  isPlayer ? 'Player Menu' : 
+                  isStaff ? 'Staff Menu' : 'Coach Menu',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimary,
                     fontFamily: 'Anton',
@@ -41,16 +45,17 @@ class CoachSidebar extends StatelessWidget {
                 ),
               ),
               
-              // Dashboard - Always visible
-              ListTile(
-                leading: const Icon(Icons.dashboard_outlined),
-                title: const Text('Dashboard'),
-                selected: currentRoute == '/',
-                onTap: () {
-                  logger.i('CoachSidebar: Navigating to Dashboard (/).');
-                  context.go('/');
-                },
-              ),
+              // Dashboard - Visible for coaches and players, not staff
+              if (!isStaff)
+                ListTile(
+                  leading: const Icon(Icons.dashboard_outlined),
+                  title: const Text('Dashboard'),
+                  selected: currentRoute == '/',
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Dashboard (/).');
+                    context.go('/');
+                  },
+                ),
               
               // Calendar - Always visible
               ListTile(
@@ -75,8 +80,8 @@ class CoachSidebar extends StatelessWidget {
                   },
                 ),
               
-              // Coach-only menu items
-              if (!isPlayer) ...[
+              // Coach-only menu items (not visible to staff or players)
+              if (!isPlayer && !isStaff) ...[
                 ListTile(
                   leading: const Icon(Icons.group_outlined),
                   title: const Text('Team Management'),

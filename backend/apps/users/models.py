@@ -9,12 +9,19 @@ class User(AbstractUser):
         ADMIN = "ADMIN", _("Admin")
         COACH = "COACH", _("Coach")
         PLAYER = "PLAYER", _("Player")
+        STAFF = "STAFF", _("Staff")
 
     class CoachType(models.TextChoices):
         HEAD_COACH = "HEAD_COACH", _("Head Coach")
         ASSISTANT_COACH = "ASSISTANT_COACH", _("Assistant Coach")
         SCOUTING_COACH = "SCOUTING_COACH", _("Scouting Coach")
         ANALYTIC_COACH = "ANALYTIC_COACH", _("Analytic Coach")
+        NONE = "NONE", _("None")
+
+    class StaffType(models.TextChoices):
+        PHYSIO = "PHYSIO", _("Physiotherapist")
+        STRENGTH_CONDITIONING = "STRENGTH_CONDITIONING", _("Strength & Conditioning")
+        MANAGEMENT = "MANAGEMENT", _("Management")
         NONE = "NONE", _("None")
 
     role = models.CharField(
@@ -27,6 +34,14 @@ class User(AbstractUser):
         default=CoachType.NONE,
         blank=True,
         help_text=_("Only applicable if the role is Coach."),
+    )
+    staff_type = models.CharField(
+        _("Staff Type"),
+        max_length=50,
+        choices=StaffType.choices,
+        default=StaffType.NONE,
+        blank=True,
+        help_text=_("Only applicable if the role is Staff."),
     )
 
     jersey_number = models.PositiveIntegerField(
@@ -69,4 +84,6 @@ class User(AbstractUser):
     def save(self, *args, **kwargs):
         if self.role != self.Role.COACH:
             self.coach_type = self.CoachType.NONE
+        if self.role != self.Role.STAFF:
+            self.staff_type = self.StaffType.NONE
         super().save(*args, **kwargs)

@@ -16,6 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "coach_type",
+            "staff_type",
             "jersey_number",
         ]
 
@@ -42,6 +43,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "coach_type",
+            "staff_type",
         )
 
     def create(self, validated_data):
@@ -52,6 +54,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get("last_name", ""),
             role=validated_data.get("role", User.Role.PLAYER),
             coach_type=validated_data.get("coach_type", User.CoachType.NONE),
+            staff_type=validated_data.get("staff_type", User.StaffType.NONE),
         )
         user.set_password(validated_data["password"])
         user.save()

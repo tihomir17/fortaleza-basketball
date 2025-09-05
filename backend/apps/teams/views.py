@@ -77,17 +77,27 @@ class TeamViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def add_member(self, request, pk=None):
         """
-        Adds a user to a team's roster as either a player or a coach.
-        Expects a body like: {'user_id': <id>, 'role': 'player'}
+        Adds a user to a team's roster as player, coach, or staff.
+        Expects a body like: {'user_id': <id>, 'role': 'player', 'staff_type': 'PHYSIO'}
         """
+        from apps.users.permissions import has_admin_rights
+        
         team_to_join = self.get_object()  # The team we are adding to
         user_id = request.data.get("user_id")
         role = request.data.get("role")
+        staff_type = request.data.get("staff_type")
 
         if not user_id or not role:
             return Response(
                 {"error": "User ID and role are required."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if user has admin rights for team management
+        if not has_admin_rights(request.user):
+            return Response(
+                {"error": "Only Head Coaches and Assistant Coaches can manage team members."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         try:
@@ -99,7 +109,6 @@ class TeamViewSet(viewsets.ModelViewSet):
 
         if role.lower() == "player":
             # Check if this player is on any other team.
-            # The 'player_on_teams' is the related_name from the Team model.
             existing_teams = user_to_add.player_on_teams.all()
 
             if existing_teams.exists():
@@ -116,14 +125,36 @@ class TeamViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
         elif role.lower() == "coach":
-            team.coaches.add(user_to_add)
+            team_to_join.coaches.add(user_to_add)
             return Response(
-                {"status": f"Coach {user_to_add.username} added to {team.name}"},
+                {"status": f"Coach {user_to_add.username} added to {team_to_join.name}"},
+                status=status.HTTP_200_OK,
+            )
+        elif role.lower() == "staff":
+            if not staff_type:
+                return Response(
+                    {"error": "Staff type is required when adding staff members."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Update user's role and staff type
+            user_to_add.role = User.Role.STAFF
+            user_to_add.staff_type = staff_type
+            user_to_add.save()
+            
+            # Add to team (staff are associated with teams but not as players or coaches)
+            # We'll need to add a staff field to the Team model or use a different approach
+            # For now, we'll add them as coaches but with staff role
+            team_to_join.coaches.add(user_to_add)
+            
+            return Response(
+                {"status": f"Staff member {user_to_add.username} ({staff_type}) added to {team_to_join.name}"},
                 status=status.HTTP_200_OK,
             )
         else:
             return Response(
-                {"error": "Invalid role specified."}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid role specified. Must be 'player', 'coach', or 'staff'."}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
     # ADD THIS ACTION

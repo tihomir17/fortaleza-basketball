@@ -235,6 +235,7 @@ class GameViewSet(viewsets.ModelViewSet):
             last_games = request.query_params.get("last_games")
             outcome_filter = request.query_params.get("outcome")
             home_away_filter = request.query_params.get("home_away")
+            opponent_filter = request.query_params.get("opponent")
             min_possessions = int(request.query_params.get("min_possessions", 10))
 
             # Convert team_id to int if provided
@@ -249,6 +250,10 @@ class GameViewSet(viewsets.ModelViewSet):
             if last_games:
                 last_games = int(last_games)
 
+            # Convert opponent_filter to int if provided
+            if opponent_filter:
+                opponent_filter = int(opponent_filter)
+
             # Get comprehensive analytics
             analytics_data = GameAnalyticsService.get_comprehensive_analytics(
                 team_id=team_id,
@@ -256,6 +261,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 last_games=last_games,
                 outcome_filter=outcome_filter,
                 home_away_filter=home_away_filter,
+                opponent_filter=opponent_filter,
                 min_possessions=min_possessions,
             )
 

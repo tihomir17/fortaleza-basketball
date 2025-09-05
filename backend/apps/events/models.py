@@ -7,6 +7,13 @@ class CalendarEvent(models.Model):
     class EventType(models.TextChoices):
         PRACTICE_TEAM = "PRACTICE_TEAM", "Team Practice"
         PRACTICE_INDIVIDUAL = "PRACTICE_INDIVIDUAL", "Individual Practice"
+        SCOUTING_MEETING = "SCOUTING_MEETING", "Scouting Meeting"
+        STRENGTH_CONDITIONING = "STRENGTH_CONDITIONING", "Strength & Conditioning"
+        GAME = "GAME", "Game"
+        TEAM_MEETING = "TEAM_MEETING", "Team Meeting"
+        TRAVEL_BUS = "TRAVEL_BUS", "Travel (Bus)"
+        TRAVEL_PLANE = "TRAVEL_PLANE", "Travel (Plane)"
+        TEAM_BUILDING = "TEAM_BUILDING", "Team Building"
         OTHER = "OTHER", "Other"
 
     title = models.CharField(max_length=200)

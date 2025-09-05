@@ -19,6 +19,7 @@ class GameAnalyticsService:
         last_games: Optional[int] = None,
         outcome_filter: Optional[str] = None,
         home_away_filter: Optional[str] = None,
+        opponent_filter: Optional[int] = None,
         min_possessions: int = 10,
     ) -> Dict[str, Any]:
         """
@@ -31,6 +32,7 @@ class GameAnalyticsService:
             last_games: Filter by last X games (1 to total games)
             outcome_filter: Filter by outcome ('W', 'L')
             home_away_filter: Filter by home/away ('Home', 'Away')
+            opponent_filter: Filter by specific opponent team
             min_possessions: Minimum possessions for player analysis
         """
 
@@ -97,6 +99,7 @@ class GameAnalyticsService:
                         "last_games": last_games,
                         "outcome_filter": outcome_filter,
                         "home_away_filter": home_away_filter,
+                        "opponent_filter": opponent_filter,
                         "total_possessions_analyzed": 0,
                     },
                 }
@@ -121,6 +124,11 @@ class GameAnalyticsService:
         if team_id:
             possessions = possessions.filter(
                 Q(team_id=team_id) | Q(opponent_id=team_id)
+            )
+
+        if opponent_filter:
+            possessions = possessions.filter(
+                Q(team_id=opponent_filter) | Q(opponent_id=opponent_filter)
             )
 
         if quarter_filter:
@@ -215,6 +223,7 @@ class GameAnalyticsService:
                 "last_games": last_games,
                 "outcome_filter": outcome_filter,
                 "home_away_filter": home_away_filter,
+                "opponent_filter": opponent_filter,
                 "total_possessions_analyzed": total_possessions,
             },
         }
@@ -248,6 +257,27 @@ class GameAnalyticsService:
             possessions.aggregate(avg_time=Avg("duration_seconds"))["avg_time"] or 0
         )
 
+        # Game results analysis
+        games = Game.objects.filter(
+            Q(home_team_id=team_id) | Q(away_team_id=team_id)
+        ).distinct()
+        
+        wins = 0
+        losses = 0
+        total_games = games.count()
+        
+        for game in games:
+            if team_id == game.home_team_id:
+                if game.home_team_score > game.away_team_score:
+                    wins += 1
+                elif game.home_team_score < game.away_team_score:
+                    losses += 1
+            else:  # team_id == game.away_team_id
+                if game.away_team_score > game.home_team_score:
+                    wins += 1
+                elif game.away_team_score < game.home_team_score:
+                    losses += 1
+
         return {
             "total_possessions": total_possessions,
             "offensive_possessions": offensive_count,
@@ -263,6 +293,9 @@ class GameAnalyticsService:
                 if total_possessions > 0
                 else 0
             ),
+            "total_games": total_games,
+            "wins": wins,
+            "losses": losses,
         }
 
     @staticmethod

@@ -335,9 +335,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Card(
       child: ListTile(
         leading: Icon(
-          event.eventType.startsWith('PRACTICE')
-              ? Icons.fitness_center
-              : Icons.event,
+          _getEventIcon(event.eventType),
           color: Theme.of(context).colorScheme.secondary,
         ),
         title: Text(
@@ -379,6 +377,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
         },
       ),
     );
+  }
+
+  // Helper method to get appropriate icon for event type
+  IconData _getEventIcon(String eventType) {
+    switch (eventType) {
+      case 'PRACTICE_TEAM':
+      case 'PRACTICE_INDIVIDUAL':
+        return Icons.fitness_center;
+      case 'SCOUTING_MEETING':
+        return Icons.search;
+      case 'STRENGTH_CONDITIONING':
+        return Icons.sports_gymnastics;
+      case 'GAME':
+        return Icons.sports_basketball;
+      case 'TEAM_MEETING':
+        return Icons.groups;
+      case 'TRAVEL_BUS':
+        return Icons.directions_bus;
+      case 'TRAVEL_PLANE':
+        return Icons.flight;
+      case 'TEAM_BUILDING':
+        return Icons.emoji_events;
+      default:
+        return Icons.event;
+    }
   }
 
   // A NEW, GENERIC DELETE CONFIRMATION DIALOG
@@ -508,6 +531,31 @@ class _EventDetailScreen extends StatelessWidget {
 
   const _EventDetailScreen({required this.event});
 
+  // Helper method to get appropriate icon for event type
+  IconData _getEventIcon(String eventType) {
+    switch (eventType) {
+      case 'PRACTICE_TEAM':
+      case 'PRACTICE_INDIVIDUAL':
+        return Icons.fitness_center;
+      case 'SCOUTING_MEETING':
+        return Icons.search;
+      case 'STRENGTH_CONDITIONING':
+        return Icons.sports_gymnastics;
+      case 'GAME':
+        return Icons.sports_basketball;
+      case 'TEAM_MEETING':
+        return Icons.groups;
+      case 'TRAVEL_BUS':
+        return Icons.directions_bus;
+      case 'TRAVEL_PLANE':
+        return Icons.flight;
+      case 'TEAM_BUILDING':
+        return Icons.emoji_events;
+      default:
+        return Icons.event;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -534,9 +582,7 @@ class _EventDetailScreen extends StatelessWidget {
             Card(
               child: ListTile(
                 leading: Icon(
-                  event.eventType.startsWith('PRACTICE')
-                      ? Icons.fitness_center
-                      : Icons.event,
+                  _getEventIcon(event.eventType),
                   color: Theme.of(context).colorScheme.secondary,
                 ),
                 title: Text(

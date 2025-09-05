@@ -330,6 +330,7 @@ class GameRepository {
     int? lastGames,
     String? outcome,
     String? homeAway,
+    int? opponent,
     int? minPossessions,
   }) async {
     // Ensure analytics cache is initialized
@@ -342,6 +343,7 @@ class GameRepository {
     if (lastGames != null) queryParams['last_games'] = lastGames.toString();
     if (outcome != null) queryParams['outcome'] = outcome;
     if (homeAway != null) queryParams['home_away'] = homeAway;
+    if (opponent != null) queryParams['opponent'] = opponent.toString();
     if (minPossessions != null) queryParams['min_possessions'] = minPossessions.toString();
     
     // Create cache key
@@ -407,6 +409,7 @@ class GameRepository {
     int? lastGames,
     String? outcome,
     String? homeAway,
+    int? opponent,
     int? minPossessions,
   }) async {
     final queryParams = <String, String>{};
@@ -416,6 +419,7 @@ class GameRepository {
     if (lastGames != null) queryParams['last_games'] = lastGames.toString();
     if (outcome != null) queryParams['outcome'] = outcome;
     if (homeAway != null) queryParams['home_away'] = homeAway;
+    if (opponent != null) queryParams['opponent'] = opponent.toString();
     if (minPossessions != null) queryParams['min_possessions'] = minPossessions.toString();
     
     final url = Uri.parse('${ApiClient.baseUrl}/games/export_analytics_pdf/').replace(
