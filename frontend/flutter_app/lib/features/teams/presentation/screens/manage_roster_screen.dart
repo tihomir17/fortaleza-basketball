@@ -10,6 +10,7 @@ import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
 import 'add_coach_screen.dart';
+import 'add_staff_screen.dart';
 
 class ManageRosterScreen extends StatefulWidget {
   final Team team;
@@ -22,14 +23,16 @@ class ManageRosterScreen extends StatefulWidget {
 class _ManageRosterScreenState extends State<ManageRosterScreen> {
   late List<User> _coaches;
   late List<User> _players;
+  late List<User> _staff;
   bool _isLoading = false;
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
 
   @override
   void initState() {
     super.initState();
-    _coaches = List.from(widget.team.coaches);
+    _coaches = widget.team.coaches.where((user) => user.role == 'COACH').toList();
     _players = List.from(widget.team.players);
+    _staff = widget.team.coaches.where((user) => user.role == 'STAFF').toList();
     _refreshSignal.addListener(_refreshLocalRoster);
   }
 
@@ -60,6 +63,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       setState(() {
         if (role == 'coach') _coaches.remove(user);
         if (role == 'player') _players.remove(user);
+        if (role == 'staff') _staff.remove(user);
       });
       sl<RefreshSignal>().notify(); // Fire global refresh signal
     } catch (e) {
@@ -93,6 +97,25 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     );
   }
 
+  void _navigateToAddStaff() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddStaffScreen(teamId: widget.team.id)),
+    );
+  }
+
+  String _getStaffTypeLabel(String? staffType) {
+    switch (staffType) {
+      case 'PHYSIO':
+        return 'Physiotherapist';
+      case 'STRENGTH_CONDITIONING':
+        return 'Strength & Conditioning';
+      case 'MANAGEMENT':
+        return 'Management';
+      default:
+        return 'Staff';
+    }
+  }
+
   // New method to refresh just this screen's data
   Future<void> _refreshLocalRoster() async {
     _setLoading(true);
@@ -109,8 +132,9 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       );
       if (mounted) {
         setState(() {
-          _coaches = updatedTeam.coaches;
+          _coaches = updatedTeam.coaches.where((user) => user.role == 'COACH').toList();
           _players = updatedTeam.players;
+          _staff = updatedTeam.coaches.where((user) => user.role == 'STAFF').toList();
         });
       }
     } catch (e) {
@@ -142,6 +166,11 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
             tooltip: 'Add New Coach',
             onPressed: _navigateToAddCoach,
           ),
+          IconButton(
+            icon: const Icon(Icons.medical_services_outlined),
+            tooltip: 'Add New Staff Member',
+            onPressed: _navigateToAddStaff,
+          ),
         ],
       ),
       body: Stack(
@@ -160,6 +189,21 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                       color: Colors.red,
                     ),
                     onPressed: () => _removeMember(coach, 'coach'),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Text('Staff', style: Theme.of(context).textTheme.headlineSmall),
+              const Divider(),
+              for (final staff in _staff)
+                ListTile(
+                  title: Text(staff.displayName),
+                  subtitle: Text(_getStaffTypeLabel(staff.staffType)),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.red,
+                    ),
+                    onPressed: () => _removeMember(staff, 'staff'),
                   ),
                 ),
               const SizedBox(height: 24),

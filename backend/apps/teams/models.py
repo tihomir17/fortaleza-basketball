@@ -30,5 +30,8 @@ class Team(models.Model):
 
     logo_url = models.URLField(blank=True, null=True)
 
+    class Meta:
+        ordering = ['name']  # Add ordering to prevent pagination warnings
+
     def __str__(self):
         return self.name

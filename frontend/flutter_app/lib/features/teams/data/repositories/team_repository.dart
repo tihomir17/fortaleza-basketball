@@ -314,4 +314,71 @@ class TeamRepository {
       throw Exception('An error occurred while adding a coach: $e');
     }
   }
+
+  Future<User> createAndAddStaff({
+    required String token,
+    required int teamId,
+    required String username,
+    required String email,
+    String? firstName,
+    String? lastName,
+    required String staffType,
+  }) async {
+    try {
+      logger.i('TeamRepository: Creating staff member $username for team $teamId.');
+      
+      // First, create the user
+      final createUrl = Uri.parse('${ApiClient.baseUrl}/users/register/');
+      final createResponse = await _client.post(
+        createUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'username': username,
+          'email': email,
+          'password': 'TempPassword123!', // Temporary password
+          'first_name': firstName ?? '',
+          'last_name': lastName ?? '',
+          'role': 'STAFF',
+          'staff_type': staffType,
+        }),
+      );
+      
+      if (createResponse.statusCode == 201) {
+        final userData = json.decode(createResponse.body);
+        final userId = userData['id'];
+        
+        // Now add the staff member to the team
+        final addUrl = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
+        final addResponse = await _client.post(
+          addUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: json.encode({
+            'user_id': userId,
+            'role': 'staff',
+            'staff_type': staffType,
+          }),
+        );
+        
+        if (addResponse.statusCode == 200) {
+          logger.i('TeamRepository: Staff member $username created and added to team $teamId.');
+          return User.fromJson(userData);
+        } else {
+          logger.e('TeamRepository: Failed to add staff to team. Status: ${addResponse.statusCode}, Body: ${addResponse.body}');
+          throw Exception('Failed to add staff to team. Server response: ${addResponse.body}');
+        }
+      } else {
+        logger.e('TeamRepository: Failed to create staff member. Status: ${createResponse.statusCode}, Body: ${createResponse.body}');
+        throw Exception('Failed to create staff member. Server response: ${createResponse.body}');
+      }
+    } catch (e) {
+      logger.e('TeamRepository: Error creating staff member $username for team $teamId: $e');
+      throw Exception('An error occurred while creating a staff member: $e');
+    }
+  }
 }

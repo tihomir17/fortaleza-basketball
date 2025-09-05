@@ -58,6 +58,29 @@ class _EditEventScreenState extends State<EditEventScreen> {
           .firstWhere((t) => t.id == _selectedTeamId)
           .players;
     }
+    
+    // Auto-select team for coaches if no team is selected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoSelectTeamForCoach();
+    });
+  }
+
+  void _autoSelectTeamForCoach() {
+    final user = context.read<AuthCubit>().state.user;
+    final userTeams = context.read<TeamCubit>().state.teams;
+    
+    // If user is a coach, no team is selected, and has teams, auto-select the first team they coach
+    if (user?.role == 'COACH' && _selectedTeamId == null && userTeams.isNotEmpty) {
+      // Find the first team where the user is a coach
+      final coachTeam = userTeams.firstWhere(
+        (team) => team.coaches.any((coach) => coach.id == user!.id),
+        orElse: () => userTeams.first, // Fallback to first team if not found
+      );
+      
+      setState(() {
+        _selectedTeamId = coachTeam.id;
+      });
+    }
   }
 
   @override
@@ -151,6 +174,34 @@ class _EditEventScreenState extends State<EditEventScreen> {
                   value: 'PRACTICE_INDIVIDUAL',
                   child: Text('Individual Practice'),
                 ),
+                DropdownMenuItem(
+                  value: 'SCOUTING_MEETING',
+                  child: Text('Scouting Meeting'),
+                ),
+                DropdownMenuItem(
+                  value: 'STRENGTH_CONDITIONING',
+                  child: Text('Strength & Conditioning'),
+                ),
+                DropdownMenuItem(
+                  value: 'GAME',
+                  child: Text('Game'),
+                ),
+                DropdownMenuItem(
+                  value: 'TEAM_MEETING',
+                  child: Text('Team Meeting'),
+                ),
+                DropdownMenuItem(
+                  value: 'TRAVEL_BUS',
+                  child: Text('Travel (Bus)'),
+                ),
+                DropdownMenuItem(
+                  value: 'TRAVEL_PLANE',
+                  child: Text('Travel (Plane)'),
+                ),
+                DropdownMenuItem(
+                  value: 'TEAM_BUILDING',
+                  child: Text('Team Building'),
+                ),
                 DropdownMenuItem(value: 'OTHER', child: Text('Other')),
               ],
               onChanged: (v) {
@@ -163,23 +214,60 @@ class _EditEventScreenState extends State<EditEventScreen> {
               },
               decoration: const InputDecoration(labelText: 'Event Type *'),
             ),
-            if (_selectedEventType == 'PRACTICE_TEAM')
+            if (_selectedEventType == 'PRACTICE_TEAM' || 
+                _selectedEventType == 'SCOUTING_MEETING' ||
+                _selectedEventType == 'STRENGTH_CONDITIONING' ||
+                _selectedEventType == 'TEAM_MEETING' ||
+                _selectedEventType == 'TEAM_BUILDING')
               Padding(
                 padding: const EdgeInsets.only(top: 16.0),
-                child: DropdownButtonFormField<int>(
-                  value: _selectedTeamId,
-                  hint: const Text('Select a team'),
-                  items: userTeams
-                      .map(
-                        (team) => DropdownMenuItem(
-                          value: team.id,
-                          child: Text(team.name),
+                child: Builder(
+                  builder: (context) {
+                    final user = context.read<AuthCubit>().state.user;
+                    final isCoach = user?.role == 'COACH';
+                    
+                    if (isCoach && _selectedTeamId != null) {
+                      // For coaches, show the selected team as read-only
+                      final selectedTeam = userTeams.firstWhere(
+                        (team) => team.id == _selectedTeamId,
+                        orElse: () => userTeams.first,
+                      );
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedTeamId = v),
-                  decoration: const InputDecoration(labelText: 'Team *'),
-                  validator: (v) => v == null ? 'Team is required' : null,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.group, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Team: ${selectedTeam.name}',
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      // For non-coaches or when no team is selected, show dropdown
+                      return DropdownButtonFormField<int>(
+                        value: _selectedTeamId,
+                        hint: const Text('Select a team'),
+                        items: userTeams
+                            .map(
+                              (team) => DropdownMenuItem(
+                                value: team.id,
+                                child: Text(team.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedTeamId = v),
+                        decoration: const InputDecoration(labelText: 'Team *'),
+                        validator: (v) => v == null ? 'Team is required' : null,
+                      );
+                    }
+                  },
                 ),
               ),
             if (_selectedEventType == 'PRACTICE_INDIVIDUAL') ...[

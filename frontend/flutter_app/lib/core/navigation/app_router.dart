@@ -34,6 +34,14 @@ import '../../features/games/presentation/screens/schedule_game_screen.dart';
 import '../../features/calendar/presentation/screens/schedule_event_screen.dart';
 import '../debug/debug_screen.dart';
 import '../../features/scouting/presentation/cubit/self_scouting_cubit.dart';
+// Individual game prep and post game screen imports
+import '../../features/scouting/presentation/screens/individual_game_prep_screen.dart';
+import '../../features/scouting/presentation/screens/individual_post_game_screen.dart';
+// Staff-specific screen imports
+import '../../features/staff/presentation/screens/player_health_screen.dart';
+import '../../features/staff/presentation/screens/injury_reports_screen.dart';
+import '../../features/staff/presentation/screens/training_programs_screen.dart';
+import '../../features/staff/presentation/screens/performance_metrics_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -224,6 +232,32 @@ class AppRouter {
           GoRoute(
             path: '/debug',
             builder: (context, state) => const DebugScreen(),
+          ),
+          // Staff-specific routes
+          GoRoute(
+            path: '/player-health',
+            builder: (context, state) => const PlayerHealthScreen(),
+          ),
+          GoRoute(
+            path: '/injury-reports',
+            builder: (context, state) => const InjuryReportsScreen(),
+          ),
+          GoRoute(
+            path: '/training-programs',
+            builder: (context, state) => const TrainingProgramsScreen(),
+          ),
+          GoRoute(
+            path: '/performance-metrics',
+            builder: (context, state) => const PerformanceMetricsScreen(),
+          ),
+          // Individual game prep and post game routes
+          GoRoute(
+            path: '/individual-game-prep',
+            builder: (context, state) => const IndividualGamePrepScreen(),
+          ),
+          GoRoute(
+            path: '/individual-post-game',
+            builder: (context, state) => const IndividualPostGameScreen(),
           ),
         ],
       ),

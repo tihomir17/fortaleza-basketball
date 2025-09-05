@@ -11,6 +11,7 @@ import 'package:flutter_app/main.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_app/core/services/web_download_service.dart';
+import 'upload_scouting_report_screen.dart';
 
 class ScoutingReportsScreen extends StatefulWidget {
   const ScoutingReportsScreen({super.key});
@@ -57,10 +58,12 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
 
       final reports = await sl<GameRepository>().getScoutingReports(token: token);
       
-      // Filter out corrupted reports (0 MB or unknown size)
+      // Filter out corrupted reports (only filter out reports with null/undefined file sizes)
       final validReports = reports.where((report) {
-        final fileSize = report['file_size_mb']?.toString() ?? 'Unknown';
-        return fileSize != '0.0' && fileSize != '0' && fileSize != 'Unknown';
+        final fileSize = report['file_size_mb'];
+        // Only filter out reports with null/undefined file sizes
+        // Small files (0.0 MB) are valid and should be shown
+        return fileSize != null;
       }).toList();
       
       setState(() {
@@ -406,6 +409,80 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
     }
   }
 
+  Future<void> _deleteReport(Map<String, dynamic> report) async {
+    final reportTitle = report['title'] ?? 'Untitled Report';
+    
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Report'),
+        content: Text('Are you sure you want to delete "$reportTitle"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final token = context.read<AuthCubit>().state.token;
+        if (token == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Authentication required')),
+            );
+          }
+          return;
+        }
+
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Deleting report...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Delete the report
+        await sl<GameRepository>().deleteScoutingReport(
+          token: token,
+          reportId: report['id'],
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Report deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Refresh the reports list
+          _loadReports();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete report: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _cleanupCorruptedReports() async {
     try {
       final token = context.read<AuthCubit>().state.token;
@@ -461,6 +538,17 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
       appBar: AppBar(
         title: const Text('Scouting Reports'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const UploadScoutingReportScreen(),
+                ),
+              ).then((_) => _loadReports()); // Refresh after upload
+            },
+            tooltip: 'Upload New Report',
+          ),
           IconButton(
             icon: const Icon(Icons.cleaning_services),
             onPressed: _cleanupCorruptedReports,
@@ -539,6 +627,7 @@ class _ScoutingReportsScreenState extends State<ScoutingReportsScreen> {
           report: report,
           onDownload: () => _downloadReport(report),
           onRename: _renameReport,
+          onDelete: () => _deleteReport(report),
         );
       },
     );
@@ -549,18 +638,29 @@ class _ReportCard extends StatelessWidget {
   final Map<String, dynamic> report;
   final VoidCallback onDownload;
   final Function(Map<String, dynamic>) onRename;
+  final VoidCallback onDelete;
 
   const _ReportCard({
     required this.report,
     required this.onDownload,
     required this.onRename,
+    required this.onDelete,
   });
+
+  void _openYouTubeLink(String url) {
+    // TODO: Implement YouTube link opening
+    // For now, just show a snackbar
+    // In a real implementation, you might want to use url_launcher package
+    print('Opening YouTube link: $url');
+  }
 
   @override
   Widget build(BuildContext context) {
     final createdAt = DateTime.parse(report['created_at']);
     final fileSize = report['file_size_mb']?.toString() ?? 'Unknown';
     final isCorrupted = fileSize == '0.0' || fileSize == '0' || fileSize == 'Unknown';
+    final reportType = report['report_type'] ?? 'GENERATED_PDF';
+    final isYouTube = reportType == 'YOUTUBE_LINK';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -623,11 +723,19 @@ class _ReportCard extends StatelessWidget {
                      ),
                      IconButton(
                        icon: Icon(
-                         isCorrupted ? Icons.error : Icons.download,
+                         isCorrupted ? Icons.error : 
+                         isYouTube ? Icons.play_arrow : Icons.download,
                          color: isCorrupted ? Colors.red : null,
                        ),
-                       onPressed: isCorrupted ? null : onDownload,
-                       tooltip: isCorrupted ? 'Report is corrupted' : 'Download Report',
+                       onPressed: isCorrupted ? null : 
+                         isYouTube ? () => _openYouTubeLink(report['youtube_url']) : onDownload,
+                       tooltip: isCorrupted ? 'Report is corrupted' : 
+                         isYouTube ? 'Open YouTube Video' : 'Download Report',
+                     ),
+                     IconButton(
+                       icon: const Icon(Icons.delete, color: Colors.red),
+                       onPressed: onDelete,
+                       tooltip: 'Delete Report',
                      ),
                    ],
                  ),

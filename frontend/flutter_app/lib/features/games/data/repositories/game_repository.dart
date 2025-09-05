@@ -3,8 +3,10 @@
 // ignore_for_file: unused_import
 
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_app/core/api/api_client.dart';
 import '../models/game_model.dart';
@@ -474,6 +476,72 @@ class GameRepository {
     }
   }
 
+  Future<Map<String, dynamic>> uploadScoutingReport({
+    required String token,
+    required String title,
+    required String reportType, // 'UPLOADED_PDF' or 'YOUTUBE_LINK'
+    String? description,
+    File? pdfFile,
+    PlatformFile? platformFile, // For web file uploads
+    String? youtubeUrl,
+    List<int>? taggedUserIds,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/upload_scouting_report/');
+    
+    logger.d('GameRepository: Uploading scouting report: $title');
+
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add form fields
+      request.fields['title'] = title;
+      request.fields['report_type'] = reportType;
+      if (description != null) request.fields['description'] = description;
+      if (youtubeUrl != null) request.fields['youtube_url'] = youtubeUrl;
+      if (taggedUserIds != null && taggedUserIds.isNotEmpty) {
+        // Send as JSON string - Django will parse it
+        request.fields['tagged_user_ids'] = json.encode(taggedUserIds);
+        logger.d('GameRepository: Sending tagged_user_ids: ${json.encode(taggedUserIds)}');
+      }
+      
+      logger.d('GameRepository: Request fields: ${request.fields}');
+      logger.d('GameRepository: Report type: $reportType');
+      
+      // Add file if it's a PDF upload
+      if (reportType == 'UPLOADED_PDF') {
+        if (kIsWeb && platformFile != null) {
+          // For web, use the platform file bytes
+          request.files.add(http.MultipartFile.fromBytes(
+            'pdf_file',
+            platformFile.bytes!,
+            filename: platformFile.name,
+          ));
+        } else if (!kIsWeb && pdfFile != null) {
+          // For mobile, use the file path
+          request.files.add(await http.MultipartFile.fromPath('pdf_file', pdfFile.path));
+        } else {
+          throw Exception('File upload not supported on this platform. Please use YouTube link instead.');
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 201) {
+        logger.i('GameRepository: Scouting report uploaded successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to upload scouting report. Status: ${response.statusCode}');
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['error'] ?? 'Failed to upload scouting report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error uploading scouting report: $e');
+      throw Exception('Error uploading scouting report: $e');
+    }
+  }
+
   Future<Uint8List> downloadScoutingReport({
     required String token,
     required int reportId,
@@ -574,6 +642,34 @@ class GameRepository {
       logger.w('GameRepository: Error clearing analytics cache: $e');
       // Don't try to reinitialize - just log the error and continue
       // The cache will be recreated when needed
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteScoutingReport({
+    required String token,
+    required int reportId,
+  }) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/games/$reportId/delete_report/');
+    
+    logger.d('GameRepository: Deleting scouting report: $reportId');
+
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        logger.i('GameRepository: Scouting report deleted successfully');
+        return json.decode(response.body);
+      } else {
+        logger.e('GameRepository: Failed to delete scouting report. Status: ${response.statusCode}');
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['error'] ?? 'Failed to delete scouting report');
+      }
+    } catch (e) {
+      logger.e('GameRepository: Error deleting scouting report: $e');
+      throw Exception('Error deleting scouting report: $e');
     }
   }
 

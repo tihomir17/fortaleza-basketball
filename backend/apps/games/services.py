@@ -261,11 +261,11 @@ class GameAnalyticsService:
         games = Game.objects.filter(
             Q(home_team_id=team_id) | Q(away_team_id=team_id)
         ).distinct()
-        
+
         wins = 0
         losses = 0
         total_games = games.count()
-        
+
         for game in games:
             if team_id == game.home_team_id:
                 if game.home_team_score > game.away_team_score:

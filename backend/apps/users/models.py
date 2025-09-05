@@ -47,11 +47,11 @@ class User(AbstractUser):
     jersey_number = models.PositiveIntegerField(
         _("Jersey Number"), null=True, blank=True
     )
-    
+
     # Player-specific fields
     position = models.CharField(
-        _("Position"), 
-        max_length=10, 
+        _("Position"),
+        max_length=10,
         choices=[
             ("PG", "Point Guard"),
             ("SG", "Shooting Guard"),
@@ -59,26 +59,41 @@ class User(AbstractUser):
             ("PF", "Power Forward"),
             ("C", "Center"),
         ],
-        null=True, 
+        null=True,
         blank=True,
-        help_text=_("Player position (only applicable if role is Player)")
+        help_text=_("Player position (only applicable if role is Player)"),
     )
-    
+
     # Player skill ratings
     overall_rating = models.PositiveIntegerField(
-        _("Overall Rating"), null=True, blank=True, help_text=_("Player overall rating (1-100)")
+        _("Overall Rating"),
+        null=True,
+        blank=True,
+        help_text=_("Player overall rating (1-100)"),
     )
     three_point_rating = models.PositiveIntegerField(
-        _("Three Point Rating"), null=True, blank=True, help_text=_("Player three point shooting rating (1-100)")
+        _("Three Point Rating"),
+        null=True,
+        blank=True,
+        help_text=_("Player three point shooting rating (1-100)"),
     )
     defense_rating = models.PositiveIntegerField(
-        _("Defense Rating"), null=True, blank=True, help_text=_("Player defensive rating (1-100)")
+        _("Defense Rating"),
+        null=True,
+        blank=True,
+        help_text=_("Player defensive rating (1-100)"),
     )
     passing_rating = models.PositiveIntegerField(
-        _("Passing Rating"), null=True, blank=True, help_text=_("Player passing rating (1-100)")
+        _("Passing Rating"),
+        null=True,
+        blank=True,
+        help_text=_("Player passing rating (1-100)"),
     )
     rebounding_rating = models.PositiveIntegerField(
-        _("Rebounding Rating"), null=True, blank=True, help_text=_("Player rebounding rating (1-100)")
+        _("Rebounding Rating"),
+        null=True,
+        blank=True,
+        help_text=_("Player rebounding rating (1-100)"),
     )
 
     def save(self, *args, **kwargs):

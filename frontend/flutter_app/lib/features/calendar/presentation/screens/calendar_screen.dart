@@ -96,19 +96,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 
                 final user = authState.user!;
                 if (user.role == 'PLAYER') {
-                  // Players can request practice sessions
-                  return IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Request Practice Session',
-                    onPressed: () {
-                      _showPracticeRequestDialog(context);
-                    },
-                  );
+                  // Players cannot request individual practice sessions (disabled as per requirements)
+                  return const SizedBox.shrink();
                 } else {
-                  // Coaches can schedule games and practices directly
+                  // Coaches can schedule games and events directly
                   return IconButton(
                     icon: const Icon(Icons.add),
-                    tooltip: 'Schedule Game or Practice',
+                    tooltip: 'Schedule Game or Event',
                     onPressed: () {
                       // The logic for showing the choice dialog remains the same
                       showModalBottomSheet(
@@ -129,8 +123,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               },
                             ),
                             ListTile(
-                              leading: const Icon(Icons.fitness_center),
-                              title: const Text('Schedule a Practice'),
+                              leading: const Icon(Icons.event),
+                              title: const Text('Schedule an Event'),
                               onTap: () {
                                 Navigator.of(ctx).pop();
                                 Navigator.of(context).push(
@@ -343,30 +337,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text('Starts at ${DateFormat.jm().format(event.startTime)}'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              tooltip: 'Edit Event',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EditEventScreen(event: event),
+        trailing: Builder(
+          builder: (context) {
+            final user = context.read<AuthCubit>().state.user;
+            final isPlayer = user?.role == 'PLAYER';
+            
+            if (isPlayer) {
+              // Players can only view events, no edit/delete buttons
+              return const SizedBox.shrink();
+            } else {
+              // Coaches and other roles can edit/delete events
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    tooltip: 'Edit Event',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 20,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              tooltip: 'Delete Event',
-              onPressed: () => _showDeleteConfirmation(context, event),
-            ),
-          ],
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    tooltip: 'Delete Event',
+                    onPressed: () => _showDeleteConfirmation(context, event),
+                  ),
+                ],
+              );
+            }
+          },
         ),
         onTap: () {
           Navigator.of(context).push(
@@ -456,74 +463,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _showPracticeRequestDialog(BuildContext context) {
-    final selectedDate = _selectedDay ?? DateTime.now();
-    final startTime = TimeOfDay.now();
-    final endTime = TimeOfDay(hour: startTime.hour + 1, minute: startTime.minute);
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Request Practice Session'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Date: ${DateFormat.yMMMd().format(selectedDate)}',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Start Time: ${startTime.format(context)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'End Time: ${endTime.format(context)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'This request will be sent to your coach for approval.',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Implement practice request functionality
-                // This would typically send a notification/request to the coach
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Practice request sent to coach for approval'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: const Text('Send Request'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 class _EventDetailScreen extends StatelessWidget {
@@ -562,14 +501,27 @@ class _EventDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(event.title),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => EditEventScreen(event: event),
-                ),
-              );
+          Builder(
+            builder: (context) {
+              final user = context.read<AuthCubit>().state.user;
+              final isPlayer = user?.role == 'PLAYER';
+              
+              if (isPlayer) {
+                // Players can only view events, no edit button
+                return const SizedBox.shrink();
+              } else {
+                // Coaches and other roles can edit events
+                return IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditEventScreen(event: event),
+                      ),
+                    );
+                  },
+                );
+              }
             },
           ),
         ],

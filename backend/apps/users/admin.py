@@ -8,9 +8,9 @@ from .models import User
 # We need to define a custom admin class to display our new fields
 class CustomUserAdmin(UserAdmin):
     # Add our custom fields to the fieldsets
-    fieldsets = UserAdmin.fieldsets + ((None, {"fields": ("role", "coach_type")}),)
+    fieldsets = UserAdmin.fieldsets + ((None, {"fields": ("role", "coach_type", "staff_type")}),)
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {"fields": ("role", "coach_type")}),
+        (None, {"fields": ("role", "coach_type", "staff_type")}),
     )
     list_display = (
         "username",
@@ -19,6 +19,7 @@ class CustomUserAdmin(UserAdmin):
         "last_name",
         "role",
         "coach_type",
+        "staff_type",
         "is_staff",
     )
 

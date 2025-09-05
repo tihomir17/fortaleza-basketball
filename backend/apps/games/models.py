@@ -21,13 +21,21 @@ class Game(models.Model):
     home_team_score = models.IntegerField(default=0)
     away_team_score = models.IntegerField(default=0)
     quarter = models.IntegerField(default=1)
-    
+
     # Game flow and statistics
-    lead_changes = models.IntegerField(default=0, help_text="Number of lead changes in the game")
-    is_close_game = models.BooleanField(default=False, help_text="Game decided by 10 points or less")
-    is_blowout = models.BooleanField(default=False, help_text="Game decided by 20 points or more")
-    clutch_situations = models.IntegerField(default=0, help_text="Number of clutch situations in last 2 minutes")
-    
+    lead_changes = models.IntegerField(
+        default=0, help_text="Number of lead changes in the game"
+    )
+    is_close_game = models.BooleanField(
+        default=False, help_text="Game decided by 10 points or less"
+    )
+    is_blowout = models.BooleanField(
+        default=False, help_text="Game decided by 20 points or more"
+    )
+    clutch_situations = models.IntegerField(
+        default=0, help_text="Number of clutch situations in last 2 minutes"
+    )
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -46,14 +54,37 @@ class Game(models.Model):
 
 
 class ScoutingReport(models.Model):
-    """Model for storing generated scouting report PDFs"""
+    """Model for storing scouting reports (PDFs and YouTube links)"""
+
+    class ReportType(models.TextChoices):
+        GENERATED_PDF = "GENERATED_PDF", "Generated PDF"
+        UPLOADED_PDF = "UPLOADED_PDF", "Uploaded PDF"
+        YOUTUBE_LINK = "YOUTUBE_LINK", "YouTube Link"
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    pdf_file = models.FileField(upload_to="scouting_reports/")
-    file_size = models.IntegerField(help_text="File size in bytes")
+    report_type = models.CharField(
+        max_length=20,
+        choices=ReportType.choices,
+        default=ReportType.GENERATED_PDF,
+    )
 
-    # Filter parameters used to generate the report
+    # File fields (only one will be used based on report_type)
+    pdf_file = models.FileField(upload_to="scouting_reports/", null=True, blank=True)
+    file_size = models.IntegerField(
+        help_text="File size in bytes", null=True, blank=True
+    )
+    youtube_url = models.URLField(blank=True, help_text="YouTube video URL")
+
+    # Tagged users with download rights
+    tagged_users = models.ManyToManyField(
+        User,
+        related_name="tagged_scouting_reports",
+        blank=True,
+        help_text="Users who have access to download/view this report",
+    )
+
+    # Filter parameters used to generate the report (only for generated PDFs)
     team = models.ForeignKey(
         Team,
         on_delete=models.CASCADE,
@@ -85,11 +116,49 @@ class ScoutingReport(models.Model):
 
     def get_file_size_mb(self):
         """Return file size in MB"""
-        return round(self.file_size / (1024 * 1024), 2)
+        if self.file_size:
+            return round(self.file_size / (1024 * 1024), 4)
+        return 0
 
     def get_download_url(self):
         """Return the download URL for the PDF file"""
         return self.pdf_file.url if self.pdf_file else None
+
+    def get_youtube_embed_url(self):
+        """Convert YouTube URL to embed URL"""
+        if not self.youtube_url:
+            return None
+
+        # Extract video ID from various YouTube URL formats
+        import re
+
+        video_id = None
+
+        # Standard YouTube URLs
+        patterns = [
+            r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([^&\n?#]+)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, self.youtube_url)
+            if match:
+                video_id = match.group(1)
+                break
+
+        if video_id:
+            return f"https://www.youtube.com/embed/{video_id}"
+        return None
+
+    def get_youtube_thumbnail_url(self):
+        """Get YouTube thumbnail URL"""
+        if not self.youtube_url:
+            return None
+
+        embed_url = self.get_youtube_embed_url()
+        if embed_url:
+            video_id = embed_url.split("/")[-1]
+            return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        return None
 
 
 class GameRoster(models.Model):

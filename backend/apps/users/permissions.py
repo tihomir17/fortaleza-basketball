@@ -17,7 +17,10 @@ def has_admin_rights(user):
         return True
     if user.role == User.Role.ADMIN:
         return True
-    if user.role == User.Role.COACH and user.coach_type in [User.CoachType.HEAD_COACH, User.CoachType.ASSISTANT_COACH]:
+    if user.role == User.Role.COACH and user.coach_type in [
+        User.CoachType.HEAD_COACH,
+        User.CoachType.ASSISTANT_COACH,
+    ]:
         return True
     return False
 

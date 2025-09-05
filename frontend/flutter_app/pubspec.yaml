@@ -70,6 +70,10 @@ dependencies:
   
   # For JavaScript interop (web downloads)
   js: ^0.6.7
+  file_picker: ^10.3.2
+  
+  # For launching URLs (YouTube links, etc.)
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:

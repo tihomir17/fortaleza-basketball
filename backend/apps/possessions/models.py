@@ -268,18 +268,24 @@ class Possession(models.Model):
     )
 
     # Special scenarios
-    is_buzzer_beater = models.BooleanField(default=False, help_text="Game-winning shot at the buzzer")
-    is_technical_foul = models.BooleanField(default=False, help_text="Technical foul possession")
+    is_buzzer_beater = models.BooleanField(
+        default=False, help_text="Game-winning shot at the buzzer"
+    )
+    is_technical_foul = models.BooleanField(
+        default=False, help_text="Technical foul possession"
+    )
     technical_foul_player = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
         related_name="technical_foul_possessions",
         null=True,
         blank=True,
-        help_text="Player who committed the technical foul"
+        help_text="Player who committed the technical foul",
     )
-    is_coach_challenge = models.BooleanField(default=False, help_text="Coach's challenge possession")
-    
+    is_coach_challenge = models.BooleanField(
+        default=False, help_text="Coach's challenge possession"
+    )
+
     # Additional metadata
     notes = models.TextField(blank=True)
 

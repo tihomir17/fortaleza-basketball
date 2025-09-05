@@ -150,6 +150,34 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.User"
 
+# Email settings
+# Use custom backend that handles SSL certificate issues
+# For development/testing, use console backend to see emails in terminal
+EMAIL_BACKEND = "apps.games.email_backend.ConsoleEmailBackend"
+# For production with Gmail, use: 'apps.games.email_backend.CustomSMTPEmailBackend'
+EMAIL_HOST = "smtp.gmail.com"  # Gmail SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False  # Use TLS, not SSL
+
+# Email credentials - use environment variables for security
+import os
+
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "your-email@gmail.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "your-app-password")
+DEFAULT_FROM_EMAIL = f"Basketball Analytics <{EMAIL_HOST_USER}>"
+
+# SSL/TLS settings to handle certificate issues
+EMAIL_SSL_CERTFILE = None
+EMAIL_SSL_KEYFILE = None
+EMAIL_TIMEOUT = 30
+
+# For development, you can use console backend instead
+# EMAIL_BACKEND = 'apps.games.email_backend.CustomSMTPEmailBackend'
+
+# Frontend URL for email links
+FRONTEND_URL = "http://localhost:8080"
+
 # Add this section at the bottom of the file
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",  # Example for a standard frontend dev server

@@ -46,6 +46,29 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
     _endTime = TimeOfDay.fromDateTime(
       DateTime.now().add(const Duration(hours: 1)),
     );
+    
+    // Auto-select team for coaches
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoSelectTeamForCoach();
+    });
+  }
+  
+  void _autoSelectTeamForCoach() {
+    final user = context.read<AuthCubit>().state.user;
+    final userTeams = context.read<TeamCubit>().state.teams;
+    
+    // If user is a coach and has teams, auto-select the first team they coach
+    if (user?.role == 'COACH' && userTeams.isNotEmpty) {
+      // Find the first team where the user is a coach
+      final coachTeam = userTeams.firstWhere(
+        (team) => team.coaches.any((coach) => coach.id == user!.id),
+        orElse: () => userTeams.first, // Fallback to first team if not found
+      );
+      
+      setState(() {
+        _selectedTeamId = coachTeam.id;
+      });
+    }
   }
 
   @override
@@ -190,20 +213,53 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
                 _selectedEventType == 'TEAM_MEETING' ||
                 _selectedEventType == 'TEAM_BUILDING') ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                value: _selectedTeamId,
-                hint: const Text('Select a team'),
-                items: userTeams
-                    .map(
-                      (team) => DropdownMenuItem(
-                        value: team.id,
-                        child: Text(team.name),
+              Builder(
+                builder: (context) {
+                  final user = context.read<AuthCubit>().state.user;
+                  final isCoach = user?.role == 'COACH';
+                  
+                  if (isCoach && _selectedTeamId != null) {
+                    // For coaches, show the selected team as read-only
+                    final selectedTeam = userTeams.firstWhere(
+                      (team) => team.id == _selectedTeamId,
+                      orElse: () => userTeams.first,
+                    );
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedTeamId = v),
-                decoration: const InputDecoration(labelText: 'Team *'),
-                validator: (v) => v == null ? 'Team is required' : null,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.group, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Team: ${selectedTeam.name}',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    // For non-coaches or when no team is selected, show dropdown
+                    return DropdownButtonFormField<int>(
+                      value: _selectedTeamId,
+                      hint: const Text('Select a team'),
+                      items: userTeams
+                          .map(
+                            (team) => DropdownMenuItem(
+                              value: team.id,
+                              child: Text(team.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedTeamId = v),
+                      decoration: const InputDecoration(labelText: 'Team *'),
+                      validator: (v) => v == null ? 'Team is required' : null,
+                    );
+                  }
+                },
               ),
             ],
             if (_selectedEventType == 'PRACTICE_INDIVIDUAL') ...[
