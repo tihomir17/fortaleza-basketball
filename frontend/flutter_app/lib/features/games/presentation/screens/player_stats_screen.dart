@@ -72,9 +72,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   }
 
   void _computePlayerStats() {
-    print('🔍 [PlayerStats] Starting _computePlayerStats');
-    print('🔍 [PlayerStats] Total possessions: ${_possessions.length}');
-    
     _playerStats.clear();
     _gameRoster.clear();
     _minutesTrackers.clear();
@@ -100,8 +97,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
     }
   
   void _createGameRosters() {
-    print('🔍 [PlayerStats] Creating game rosters from backend data...');
-    
     if (_game == null) return;
     
     // Get unique teams from possessions
@@ -115,8 +110,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
       }
     }
     
-    print('🔍 [PlayerStats] Found team IDs: $teamIds');
-    
     // Create rosters from the actual GameRoster data in possessions
     for (final teamId in teamIds) {
       // Find the first possession for this team to get the roster
@@ -129,19 +122,15 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         // This team was the offensive team
         final roster = teamPossession.team!;
         _gameRoster[teamId] = roster;
-        print('🔍 [PlayerStats] Added roster for ${roster.team.name}: ${roster.players.length} players');
       } else if (teamPossession.opponent?.team.id.toString() == teamId) {
         // This team was the defensive team
         final roster = teamPossession.opponent!;
         _gameRoster[teamId] = roster;
-        print('🔍 [PlayerStats] Added roster for ${roster.team.name}: ${roster.players.length} players');
       }
     }
   }
   
   void _initializePlayerStatsFromRosters() {
-    print('🔍 [PlayerStats] Initializing player stats from rosters...');
-    
     for (final entry in _gameRoster.entries) {
       final teamId = entry.key;
       final roster = entry.value;
@@ -155,14 +144,10 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         playerStat.isStartingFive = roster.isStartingFive(player.id);
         _playerStats[teamId]!.playerStats[player.id] = playerStat;
       }
-      
-      print('🔍 [PlayerStats] Initialized stats for ${roster.team.name}: ${roster.players.length} players');
     }
   }
   
   void _processPossessionsForStats() {
-    print('🔍 [PlayerStats] Processing possessions for stats...');
-    
     // Process each possession for both offensive and defensive teams
     for (final possession in _possessions) {
       if (possession.team == null) continue;
@@ -283,8 +268,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   }
   
   void _calculateAndValidateMinutes() {
-    print('🔍 [PlayerStats] Calculating and validating minutes...');
-    
     for (final entry in _gameRoster.entries) {
       final teamId = entry.key;
       final roster = entry.value;
@@ -309,23 +292,13 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         final overtimePeriods = _getOvertimePeriods();
         final isValid = tracker.validateTeamTime(overtimePeriods);
         final totalTime = tracker.getTotalTeamTimeFormatted();
-        
-        print('🔍 [PlayerStats] ${roster.team.name} total time: $totalTime (valid: $isValid)');
-        print('🔍 [PlayerStats] Expected: ${roster.getTotalTeamMinutes(overtimePeriods)}:00');
       }
     }
   }
   
   void _finalizeStats() {
-    print('🔍 [PlayerStats] Finalizing stats...');
-    
     for (final stats in _playerStats.values) {
       stats.calculateTotals();
-      
-      print('🔍 [PlayerStats] Team: ${stats.team.name}');
-      print('🔍 [PlayerStats] Total players in stats: ${stats.playerStats.length}');
-      print('🔍 [PlayerStats] Player IDs: ${stats.playerStats.keys.toList()}');
-      print('🔍 [PlayerStats] Total players in stats: ${stats.playerStats.values.map((p) => p.player.username).toList()}');
     }
   }
   
@@ -346,12 +319,10 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   void _updatePlayerStat(PlayerStats teamStats, User player, String statType, int value) {
     // Stats are now initialized from rosters, so we just need to update them
     if (!teamStats.playerStats.containsKey(player.id)) {
-      print('🔍 [PlayerStats] _updatePlayerStat: Creating new stats for ${player.username} (${player.id}) in team ${teamStats.team.name}');
       teamStats.playerStats[player.id] = IndividualPlayerStats(player: player);
     }
     
     final playerStat = teamStats.playerStats[player.id]!;
-    print('🔍 [PlayerStats] _updatePlayerStat: Updating ${player.username} (${player.id}) in team ${teamStats.team.name} - $statType: $value');
     
     switch (statType) {
       case 'points':

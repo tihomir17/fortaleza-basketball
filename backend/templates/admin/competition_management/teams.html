@@ -1,0 +1,95 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:competitions_competition_changelist' %}">{% trans 'Competitions' %}</a>
+&rsaquo; <a href="{% url 'admin:competitions_competition_change' competition.id %}">{{ competition.name }}</a>
+&rsaquo; {% trans 'Manage Teams' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div class="module aligned">
+    <h2>Current Teams in {{ competition.name }}</h2>
+    {% if competition_teams %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Style</th>
+                    <th>Strength</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in competition_teams %}
+                <tr>
+                    <td>{{ team.name }}</td>
+                    <td>{{ team.get_style_display }}</td>
+                    <td>{{ team.get_strength_display }}</td>
+                    <td>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="remove_team">
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
+                            <input type="submit" value="Remove" class="default" 
+                                   onclick="return confirm('Are you sure you want to remove {{ team.name }} from {{ competition.name }}?')">
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No teams assigned to this competition yet.</p>
+    {% endif %}
+</div>
+
+<div class="module aligned">
+    <h2>Available Teams</h2>
+    {% if available_teams %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Style</th>
+                    <th>Strength</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in available_teams %}
+                <tr>
+                    <td>{{ team.name }}</td>
+                    <td>{{ team.get_style_display }}</td>
+                    <td>{{ team.get_strength_display }}</td>
+                    <td>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_team">
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
+                            <input type="submit" value="Add" class="default">
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>All teams are already assigned to this competition.</p>
+    {% endif %}
+</div>
+
+<div class="submit-row">
+    <a href="{% url 'admin:competitions_competition_change' competition.id %}" class="default">Back to Competition</a>
+    <a href="{% url 'admin:competition_schedule_game' competition.id %}" class="default">Schedule Game</a>
+</div>
+
+{% endblock %}

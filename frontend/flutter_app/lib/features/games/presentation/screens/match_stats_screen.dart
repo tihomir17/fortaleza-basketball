@@ -30,8 +30,8 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   int _totalPossessions = 0;
   double _offPpp = 0.0;
   double _defPpp = 0.0;
-  double _fgMakes = 0;
-  double _fgAttempts = 0;
+  int _fgMakes = 0;
+  int _fgAttempts = 0;
   // Shot-type breakdown per team
   int _h2m = 0, _h2a = 0, _h3m = 0, _h3a = 0, _hftm = 0, _hfta = 0;
   int _a2m = 0, _a2a = 0, _a3m = 0, _a3a = 0, _aftm = 0, _afta = 0;
@@ -136,18 +136,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   }
  
   void _computeStats(Game game, List<Possession> possessions) {
-    print('🔍 [MatchStats] Computing stats for game: ${game.homeTeam.name} vs ${game.awayTeam.name}');
-    print('🔍 [MatchStats] Total possessions: ${possessions.length}');
-    
-    // Debug: Show first few possessions
-    if (possessions.isNotEmpty) {
-      print('🔍 [MatchStats] Sample possession data:');
-      for (int i = 0; i < math.min(3, possessions.length); i++) {
-        final p = possessions[i];
-        print('🔍 [MatchStats] Possession $i: team=${p.team?.team.name} (ID: ${p.team?.team.id}), outcome=${p.outcome}, points=${p.pointsScored}, quarter=${p.quarter}');
-      }
-    }
-    
     // Track all four quarters plus potential Overtime (5)
     _homePointsByQ = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
     _awayPointsByQ = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
@@ -170,7 +158,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
       final teamId = p.team?.team.id;
       if (teamId == null) {
         // Skip malformed possession entries without team
-        print('🔍 [MatchStats] Skipping possession without team: ${p.outcome}');
         continue;
       }
       
@@ -188,9 +175,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
         } else if (teamName == game.awayTeam.name) {
           isHome = false;
         } else {
-          print('🔍 [MatchStats] WARNING: Team ID $teamId (${p.team?.team.name}) does not match game teams');
-          print('🔍 [MatchStats] Game home: ${game.homeTeam.id} (${game.homeTeam.name})');
-          print('🔍 [MatchStats] Game away: ${game.awayTeam.id} (${game.awayTeam.name})');
           continue; // Skip this possession
         }
       }
@@ -198,7 +182,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
       final pts = p.pointsScored;
       
       if (pts > 0) {
-        print('🔍 [MatchStats] ${isHome ? game.homeTeam.name : game.awayTeam.name} scored $pts in Q${p.quarter}');
         if (isHome) {
           _homeTotal += pts;
           _homePointsByQ[p.quarter] = (_homePointsByQ[p.quarter] ?? 0) + pts;
@@ -242,50 +225,62 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
         if (isHome) {
           if (outcome == 'MISSED_2PTS') {
             _h2a += 1;
+            hMissFG += 1;
           } else {
             _h3a += 1;
+            hMissFG += 1;
           }
-          hMissFG++;
         } else {
           if (outcome == 'MISSED_2PTS') {
             _a2a += 1;
+            aMissFG += 1;
           } else {
             _a3a += 1;
+            aMissFG += 1;
           }
-          aMissFG++;
-        }
-      } else if (outcome == 'MADE_FTS' || outcome == 'MISSED_FTS') {
-        if (isHome) {
-          if (outcome == 'MADE_FTS') _hftm += 1;
-          _hfta += 1;
-        } else {
-          if (outcome == 'MADE_FTS') _aftm += 1;
-          _afta += 1;
-        }
-      } else if (outcome == 'TURNOVER') {
-        if (isHome) {
-          _hTov++;
-        } else {
-          _aTov++;
         }
       }
 
-      // Offensive rebounds counting
-      final offRebCount = p.offensiveReboundCount > 0
-          ? p.offensiveReboundCount
-          : (p.isOffensiveRebound ? 1 : 0);
-      if (offRebCount > 0) {
+      // Free throws
+      if (outcome == 'MADE_FT') {
         if (isHome) {
-          _hOffReb += offRebCount;
+          _hftm += 1;
+          _hfta += 1;
         } else {
-          _aOffReb += offRebCount;
+          _aftm += 1;
+          _afta += 1;
+        }
+      } else if (outcome == 'MISSED_FT') {
+        if (isHome) {
+          _hfta += 1;
+        } else {
+          _afta += 1;
+        }
+      }
+
+      // Rebounds
+      if (outcome == 'OFFENSIVE_REBOUND') {
+        if (isHome) {
+          _hOffReb += 1;
+        } else {
+          _aOffReb += 1;
+        }
+      }
+
+      // Turnovers
+      if (outcome == 'TURNOVER') {
+        if (isHome) {
+          _hTov += 1;
+        } else {
+          _aTov += 1;
         }
       }
     }
 
-    _fgMakes = makes.toDouble();
-    _fgAttempts = attempts.toDouble();
+    _fgMakes = makes;
+    _fgAttempts = attempts;
 
+    // Calculate PPP
     final totalPoints = _homeTotal + _awayTotal;
     _offPpp = _totalPossessions > 0 ? totalPoints / _totalPossessions : 0.0;
     _defPpp = _offPpp; // combined view
@@ -293,12 +288,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     // Derive defensive rebounds as opponent missed FGs minus opponent offensive rebounds
     _hDefReb = (aMissFG - _aOffReb).clamp(0, 1000000);
     _aDefReb = (hMissFG - _hOffReb).clamp(0, 1000000);
-    
-    print('🔍 [MatchStats] Final totals:');
-    print('🔍 [MatchStats] Home (${game.homeTeam.name}): $_homeTotal points');
-    print('🔍 [MatchStats] Away (${game.awayTeam.name}): $_awayTotal points');
-    print('🔍 [MatchStats] Home 2PT: $_h2m/$_h2a, 3PT: $_h3m/$_h3a, FT: $_hftm/$_hfta');
-    print('🔍 [MatchStats] Away 2PT: $_a2m/$_a2a, 3PT: $_a3m/$_a3a, FT: $_aftm/$_afta');
   }
 
   Widget _buildContent(ThemeData theme) {
@@ -312,7 +301,7 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('${game.homeTeam.name} ${_homeTotal} - ${_awayTotal} ${game.awayTeam.name}'),
+          _sectionTitle('${game.homeTeam.name} $_homeTotal - $_awayTotal ${game.awayTeam.name}'),
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -566,7 +555,7 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     final total = (left + right).clamp(1, 1000000);
     final leftFrac = left / total;
     final rightFrac = right / total;
-    String fmt(int v) => isPercent ? '${v}%' : v.toString();
+    String fmt(int v) => isPercent ? '$v%' : v.toString();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -618,8 +607,8 @@ Widget _shotBreakdownTable(Game game) {
         child: Row(
           children: [
             SizedBox(width: 90, child: Text(label)),
-            Expanded(child: Text('${hMade}/${hAtt} (${pct(hMade, hAtt)})', textAlign: TextAlign.center)),
-            Expanded(child: Text('${aMade}/${aAtt} (${pct(aMade, aAtt)})', textAlign: TextAlign.center)),
+            Expanded(child: Text('$hMade/$hAtt (${pct(hMade, hAtt)})', textAlign: TextAlign.center)),
+            Expanded(child: Text('$aMade/$aAtt (${pct(aMade, aAtt)})', textAlign: TextAlign.center)),
           ],
         ),
       );

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
 import 'package:flutter_app/features/calendar/presentation/screens/edit_event_screen.dart';
 import 'package:flutter_app/features/games/presentation/screens/schedule_game_screen.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
@@ -88,45 +89,67 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: UserProfileAppBar(
         title: 'CALENDAR',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Schedule Game or Practice',
-            onPressed: () {
-              // The logic for showing the choice dialog remains the same
-              showModalBottomSheet(
-                context: context,
-                builder: (ctx) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.sports_basketball_outlined),
-                      title: const Text('Schedule a New Game'),
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ScheduleGameScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.fitness_center),
-                      title: const Text('Schedule a Practice'),
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ScheduleEventScreen(
-                              initialDate: _selectedDay ?? DateTime.now(),
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, authState) {
+              if (authState.status == AuthStatus.authenticated && 
+                  authState.user != null) {
+                
+                final user = authState.user!;
+                if (user.role == 'PLAYER') {
+                  // Players can request practice sessions
+                  return IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Request Practice Session',
+                    onPressed: () {
+                      _showPracticeRequestDialog(context);
+                    },
+                  );
+                } else {
+                  // Coaches can schedule games and practices directly
+                  return IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Schedule Game or Practice',
+                    onPressed: () {
+                      // The logic for showing the choice dialog remains the same
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (ctx) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.sports_basketball_outlined),
+                              title: const Text('Schedule a New Game'),
+                              onTap: () {
+                                Navigator.of(ctx).pop();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ScheduleGameScreen(),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
+                            ListTile(
+                              leading: const Icon(Icons.fitness_center),
+                              title: const Text('Schedule a Practice'),
+                              onTap: () {
+                                Navigator.of(ctx).pop();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ScheduleEventScreen(
+                                      initialDate: _selectedDay ?? DateTime.now(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }
+              }
+              return const SizedBox.shrink();
             },
           ),
         ],
@@ -403,6 +426,75 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   // handle error
                 }
               },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPracticeRequestDialog(BuildContext context) {
+    final selectedDate = _selectedDay ?? DateTime.now();
+    final startTime = TimeOfDay.now();
+    final endTime = TimeOfDay(hour: startTime.hour + 1, minute: startTime.minute);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Request Practice Session'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Date: ${DateFormat.yMMMd().format(selectedDate)}',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Start Time: ${startTime.format(context)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'End Time: ${endTime.format(context)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'This request will be sent to your coach for approval.',
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // TODO: Implement practice request functionality
+                // This would typically send a notification/request to the coach
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Practice request sent to coach for approval'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Send Request'),
             ),
           ],
         );

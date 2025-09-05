@@ -37,11 +37,13 @@ import 'features/plays/presentation/cubit/playbook_cubit.dart';
 import 'features/plays/presentation/cubit/play_category_cubit.dart';
 import 'features/competitions/presentation/cubit/competition_cubit.dart';
 import 'features/calendar/presentation/cubit/calendar_cubit.dart';
+import 'features/scouting/presentation/cubit/self_scouting_cubit.dart';
+import 'features/scouting/data/services/self_scouting_service.dart';
 
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: Level.error,
+  level: Level.warning, // Changed from Level.error to Level.warning to deactivate debug logs
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,
@@ -70,6 +72,7 @@ void setupServiceLocator() {
   );
   sl.registerLazySingleton<GameRepository>(() => GameRepository());
   sl.registerLazySingleton<EventRepository>(() => EventRepository());
+  sl.registerLazySingleton<SelfScoutingService>(() => SelfScoutingService(sl<ApiService>()));
 
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
@@ -108,6 +111,10 @@ void setupServiceLocator() {
   );
   sl.registerFactory<GameDetailCubit>(
     () => GameDetailCubit(gameRepository: sl<GameRepository>()),
+  );
+
+  sl.registerFactory<SelfScoutingCubit>(
+    () => SelfScoutingCubit(sl<SelfScoutingService>()),
   );
 
   sl.registerSingleton<ValueNotifier<bool>>(isSidebarVisible);

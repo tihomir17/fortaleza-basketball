@@ -108,11 +108,6 @@ class UserViewSet(viewsets.ModelViewSet):
         allowed_ids = set(allowed_users.values_list("id", flat=True))
         allowed_ids.add(user.id)  # Add the user's own ID
 
-        print(f"\n--- FINAL UserViewSet get_queryset ---")
-        print(f"User '{user.username}' is on teams: {list(my_teams)}")
-        print(f"Allowed to edit user IDs: {list(allowed_ids)}")
-        print(f"--- END --- \n")
-
         return User.objects.filter(id__in=allowed_ids).prefetch_related(
             "player_on_teams", "coach_on_teams"
         )

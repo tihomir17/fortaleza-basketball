@@ -81,6 +81,9 @@ urlpatterns = [
     # /api/plays/
     # etc.
     path("api/", include(router.urls)),
+    # Scouting endpoints
+    path("api/scouting/", include("apps.scouting.urls")),
+    path("api/competition-management/", include("apps.competition_management.urls")),
     # Spectacular API Schema and UI
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

@@ -21,6 +21,13 @@ class Game(models.Model):
     home_team_score = models.IntegerField(default=0)
     away_team_score = models.IntegerField(default=0)
     quarter = models.IntegerField(default=1)
+    
+    # Game flow and statistics
+    lead_changes = models.IntegerField(default=0, help_text="Number of lead changes in the game")
+    is_close_game = models.BooleanField(default=False, help_text="Game decided by 10 points or less")
+    is_blowout = models.BooleanField(default=False, help_text="Game decided by 20 points or more")
+    clutch_situations = models.IntegerField(default=0, help_text="Number of clutch situations in last 2 minutes")
+    
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

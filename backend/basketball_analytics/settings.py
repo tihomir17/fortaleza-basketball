@@ -57,6 +57,8 @@ INSTALLED_APPS = [
     "apps.competitions.apps.CompetitionsConfig",
     "apps.games.apps.GamesConfig",
     "apps.events.apps.EventsConfig",
+    "apps.scouting.apps.ScoutingConfig",
+    "apps.competition_management.apps.CompetitionManagementConfig",
 ]
 
 MIDDLEWARE = [
@@ -79,7 +81,7 @@ ROOT_URLCONF = "basketball_analytics.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -257,7 +259,7 @@ LOGGING = {
     "loggers": {
         "django": {
             "handlers": ["console", "app_file"],
-            "level": "INFO",
+            "level": "WARNING",  # Changed from INFO to WARNING
             "propagate": True,
         },
         "django.request": {
@@ -267,17 +269,17 @@ LOGGING = {
         },
         "app": {
             "handlers": ["console", "app_file"],
-            "level": "INFO",
+            "level": "WARNING",  # Changed from INFO to WARNING
             "propagate": False,
         },
         "request": {
             "handlers": ["request_console", "request_file"],
-            "level": "INFO",
+            "level": "WARNING",  # Changed from INFO to WARNING
             "propagate": False,
         },
         "db.slow": {
             "handlers": ["slow_query_console", "slow_query_file"],
-            "level": "INFO",
+            "level": "WARNING",  # Changed from INFO to WARNING
             "propagate": False,
         },
     },

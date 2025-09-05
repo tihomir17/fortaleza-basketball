@@ -55,8 +55,6 @@ class TeamViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        print(f"Request Data Received: {request.data}")
-
         serializer = self.get_serializer(data=request.data)
 
         # Manually check for validity without raising an immediate exception
@@ -66,7 +64,6 @@ class TeamViewSet(viewsets.ModelViewSet):
             # Return the detailed errors to the frontend as well
             return Response(serializer.errors, status=400)
 
-        print("--- Serializer is valid. Proceeding to perform_create. ---")
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=201, headers=headers)
@@ -106,9 +103,6 @@ class TeamViewSet(viewsets.ModelViewSet):
             existing_teams = user_to_add.player_on_teams.all()
 
             if existing_teams.exists():
-                print(
-                    f"Player {user_to_add.username} is already on teams: {list(existing_teams)}. Removing them first."
-                )
                 # Remove the player from all teams they are currently on.
                 for team in existing_teams:
                     team.players.remove(user_to_add)

@@ -33,6 +33,7 @@ import '../../features/games/presentation/screens/advanced_post_game_report_scre
 import '../../features/games/presentation/screens/schedule_game_screen.dart';
 import '../../features/calendar/presentation/screens/schedule_event_screen.dart';
 import '../debug/debug_screen.dart';
+import '../../features/scouting/presentation/cubit/self_scouting_cubit.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -211,7 +212,10 @@ class AppRouter {
           ),
           GoRoute(
             path: '/self-scouting',
-            builder: (context, state) => const SelfScoutingScreen(),
+            builder: (context, state) => BlocProvider(
+              create: (context) => sl<SelfScoutingCubit>(),
+              child: const SelfScoutingScreen(),
+            ),
           ),
           GoRoute(
             path: '/analytics',

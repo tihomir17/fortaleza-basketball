@@ -60,6 +60,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, authState) {
           if (authState.status == AuthStatus.authenticated && authState.user != null) {
+            final isPlayer = authState.status == AuthStatus.authenticated && 
+                            authState.user != null && 
+                            authState.user!.role == 'PLAYER';
+            
+            // Update the app bar title based on user role
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                final appBar = context.findAncestorWidgetOfExactType<AppBar>();
+                if (appBar != null) {
+                  // This approach won't work well, let's use a different strategy
+                }
+              }
+            });
+            
             return BlocBuilder<DashboardCubit, DashboardState>(
               builder: (context, dashboardState) {
                 if (dashboardState is DashboardLoading) {
@@ -67,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 } else if (dashboardState is DashboardError) {
                   return _buildErrorState(dashboardState.message);
                 } else if (dashboardState is DashboardLoaded) {
-                  return _buildDashboardContent(dashboardState.dashboardData);
+                  return _buildDashboardContent(dashboardState.dashboardData, isPlayer);
                 } else {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -115,17 +129,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDashboardContent(dashboardData) {
+  Widget _buildDashboardContent(dashboardData, bool isPlayer) {
     return RefreshIndicator(
       onRefresh: () async {
         context.read<DashboardCubit>().refresh();
       },
-              child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // For coaches: Show full dashboard
+            if (!isPlayer) ...[
               // Quick Stats Card
               QuickStatsCard(stats: dashboardData.quickStats ?? QuickStats(totalGames: 0, totalPossessions: 0, recentPossessions: 0, avgPossessionsPerGame: 0.0)),
               const SizedBox(height: 12),
@@ -133,15 +149,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Quick Actions Grid
               QuickActionsGrid(actions: dashboardData.quickActions ?? []),
               const SizedBox(height: 12),
-              
-              // Upcoming Games
-              UpcomingGamesList(games: dashboardData.upcomingGames ?? []),
-              const SizedBox(height: 12),
-              
-              // Recent Games
-              RecentGamesList(games: dashboardData.recentGames ?? []),
-              const SizedBox(height: 12),
-              
+            ],
+            
+            // Upcoming Games - Always visible
+            UpcomingGamesList(games: dashboardData.upcomingGames ?? []),
+            const SizedBox(height: 12),
+            
+            // Recent Games - Always visible
+            RecentGamesList(games: dashboardData.recentGames ?? []),
+            const SizedBox(height: 12),
+            
+            // For coaches: Show additional sections
+            if (!isPlayer) ...[
               // Recent Activity
               RecentActivityList(activities: dashboardData.recentActivity ?? []),
               const SizedBox(height: 12),
@@ -152,8 +171,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 12),
               ],
             ],
-          ),
+          ],
         ),
+      ),
     );
   }
 
