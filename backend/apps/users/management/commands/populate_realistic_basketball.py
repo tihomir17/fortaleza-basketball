@@ -96,6 +96,9 @@ class Command(BaseCommand):
         )
         players = self.create_realistic_players(teams, admin_user)
 
+        self.stdout.write("Creating staff members for each team...")
+        staff_members = self.create_realistic_staff(teams, admin_user)
+
         self.stdout.write("Simulating player injuries...")
         injured_players = self.simulate_injuries(teams, admin_user)
 
@@ -387,6 +390,115 @@ class Command(BaseCommand):
             )
 
         return players
+
+    def create_realistic_staff(self, teams, admin_user):
+        """Create staff members for each team (Physio, S&C, Management)"""
+        staff_members = []
+        
+        # Staff types to create for each team
+        staff_types = [
+            User.StaffType.PHYSIO,
+            User.StaffType.STRENGTH_CONDITIONING,
+            User.StaffType.MANAGEMENT,
+        ]
+        
+        for team in teams:
+            team_staff = []
+            
+            for staff_type in staff_types:
+                staff_member = self.create_staff_member(team, staff_type, admin_user)
+                team_staff.append(staff_member)
+                # Add staff member to team
+                team.staff.add(staff_member)  # Staff are stored in staff relationship
+            
+            staff_members.extend(team_staff)
+            
+            self.stdout.write(
+                f"Created {len(team_staff)} staff members for {team.name}"
+            )
+        
+        return staff_members
+
+    def create_staff_member(self, team, staff_type, admin_user):
+        """Create a single staff member with realistic characteristics"""
+        # Brazilian staff names
+        first_names = [
+            "Carlos", "Ana", "Roberto", "Maria", "João", "Fernanda", "Pedro", "Juliana",
+            "Rafael", "Camila", "Diego", "Patricia", "Lucas", "Beatriz", "André", "Larissa",
+            "Felipe", "Gabriela", "Marcelo", "Isabela", "Ricardo", "Amanda", "Thiago", "Natália",
+            "Bruno", "Carolina", "Eduardo", "Mariana", "Leonardo", "Vanessa", "Rodrigo", "Tatiana"
+        ]
+        
+        last_names = [
+            "Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Almeida", "Pereira",
+            "Lima", "Gomes", "Costa", "Ribeiro", "Carvalho", "Alves", "Pinto", "Cavalcanti",
+            "Dias", "Castro", "Campos", "Cardoso", "Correia", "Cunha", "Dantas", "Duarte",
+            "Farias", "Fernandes", "Freitas", "Gonçalves", "Machado", "Mendes", "Nascimento", "Pires"
+        ]
+        
+        # International staff names (common in Brazilian basketball)
+        international_first_names = [
+            "Michael", "Sarah", "David", "Lisa", "James", "Jennifer", "Robert", "Michelle",
+            "John", "Amanda", "William", "Jessica", "Richard", "Ashley", "Charles", "Emily",
+            "Thomas", "Samantha", "Christopher", "Stephanie", "Daniel", "Nicole", "Matthew", "Elizabeth"
+        ]
+        
+        international_last_names = [
+            "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez",
+            "Martinez", "Anderson", "Taylor", "Thomas", "Hernandez", "Moore", "Martin", "Lee",
+            "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis"
+        ]
+        
+        # 60% Brazilian, 40% International for staff
+        if random.random() < 0.6:
+            first_name = random.choice(first_names)
+            last_name = random.choice(last_names)
+        else:
+            first_name = random.choice(international_first_names)
+            last_name = random.choice(international_last_names)
+        
+        # Generate unique username
+        base_username = f"{first_name.lower()}.{last_name.lower()}"
+        username = base_username
+        counter = 1
+        
+        # Ensure username uniqueness
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        # Generate unique email
+        base_email = f"{username}@{team.name.lower().replace(' ', '').replace('.', '')}.com"
+        email = base_email
+        email_counter = 1
+        
+        # Ensure email uniqueness
+        while User.objects.filter(email=email).exists():
+            email = f"{username}{email_counter}@{team.name.lower().replace(' ', '').replace('.', '')}.com"
+            email_counter += 1
+        
+        # Create user
+        user = User.objects.create_user(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            password="password123",
+            role=User.Role.STAFF,
+            staff_type=staff_type,
+        )
+        
+        # Set team
+        user.team = team
+        user.save()
+        
+        # Log creation
+        staff_type_display = user.get_staff_type_display()
+        self.stdout.write(
+            f"  - Created {staff_type_display}: {first_name} {last_name} for {team.name}"
+        )
+        
+        return user
 
     def create_realistic_player(self, team, position, player_index, admin_user):
         """Create a single player with realistic Brazilian basketball characteristics"""

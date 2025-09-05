@@ -173,7 +173,8 @@ class TeamRepository {
     required String token,
     required int teamId,
     required int userId,
-    required String role, // 'player' or 'coach'
+    required String role, // 'player', 'coach', or 'staff'
+    String? staffType, // Required if role is 'staff'
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
     logger.d('TeamRepository: Adding $role $userId to team $teamId at $url');
@@ -184,7 +185,11 @@ class TeamRepository {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({'user_id': userId, 'role': role}),
+        body: json.encode({
+          'user_id': userId, 
+          'role': role,
+          if (role == 'staff' && staffType != null) 'staff_type': staffType,
+        }),
       );
       if (response.statusCode != 200) {
         logger.e('TeamRepository: Failed to add member. Status: ${response.statusCode}, Body: ${response.body}');

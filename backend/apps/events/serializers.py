@@ -14,8 +14,6 @@ class CalendarEventListSerializer(serializers.ModelSerializer):
             "start_time",
             "end_time",
             "team",
-            "is_all_day",
-            "created_at",
         ]
 
 

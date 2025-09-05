@@ -58,18 +58,6 @@ class HomeScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // Awaiting the result here is now less critical, but good practice
-          await Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const CreateTeamScreen()));
-          // Manually refresh after returning
-          _refreshTeams(context);
-        },
-        tooltip: 'Create Team',
-        child: const Icon(Icons.add),
-      ),
     );
   }
 

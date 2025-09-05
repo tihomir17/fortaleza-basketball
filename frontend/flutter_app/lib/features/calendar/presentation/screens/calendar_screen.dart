@@ -1,5 +1,6 @@
 // lib/features/calendar/presentation/screens/calendar_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
@@ -33,18 +34,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  List<dynamic> _selectedEvents = [];
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _refreshSignal.addListener(_refreshCalendar);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshCalendar());
+    
+    // Load calendar data when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshCalendar();
+      }
+    });
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshCalendar);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
@@ -78,7 +86,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
-        _selectedEvents = _getEventsForDay(selectedDay, state);
       });
     }
   }
@@ -159,9 +166,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
             );
           }
 
-          if (_selectedDay != null) {
-            _selectedEvents = _getEventsForDay(_selectedDay!, state);
-          }
+          // Calculate events for the selected day reactively
+          final selectedEvents = _selectedDay != null 
+              ? _getEventsForDay(_selectedDay!, state)
+              : <dynamic>[];
 
           return Column(
             children: [
@@ -210,16 +218,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               const Divider(height: 1),
               Expanded(
-                child: _selectedEvents.isEmpty
+                child: selectedEvents.isEmpty
                     ? const Center(
                         child: Text("No events scheduled for this day."),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 80.0),
 
-                        itemCount: _selectedEvents.length,
+                        itemCount: selectedEvents.length,
                         itemBuilder: (context, index) {
-                          final item = _selectedEvents[index];
+                          final item = selectedEvents[index];
                           if (item is Game) return _buildGameTile(item);
                           if (item is CalendarEvent) {
                             return _buildEventTile(item);

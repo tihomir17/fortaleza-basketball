@@ -1,5 +1,6 @@
 // lib/features/dashboard/presentation/screens/dashboard_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/features/dashboard/data/models/dashboard_data.dart';
@@ -26,11 +27,12 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshDashboard);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshDashboard());
     
     // Load dashboard data when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -42,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshDashboard);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 

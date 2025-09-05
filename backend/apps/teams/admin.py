@@ -31,7 +31,7 @@ class TeamAdmin(admin.ModelAdmin):
             'fields': ('name', 'competition', 'created_by')
         }),
         ('Team Members', {
-            'fields': ('coaches', 'players'),
+            'fields': ('coaches', 'staff', 'players'),
             'classes': ('collapse',)
         }),
         ('Timestamps', {
@@ -41,7 +41,7 @@ class TeamAdmin(admin.ModelAdmin):
     )
     
     readonly_fields = ('created_at', 'updated_at')
-    filter_horizontal = ('coaches', 'players')
+    filter_horizontal = ('coaches', 'staff', 'players')
     
     def competition_link(self, obj):
         """Display competition as a link"""

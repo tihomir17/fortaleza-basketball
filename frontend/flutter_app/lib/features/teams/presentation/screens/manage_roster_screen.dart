@@ -1,5 +1,6 @@
 // lib/features/teams/presentation/screens/manage_roster_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
@@ -11,6 +12,7 @@ import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
 import 'add_coach_screen.dart';
 import 'add_staff_screen.dart';
+import 'select_existing_user_screen.dart';
 
 class ManageRosterScreen extends StatefulWidget {
   final Team team;
@@ -26,19 +28,20 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   late List<User> _staff;
   bool _isLoading = false;
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
     _coaches = widget.team.coaches.where((user) => user.role == 'COACH').toList();
     _players = List.from(widget.team.players);
-    _staff = widget.team.coaches.where((user) => user.role == 'STAFF').toList();
-    _refreshSignal.addListener(_refreshLocalRoster);
+    _staff = List.from(widget.team.staff);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshLocalRoster());
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshLocalRoster); // UNSUBSCRIBE
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
@@ -103,6 +106,39 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     );
   }
 
+  void _navigateToSelectExistingPlayer() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SelectExistingUserScreen(
+          teamId: widget.team.id,
+          role: 'player',
+        ),
+      ),
+    );
+  }
+
+  void _navigateToSelectExistingCoach() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SelectExistingUserScreen(
+          teamId: widget.team.id,
+          role: 'coach',
+        ),
+      ),
+    );
+  }
+
+  void _navigateToSelectExistingStaff() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SelectExistingUserScreen(
+          teamId: widget.team.id,
+          role: 'staff',
+        ),
+      ),
+    );
+  }
+
   String _getStaffTypeLabel(String? staffType) {
     switch (staffType) {
       case 'PHYSIO':
@@ -134,7 +170,7 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
         setState(() {
           _coaches = updatedTeam.coaches.where((user) => user.role == 'COACH').toList();
           _players = updatedTeam.players;
-          _staff = updatedTeam.coaches.where((user) => user.role == 'STAFF').toList();
+          _staff = updatedTeam.staff;
         });
       }
     } catch (e) {
@@ -154,22 +190,83 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       appBar: AppBar(
         title: Text('Manage Roster'),
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.person_add),
-            tooltip: 'Add New Player',
-            onPressed: _navigateToAddPlayer,
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.add_moderator_outlined,
-            ), // A different icon for coaches
-            tooltip: 'Add New Coach',
-            onPressed: _navigateToAddCoach,
-          ),
-          IconButton(
-            icon: const Icon(Icons.medical_services_outlined),
-            tooltip: 'Add New Staff Member',
-            onPressed: _navigateToAddStaff,
+            tooltip: 'Add Members',
+            onSelected: (value) {
+              switch (value) {
+                case 'new_player':
+                  _navigateToAddPlayer();
+                  break;
+                case 'existing_player':
+                  _navigateToSelectExistingPlayer();
+                  break;
+                case 'new_coach':
+                  _navigateToAddCoach();
+                  break;
+                case 'existing_coach':
+                  _navigateToSelectExistingCoach();
+                  break;
+                case 'new_staff':
+                  _navigateToAddStaff();
+                  break;
+                case 'existing_staff':
+                  _navigateToSelectExistingStaff();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'new_player',
+                child: ListTile(
+                  leading: Icon(Icons.person_add),
+                  title: Text('Add New Player'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'existing_player',
+                child: ListTile(
+                  leading: Icon(Icons.person_search),
+                  title: Text('Select Existing Player'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'new_coach',
+                child: ListTile(
+                  leading: Icon(Icons.add_moderator_outlined),
+                  title: Text('Add New Coach'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'existing_coach',
+                child: ListTile(
+                  leading: Icon(Icons.person_search),
+                  title: Text('Select Existing Coach'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'new_staff',
+                child: ListTile(
+                  leading: Icon(Icons.medical_services_outlined),
+                  title: Text('Add New Staff'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'existing_staff',
+                child: ListTile(
+                  leading: Icon(Icons.person_search),
+                  title: Text('Select Existing Staff'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),

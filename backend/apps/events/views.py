@@ -45,7 +45,7 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         # Get the actual Team objects the user is a member of.
         # We use the correct related_names from the Team model.
         member_of_teams = Team.objects.filter(
-            Q(players=user) | Q(coaches=user)
+            Q(players=user) | Q(coaches=user) | Q(staff=user)
         ).distinct()
 
         # Filter events where the event's team is in our list of teams,
@@ -65,12 +65,14 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Players cannot create events.")
         
-        # If no team is provided and user is a coach, auto-assign their primary team
-        if not serializer.validated_data.get('team') and user.role == 'COACH':
-            # Get the first team where the user is a coach
-            coach_teams = Team.objects.filter(coaches=user)
-            if coach_teams.exists():
-                serializer.validated_data['team'] = coach_teams.first()
+        # If no team is provided and user is a coach or staff, auto-assign their primary team
+        if not serializer.validated_data.get('team') and user.role in ['COACH', 'STAFF']:
+            # Get the first team where the user is a coach or staff
+            user_teams = Team.objects.filter(
+                Q(coaches=user) | Q(staff=user)
+            )
+            if user_teams.exists():
+                serializer.validated_data['team'] = user_teams.first()
         
         serializer.save(created_by=user)
     

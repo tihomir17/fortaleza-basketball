@@ -2,6 +2,7 @@
 
 // ignore_for_file: unused_import
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -32,16 +33,17 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   int? _selectedQuarterFilter;
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
   bool _isLoadingMorePossessions = false;
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshGameDetails);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshGameDetails());
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshGameDetails);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 

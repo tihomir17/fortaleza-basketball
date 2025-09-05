@@ -11,6 +11,7 @@ class UserRepository {
   Future<List<User>> searchUsers({
     required String token,
     required String query,
+    String? role,
   }) async {
     logger.d('UserRepository: Searching users with query: $query');
     if (query.isEmpty) {
@@ -18,9 +19,14 @@ class UserRepository {
       return []; // Don't search for nothing
     }
 
+    final queryParams = {'search': query};
+    if (role != null) {
+      queryParams['role'] = role;
+    }
+    
     final url = Uri.parse(
       '${ApiClient.baseUrl}/auth/search/',
-    ).replace(queryParameters: {'search': query});
+    ).replace(queryParameters: queryParams);
 
     try {
       final response = await _client.get(
@@ -28,9 +34,32 @@ class UserRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
-        final List<dynamic> body = json.decode(response.body);
-        logger.i('UserRepository: Search users successful. Found ${body.length} users.');
-        return body.map((dynamic item) => User.fromJson(item)).toList();
+        final dynamic decoded = json.decode(response.body);
+        List<dynamic> items;
+        
+        // Handle different response formats
+        if (decoded is List) {
+          items = decoded;
+          logger.d('UserRepository: Parsed direct list with ${items.length} users');
+        } else if (decoded is Map<String, dynamic>) {
+          // Handle paginated response or wrapped response
+          if (decoded['results'] is List) {
+            items = decoded['results'] as List<dynamic>;
+            logger.d('UserRepository: Parsed paginated response with ${items.length} users');
+          } else if (decoded['users'] is List) {
+            items = decoded['users'] as List<dynamic>;
+            logger.d('UserRepository: Parsed wrapped response with ${items.length} users');
+          } else {
+            logger.e('UserRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}');
+            throw Exception('Unexpected search response format. Expected List or keys [results|users].');
+          }
+        } else {
+          logger.e('UserRepository: Unexpected JSON root type: ${decoded.runtimeType}');
+          throw Exception('Unexpected search response type: ${decoded.runtimeType}');
+        }
+        
+        logger.i('UserRepository: Search users successful. Found ${items.length} users.');
+        return items.map((dynamic item) => User.fromJson(item as Map<String, dynamic>)).toList();
       } else {
         logger.e('UserRepository: Failed to search users. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to search users.');

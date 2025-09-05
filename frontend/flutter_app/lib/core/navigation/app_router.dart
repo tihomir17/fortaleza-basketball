@@ -27,6 +27,7 @@ import '../../features/calendar/presentation/screens/calendar_screen.dart';
 // Import the new screens
 import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
+import '../../features/scouting/presentation/screens/coach_self_scouting_screen.dart';
 import '../../features/scouting/presentation/screens/opponent_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';
@@ -228,6 +229,13 @@ class AppRouter {
             builder: (context, state) => BlocProvider(
               create: (context) => sl<SelfScoutingCubit>(),
               child: const SelfScoutingScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/coach-self-scouting',
+            builder: (context, state) => BlocProvider(
+              create: (context) => sl<SelfScoutingCubit>(),
+              child: const CoachSelfScoutingScreen(),
             ),
           ),
           GoRoute(

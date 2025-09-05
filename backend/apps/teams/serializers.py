@@ -15,11 +15,12 @@ class TeamReadSerializer(serializers.ModelSerializer):
     # populated by our custom to_representation method.
     players = UserSerializer(many=True, read_only=True)
     coaches = UserSerializer(many=True, read_only=True)
+    staff = UserSerializer(many=True, read_only=True)
     created_by = UserSerializer(read_only=True)  # Also serialize the creator
 
     class Meta:
         model = Team
-        fields = ["id", "name", "created_by", "players", "coaches", "competition"]
+        fields = ["id", "name", "created_by", "players", "coaches", "staff", "competition"]
 
     def to_representation(self, instance):
         """
@@ -30,18 +31,19 @@ class TeamReadSerializer(serializers.ModelSerializer):
         # Start with the default representation (for fields like 'id' and 'name')
         representation = super().to_representation(instance)
 
-        # print(f"Instance: {instance}")
-
-        # Manually fetch all coaches and players from the database for this team instance
+        # Manually fetch all coaches, staff, and players from the database for this team instance
         coaches_queryset = instance.coaches.all()
+        staff_queryset = instance.staff.all()
         players_queryset = instance.players.all()
 
         # print(f"Serializing team: {instance.name}")
         # print(f"Coaches found MANUALLY: {list(coaches_queryset)}")
+        # print(f"Staff found MANUALLY: {list(staff_queryset)}")
         # print(f"Players found MANUALLY: {list(players_queryset)}")
 
         # Serialize the querysets using the UserSerializer
         representation["coaches"] = UserSerializer(coaches_queryset, many=True).data
+        representation["staff"] = UserSerializer(staff_queryset, many=True).data
         representation["players"] = UserSerializer(players_queryset, many=True).data
 
         return representation

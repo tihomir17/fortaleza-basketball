@@ -155,10 +155,8 @@ class TeamViewSet(viewsets.ModelViewSet):
             user_to_add.staff_type = staff_type
             user_to_add.save()
 
-            # Add to team (staff are associated with teams but not as players or coaches)
-            # We'll need to add a staff field to the Team model or use a different approach
-            # For now, we'll add them as coaches but with staff role
-            team_to_join.coaches.add(user_to_add)
+            # Add to team staff relationship
+            team_to_join.staff.add(user_to_add)
 
             return Response(
                 {
@@ -213,8 +211,8 @@ class TeamViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
         elif role.lower() == "staff":
-            # Staff members are also stored in the coaches relationship
-            team.coaches.remove(user_to_remove)
+            # Staff members are stored in the staff relationship
+            team.staff.remove(user_to_remove)
             return Response(
                 {"status": f"Staff {user_to_remove.username} removed from {team.name}"},
                 status=status.HTTP_200_OK,

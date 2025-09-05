@@ -61,29 +61,34 @@ class UserSearchView(generics.ListAPIView):
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        # The search query is passed as a URL parameter, e.g., /api/users/search/?search=john
+        # The search query is passed as a URL parameter, e.g., /api/users/search/?search=john&role=player
         query = self.request.query_params.get("search", None)
-
-        # Start with a base queryset of ONLY players
-        queryset = User.objects.filter(role=User.Role.PLAYER)
+        role = self.request.query_params.get("role", None)
 
         if query:
-            # Search in username, first_name, and last_name fields, case-insensitive
-            return User.objects.filter(
+            # Start with base search query
+            queryset = User.objects.filter(
                 Q(username__icontains=query)
                 | Q(first_name__icontains=query)
                 | Q(last_name__icontains=query)
             ).exclude(
                 id=self.request.user.id
             )  # Exclude the user themselves from the search
+            
+            # Filter by role if specified
+            if role:
+                role_upper = role.upper()
+                if role_upper == 'PLAYER':
+                    queryset = queryset.filter(role=User.Role.PLAYER)
+                elif role_upper == 'COACH':
+                    queryset = queryset.filter(role=User.Role.COACH)
+                elif role_upper == 'STAFF':
+                    queryset = queryset.filter(role=User.Role.STAFF)
+            
+            return queryset
 
-        # Exclude any players who are already on a team.
-        # The 'player_on_teams' is the related_name from the Team model's 'players' field.
-        # The '__isnull=True' filter finds users where this relationship is empty.
-        # We also exclude the user making the request.
-        return queryset.filter(player_on_teams__isnull=True).exclude(
-            id=self.request.user.id
-        )
+        # If no search query, return empty queryset
+        return User.objects.none()
 
 
 class UserViewSet(viewsets.ModelViewSet):

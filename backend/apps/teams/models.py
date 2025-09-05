@@ -19,6 +19,11 @@ class Team(models.Model):
         related_name="coach_on_teams",  # A unique name for the reverse relationship
         blank=True,
     )
+    staff = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="staff_on_teams",  # A unique name for the reverse relationship
+        blank=True,
+    )
 
     competition = models.ForeignKey(
         "competitions.Competition",
