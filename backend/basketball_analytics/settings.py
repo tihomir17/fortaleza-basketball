@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "apps.games.apps.GamesConfig",
     "apps.events.apps.EventsConfig",
     "apps.scouting.apps.ScoutingConfig",
+    "apps.competition_management.apps.CompetitionManagementConfig",
 ]
 
 MIDDLEWARE = [
@@ -80,7 +81,7 @@ ROOT_URLCONF = "basketball_analytics.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

@@ -85,6 +85,9 @@ class Command(BaseCommand):
         self.stdout.write("Creating teams with Brazilian basketball characteristics...")
         teams = self.create_realistic_teams(admin_user)
 
+        self.stdout.write("Assigning teams to competitions...")
+        self.assign_teams_to_competitions(teams, competitions)
+
         self.stdout.write("Creating specific coaches for Fortaleza...")
         self.create_fortaleza_coaches(teams, admin_user)
 
@@ -99,9 +102,9 @@ class Command(BaseCommand):
         self.stdout.write("Generating season storylines and rivalries...")
         self.create_storylines(teams)
 
-        for season, competition in competitions.items():
-            self.stdout.write(f"Generating season {season}...")
-            self.generate_season(teams, competition, admin_user, season)
+        for competition in competitions:
+            self.stdout.write(f"Generating season {competition.name}...")
+            self.generate_season(teams, competition, admin_user, competition.name)
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -183,7 +186,7 @@ class Command(BaseCommand):
 
             seasons[season_year] = competition
 
-        return seasons
+        return list(seasons.values())
 
     def create_realistic_teams(self, admin_user):
         """Create teams with realistic Brazilian basketball characteristics"""
@@ -287,6 +290,26 @@ class Command(BaseCommand):
             teams.append(team)
 
         return teams
+
+    def assign_teams_to_competitions(self, teams, competitions):
+        """Assign teams to competitions (distribute evenly)"""
+        teams_per_competition = len(teams) // len(competitions)
+        remainder = len(teams) % len(competitions)
+        
+        team_index = 0
+        for i, competition in enumerate(competitions):
+            # Calculate how many teams this competition gets
+            teams_for_this_competition = teams_per_competition + (1 if i < remainder else 0)
+            
+            # Assign teams to this competition
+            for j in range(teams_for_this_competition):
+                if team_index < len(teams):
+                    team = teams[team_index]
+                    team.competition = competition
+                    team.save()
+                    team_index += 1
+            
+            self.stdout.write(f"  - Assigned {teams_for_this_competition} teams to {competition.name}")
 
     def create_fortaleza_coaches(self, teams, admin_user):
         """Create specific coaches for Fortaleza team"""
@@ -1062,8 +1085,8 @@ class Command(BaseCommand):
         """Generate realistic possessions for a single game"""
         possessions = []
 
-        # Realistic possession count: 70-100 per team
-        total_possessions = random.randint(70, 100)
+        # Realistic possession count: 85-110 per team, so 170-220 total
+        total_possessions = random.randint(170, 220)
 
         # Game quarters (4 quarters + potential overtime)
         quarters = [1, 2, 3, 4]
@@ -1149,6 +1172,10 @@ class Command(BaseCommand):
         offensive_play = self.select_realistic_offensive_play()
         defensive_play = self.select_realistic_defensive_play()
 
+        # Generate realistic sequences
+        offensive_sequence = self.generate_offensive_sequence(offensive_play, outcome)
+        defensive_sequence = self.generate_defensive_sequence(defensive_play, outcome)
+
         # Create possession
         possession = Possession.objects.create(
             game=game,
@@ -1160,6 +1187,8 @@ class Command(BaseCommand):
             duration_seconds=random.randint(15, 25),  # 15-25 second possessions
             offensive_set=offensive_play,
             defensive_set=defensive_play,
+            offensive_sequence=offensive_sequence,
+            defensive_sequence=defensive_sequence,
             start_time_in_game=f"{random.randint(0, 9)}:{random.randint(0, 59):02d}",
             created_by=admin_user,
         )
@@ -1438,3 +1467,126 @@ class Command(BaseCommand):
                 PlayCategory.objects.get_or_create(name=cat_name)
             
             self.stdout.write("✓ Created basic play categories")
+
+
+    def generate_offensive_sequence(self, offensive_play, outcome):
+        """Generate a realistic offensive sequence based on the play and outcome"""
+        sequences = {
+            "PICK_AND_ROLL": [
+                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Drive to basket",
+                "Ball handler calls for screen → Big sets screen → Ball handler rejects screen → Pull-up jumper",
+                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Kick out to shooter",
+                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Pass to rolling big",
+            ],
+            "ISOLATION": [
+                "Ball handler isolates → Dribble moves → Drive to basket",
+                "Ball handler isolates → Dribble moves → Step-back jumper",
+                "Ball handler isolates → Dribble moves → Crossover → Pull-up",
+                "Ball handler isolates → Dribble moves → Spin move → Layup",
+            ],
+            "POST_UP": [
+                "Entry pass to post → Post player backs down → Turnaround jumper",
+                "Entry pass to post → Post player backs down → Drop step → Layup",
+                "Entry pass to post → Post player backs down → Kick out to perimeter",
+                "Entry pass to post → Post player backs down → Hook shot",
+            ],
+            "TRANSITION": [
+                "Rebound → Outlet pass → Fast break → Layup",
+                "Rebound → Outlet pass → Fast break → Pull-up three",
+                "Steal → Fast break → Alley-oop",
+                "Rebound → Outlet pass → Fast break → Kick ahead → Three-pointer",
+            ],
+            "HANDOFF": [
+                "Guard hands off to cutter → Cutter drives to basket",
+                "Guard hands off to cutter → Cutter pulls up for jumper",
+                "Guard hands off to cutter → Cutter passes to open shooter",
+                "Guard hands off to cutter → Cutter drives and kicks out",
+            ],
+        }
+        
+        # Get sequences for the play, or use generic ones
+        play_sequences = sequences.get(offensive_play, [
+            "Ball movement → Screen action → Shot attempt",
+            "Entry pass → Off-ball movement → Shot attempt",
+            "Dribble penetration → Kick out → Shot attempt",
+            "Post entry → Kick out → Shot attempt",
+        ])
+        
+        # Select a random sequence
+        base_sequence = random.choice(play_sequences)
+        
+        # Add outcome-specific details
+        if "MADE" in outcome:
+            if "3PTS" in outcome:
+                return f"{base_sequence} → Made 3-pointer"
+            else:
+                return f"{base_sequence} → Made 2-pointer"
+        elif "MISSED" in outcome:
+            if "3PTS" in outcome:
+                return f"{base_sequence} → Missed 3-pointer"
+            else:
+                return f"{base_sequence} → Missed 2-pointer"
+        elif outcome == "TURNOVER":
+            return f"{base_sequence} → Turnover"
+        elif outcome == "FOUL":
+            return f"{base_sequence} → Foul drawn"
+        else:
+            return base_sequence
+
+    def generate_defensive_sequence(self, defensive_play, outcome):
+        """Generate a realistic defensive sequence based on the play and outcome"""
+        sequences = {
+            "MAN_TO_MAN": [
+                "Man-to-man pressure → Contest shot → Box out",
+                "Man-to-man pressure → Force turnover → Fast break",
+                "Man-to-man pressure → Help defense → Recover",
+                "Man-to-man pressure → Switch on screen → Contest",
+            ],
+            "ZONE": [
+                "Zone defense → Collapse on penetration → Contest shot",
+                "Zone defense → Trap ball handler → Force turnover",
+                "Zone defense → Close out on shooter → Contest three",
+                "Zone defense → Help and recover → Box out",
+            ],
+            "SWITCH": [
+                "Switch on screen → Contest shot → Box out",
+                "Switch on screen → Help defense → Recover",
+                "Switch on screen → Force tough shot → Rebound",
+                "Switch on screen → Trap ball handler → Steal",
+            ],
+            "ICE": [
+                "Ice the pick and roll → Force baseline → Contest shot",
+                "Ice the pick and roll → Trap ball handler → Turnover",
+                "Ice the pick and roll → Help defense → Recover",
+                "Ice the pick and roll → Force tough shot → Rebound",
+            ],
+            "TRAP": [
+                "Trap ball handler → Force turnover → Fast break",
+                "Trap ball handler → Force bad pass → Steal",
+                "Trap ball handler → Help defense → Recover",
+                "Trap ball handler → Force tough shot → Contest",
+            ],
+        }
+        
+        # Get sequences for the play, or use generic ones
+        play_sequences = sequences.get(defensive_play, [
+            "Defensive pressure → Contest shot → Box out",
+            "Defensive pressure → Help defense → Recover",
+            "Defensive pressure → Force turnover → Fast break",
+            "Defensive pressure → Trap ball handler → Steal",
+        ])
+        
+        # Select a random sequence
+        base_sequence = random.choice(play_sequences)
+        
+        # Add outcome-specific details
+        if "MADE" in outcome:
+            return f"{base_sequence} → Shot made (defensive breakdown)"
+        elif "MISSED" in outcome:
+            return f"{base_sequence} → Shot missed (good defense)"
+        elif outcome == "TURNOVER":
+            return f"{base_sequence} → Forced turnover (excellent defense)"
+        elif outcome == "FOUL":
+            return f"{base_sequence} → Foul committed"
+        else:
+            return base_sequence
