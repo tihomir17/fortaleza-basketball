@@ -10,6 +10,7 @@ import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
@@ -255,19 +256,22 @@ class __LiveTrackingStatefulWrapperState
   }
 
   Future<void> savePossessionToDatabase(
-    Team team,
-    Team opponent,
+    GameRoster teamRoster,
+    GameRoster opponentRoster,
     String sequence,
   ) async {
     final token = context.read<AuthCubit>().state.token;
     if (token == null) return;
 
+    print('DEBUG: savePossessionToDatabase - teamRoster: ${teamRoster.team.name} (GameRoster ID: ${teamRoster.id}), opponentRoster: ${opponentRoster.team.name} (GameRoster ID: ${opponentRoster.id})');
+    print('DEBUG: savePossessionToDatabase - gameId: ${widget.game.id}');
+
     try {
       await sl<PossessionRepository>().createPossession(
         token: token,
         gameId: widget.game.id,
-        teamId: team.id,
-        opponentId: opponent.id,
+        teamId: teamRoster.id, // Use GameRoster ID, not Team ID
+        opponentId: opponentRoster.id, // Use GameRoster ID, not Team ID
         startTime: "00:00", // Placeholder
         duration: 10, // Placeholder
         quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
@@ -317,6 +321,20 @@ class __LiveTrackingStatefulWrapperState
     final opponentTeam = _isHomeTeamPossession! ? game.awayTeam : game.homeTeam;
     final sequenceString = _sequence.join(' / ');
 
+    // Get the GameRoster objects instead of Team objects
+    final teamRoster = _isHomeTeamPossession! ? game.homeTeamRoster : game.awayTeamRoster;
+    final opponentRoster = _isHomeTeamPossession! ? game.awayTeamRoster : game.homeTeamRoster;
+
+    if (teamRoster == null || opponentRoster == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Error: Game rosters not found. Please create rosters first."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -343,10 +361,10 @@ class __LiveTrackingStatefulWrapperState
           ),
           ElevatedButton(
             onPressed: () {
-              // Call the repository method on confirm
+              // Call the repository method on confirm with GameRoster objects
               savePossessionToDatabase(
-                teamWithBall,
-                opponentTeam,
+                teamRoster,
+                opponentRoster,
                 sequenceString,
               );
               Navigator.of(dialogContext).pop();

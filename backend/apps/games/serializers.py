@@ -141,6 +141,9 @@ class GameReadLightweightSerializer(serializers.ModelSerializer):
     # When reading, we show the full, nested objects but without possessions.
     home_team = TeamReadSerializer(read_only=True)
     away_team = TeamReadSerializer(read_only=True)
+    # Include roster data for game setup functionality
+    home_team_roster = GameRosterSerializer(read_only=True, required=False)
+    away_team_roster = GameRosterSerializer(read_only=True, required=False)
 
     class Meta:
         model = Game
@@ -152,6 +155,8 @@ class GameReadLightweightSerializer(serializers.ModelSerializer):
             "game_date",
             "home_team_score",
             "away_team_score",
+            "home_team_roster",
+            "away_team_roster",
         ]
 
 

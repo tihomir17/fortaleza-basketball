@@ -1206,3 +1206,168 @@ class GameViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(detail=True, methods=["get"], url_path="player-stats")
+    def get_game_player_stats(self, request, pk=None):
+        """Get player statistics for a specific game"""
+        try:
+            game = self.get_object()
+            
+            # Get all possessions for this game
+            from apps.possessions.models import Possession
+            from django.db.models import Count, Sum, Case, When, Value, IntegerField
+            
+            possessions = Possession.objects.filter(game=game).select_related('scorer', 'team__team')
+            
+            # Get player stats for each team
+            home_team_stats = {}
+            away_team_stats = {}
+            
+            # Process home team possessions
+            home_possessions = possessions.filter(team__team=game.home_team)
+            for possession in home_possessions:
+                if possession.scorer:
+                    player_id = possession.scorer.id
+                    if player_id not in home_team_stats:
+                        home_team_stats[player_id] = {
+                            'player': {
+                                'id': possession.scorer.id,
+                                'first_name': possession.scorer.first_name,
+                                'last_name': possession.scorer.last_name,
+                                'jersey_number': possession.scorer.jersey_number,
+                            },
+                            'stats': {
+                                'total_points': 0,
+                                'field_goals_made': 0,
+                                'field_goals_attempted': 0,
+                                'three_pointers_made': 0,
+                                'three_pointers_attempted': 0,
+                                'free_throws_made': 0,
+                                'free_throws_attempted': 0,
+                            }
+                        }
+                    
+                    # Update stats based on outcome
+                    stats = home_team_stats[player_id]['stats']
+                    if possession.outcome == 'MADE_2PTS':
+                        stats['total_points'] += 2
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MISSED_2PTS':
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MADE_3PTS':
+                        stats['total_points'] += 3
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_made'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MISSED_3PTS':
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MADE_FTS':
+                        stats['total_points'] += 1
+                        stats['free_throws_made'] += 1
+                        stats['free_throws_attempted'] += 1
+                    elif possession.outcome == 'MISSED_FTS':
+                        stats['free_throws_attempted'] += 1
+            
+            # Process away team possessions
+            away_possessions = possessions.filter(team__team=game.away_team)
+            for possession in away_possessions:
+                if possession.scorer:
+                    player_id = possession.scorer.id
+                    if player_id not in away_team_stats:
+                        away_team_stats[player_id] = {
+                            'player': {
+                                'id': possession.scorer.id,
+                                'first_name': possession.scorer.first_name,
+                                'last_name': possession.scorer.last_name,
+                                'jersey_number': possession.scorer.jersey_number,
+                            },
+                            'stats': {
+                                'total_points': 0,
+                                'field_goals_made': 0,
+                                'field_goals_attempted': 0,
+                                'three_pointers_made': 0,
+                                'three_pointers_attempted': 0,
+                                'free_throws_made': 0,
+                                'free_throws_attempted': 0,
+                            }
+                        }
+                    
+                    # Update stats based on outcome
+                    stats = away_team_stats[player_id]['stats']
+                    if possession.outcome == 'MADE_2PTS':
+                        stats['total_points'] += 2
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MISSED_2PTS':
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MADE_3PTS':
+                        stats['total_points'] += 3
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_made'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MISSED_3PTS':
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MADE_FTS':
+                        stats['total_points'] += 1
+                        stats['free_throws_made'] += 1
+                        stats['free_throws_attempted'] += 1
+                    elif possession.outcome == 'MISSED_FTS':
+                        stats['free_throws_attempted'] += 1
+            
+            # Calculate shooting percentages
+            for player_data in home_team_stats.values():
+                stats = player_data['stats']
+                if stats['field_goals_attempted'] > 0:
+                    stats['field_goal_percentage'] = round((stats['field_goals_made'] / stats['field_goals_attempted']) * 100, 1)
+                else:
+                    stats['field_goal_percentage'] = 0.0
+                
+                if stats['three_pointers_attempted'] > 0:
+                    stats['three_point_percentage'] = round((stats['three_pointers_made'] / stats['three_pointers_attempted']) * 100, 1)
+                else:
+                    stats['three_point_percentage'] = 0.0
+                
+                if stats['free_throws_attempted'] > 0:
+                    stats['free_throw_percentage'] = round((stats['free_throws_made'] / stats['free_throws_attempted']) * 100, 1)
+                else:
+                    stats['free_throw_percentage'] = 0.0
+            
+            for player_data in away_team_stats.values():
+                stats = player_data['stats']
+                if stats['field_goals_attempted'] > 0:
+                    stats['field_goal_percentage'] = round((stats['field_goals_made'] / stats['field_goals_attempted']) * 100, 1)
+                else:
+                    stats['field_goal_percentage'] = 0.0
+                
+                if stats['three_pointers_attempted'] > 0:
+                    stats['three_point_percentage'] = round((stats['three_pointers_made'] / stats['three_pointers_attempted']) * 100, 1)
+                else:
+                    stats['three_point_percentage'] = 0.0
+                
+                if stats['free_throws_attempted'] > 0:
+                    stats['free_throw_percentage'] = round((stats['free_throws_made'] / stats['free_throws_attempted']) * 100, 1)
+                else:
+                    stats['free_throw_percentage'] = 0.0
+            
+            return Response({
+                'game': {
+                    'id': game.id,
+                    'home_team': game.home_team.name,
+                    'away_team': game.away_team.name,
+                    'home_team_score': game.home_team_score,
+                    'away_team_score': game.away_team_score,
+                },
+                'home_team_player_stats': list(home_team_stats.values()),
+                'away_team_player_stats': list(away_team_stats.values()),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

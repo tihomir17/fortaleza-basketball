@@ -52,47 +52,107 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   void _refreshGameDetails() {
+    print('DEBUG: _refreshGameDetails - starting refresh for game ${widget.gameId}');
     final token = context.read<AuthCubit>().state.token;
     if (token != null && mounted) {
+      print('DEBUG: _refreshGameDetails - clearing cache and fetching fresh data');
+      // Clear the cache to ensure fresh data is loaded
+      context.read<GameDetailCubit>().clearGameCache(widget.gameId);
       context.read<GameDetailCubit>().fetchGameDetails(
         token: token,
         gameId: widget.gameId,
         loadPossessions: true, // Load possessions for detail view
       );
+      print('DEBUG: _refreshGameDetails - fetchGameDetails called');
+    } else {
+      print('DEBUG: _refreshGameDetails - token is null or widget not mounted');
     }
   }
 
   // Helper methods for game setup flow
   bool _hasRosters(Game? game) {
-    if (game == null) return false;
-    return game.homeTeamRoster != null && game.awayTeamRoster != null;
+    if (game == null) {
+      print('DEBUG: _hasRosters - game is null');
+      return false;
+    }
+    final hasHome = game.homeTeamRoster != null;
+    final hasAway = game.awayTeamRoster != null;
+    print('DEBUG: _hasRosters - home: $hasHome, away: $hasAway');
+    return hasHome && hasAway;
   }
 
   bool _hasHomeRoster(Game? game) {
-    if (game == null) return false;
-    return game.homeTeamRoster != null;
+    if (game == null) {
+      print('DEBUG: _hasHomeRoster - game is null');
+      return false;
+    }
+    final hasHome = game.homeTeamRoster != null;
+    print('DEBUG: _hasHomeRoster - result: $hasHome');
+    if (game.homeTeamRoster != null) {
+      print('DEBUG: _hasHomeRoster - home roster players: ${game.homeTeamRoster!.players.length}');
+    }
+    return hasHome;
   }
 
   bool _hasAwayRoster(Game? game) {
-    if (game == null) return false;
-    return game.awayTeamRoster != null;
+    if (game == null) {
+      print('DEBUG: _hasAwayRoster - game is null');
+      return false;
+    }
+    final hasAway = game.awayTeamRoster != null;
+    print('DEBUG: _hasAwayRoster - result: $hasAway');
+    return hasAway;
   }
 
   bool _hasStartingFives(Game? game) {
-    if (!_hasRosters(game)) return false;
-    return game!.homeTeamRoster!.startingFive.length == 5 && 
-           game.awayTeamRoster!.startingFive.length == 5;
+    if (!_hasRosters(game)) {
+      print('DEBUG: _hasStartingFives - no rosters, returning false');
+      return false;
+    }
+    
+    // Check if both rosters have exactly 5 starting five players
+    final homeStartingFiveComplete = game!.homeTeamRoster!.startingFive.length == 5;
+    final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+    
+    print('DEBUG: _hasStartingFives - home starting five: ${game.homeTeamRoster!.startingFive.length}/5, away starting five: ${game.awayTeamRoster!.startingFive.length}/5');
+    print('DEBUG: _hasStartingFives - home complete: $homeStartingFiveComplete, away complete: $awayStartingFiveComplete');
+    
+    return homeStartingFiveComplete && awayStartingFiveComplete;
   }
 
   bool _canAddPossessions(Game? game) {
-    return _hasStartingFives(game);
+    if (game == null) {
+      print('DEBUG: _canAddPossessions - game is null');
+      return false;
+    }
+    
+    // Must have both rosters AND both starting fives complete
+    final hasBothRosters = game.homeTeamRoster != null && game.awayTeamRoster != null;
+    if (!hasBothRosters) {
+      print('DEBUG: _canAddPossessions - missing rosters, returning false');
+      return false;
+    }
+    
+    final homeStartingFiveComplete = game.homeTeamRoster!.startingFive.length == 5;
+    final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+    
+    final canAdd = homeStartingFiveComplete && awayStartingFiveComplete;
+    print('DEBUG: _canAddPossessions - home starting five: ${game.homeTeamRoster!.startingFive.length}/5, away starting five: ${game.awayTeamRoster!.startingFive.length}/5');
+    print('DEBUG: _canAddPossessions - can add possessions: $canAdd');
+    
+    return canAdd;
   }
 
   // Navigation methods
   Future<void> _navigateToRosterManagement(Team team) async {
+    print('DEBUG: _navigateToRosterManagement - starting for team: ${team.name}');
     final game = context.read<GameDetailCubit>().state.game;
-    if (game == null) return;
+    if (game == null) {
+      print('DEBUG: _navigateToRosterManagement - game is null, returning');
+      return;
+    }
 
+    print('DEBUG: _navigateToRosterManagement - navigating to roster management for ${team.name}');
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => RosterManagementScreen(
@@ -102,15 +162,26 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       ),
     );
 
+    print('DEBUG: _navigateToRosterManagement - returned with result: $result');
     if (result == true && mounted) {
+      print('DEBUG: _navigateToRosterManagement - roster created successfully, refreshing game details');
+      // Add a small delay to ensure backend has processed the roster creation
+      await Future.delayed(const Duration(milliseconds: 500));
       _refreshGameDetails();
+    } else {
+      print('DEBUG: _navigateToRosterManagement - roster creation cancelled or failed');
     }
   }
 
   Future<void> _navigateToStartingFive(Team team, GameRoster roster) async {
+    print('DEBUG: _navigateToStartingFive - starting for team: ${team.name}');
     final game = context.read<GameDetailCubit>().state.game;
-    if (game == null) return;
+    if (game == null) {
+      print('DEBUG: _navigateToStartingFive - game is null, returning');
+      return;
+    }
 
+    print('DEBUG: _navigateToStartingFive - navigating to starting five for ${team.name}');
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => StartingFiveScreen(
@@ -121,8 +192,14 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       ),
     );
 
+    print('DEBUG: _navigateToStartingFive - returned with result: $result');
     if (result == true && mounted) {
+      print('DEBUG: _navigateToStartingFive - starting five updated successfully, refreshing game details');
+      // Add a small delay to ensure backend has processed the starting five update
+      await Future.delayed(const Duration(milliseconds: 500));
       _refreshGameDetails();
+    } else {
+      print('DEBUG: _navigateToStartingFive - starting five update cancelled or failed');
     }
   }
 
@@ -253,9 +330,23 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     final hasStartingFives = _hasStartingFives(game);
     final canAddPossessions = _canAddPossessions(game);
 
+    print('DEBUG: _buildGameSetupSection - hasRosters: $hasRosters, hasHomeRoster: $hasHomeRoster, hasAwayRoster: $hasAwayRoster, hasStartingFives: $hasStartingFives, canAddPossessions: $canAddPossessions');
+    print('DEBUG: _buildGameSetupSection - game.homeTeamRoster: ${game.homeTeamRoster}');
+    print('DEBUG: _buildGameSetupSection - game.awayTeamRoster: ${game.awayTeamRoster}');
+
     // Don't show setup section if everything is complete
     if (canAddPossessions) {
+      print('DEBUG: _buildGameSetupSection - setup complete, hiding section');
       return const SizedBox.shrink();
+    }
+
+    // Log which buttons will be shown
+    if (!hasHomeRoster) {
+      print('DEBUG: _buildGameSetupSection - showing home roster button');
+    } else if (!hasAwayRoster) {
+      print('DEBUG: _buildGameSetupSection - showing away roster button');
+    } else if (!hasStartingFives) {
+      print('DEBUG: _buildGameSetupSection - showing starting five buttons');
     }
 
     return Card(
@@ -272,36 +363,37 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            // Roster Status Display
+            _buildRosterStatusDisplay(game),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (!hasRosters) ...[
-                  // Step 1: Create rosters for both teams
-                  if (!hasHomeRoster) ...[
-                    ElevatedButton.icon(
-                      onPressed: () => _navigateToRosterManagement(game.homeTeam),
-                      icon: const Icon(Icons.people, size: 18),
-                      label: Text('${game.homeTeam.name} Roster'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
+                // Step 1: Create home roster first
+                if (!hasHomeRoster) ...[
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToRosterManagement(game.homeTeam),
+                    icon: const Icon(Icons.people, size: 18),
+                    label: Text('${game.homeTeam.name} Roster'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                  if (!hasAwayRoster) ...[
-                    ElevatedButton.icon(
-                      onPressed: () => _navigateToRosterManagement(game.awayTeam),
-                      icon: const Icon(Icons.people, size: 18),
-                      label: Text('${game.awayTeam.name} Roster'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
+                  ),
+                ] else if (!hasAwayRoster) ...[
+                  // Step 2: Create away roster after home roster is done
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToRosterManagement(game.awayTeam),
+                    icon: const Icon(Icons.people, size: 18),
+                    label: Text('${game.awayTeam.name} Roster'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
+                  ),
                 ] else if (!hasStartingFives) ...[
-                  // Step 2: Select starting fives for both teams
+                  // Step 3: Select starting fives for both teams after both rosters are done
                   if (game.homeTeamRoster!.startingFive.length != 5) ...[
                     ElevatedButton.icon(
                       onPressed: () => _navigateToStartingFive(game.homeTeam, game.homeTeamRoster!),
@@ -340,17 +432,158 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     );
   }
 
+  Widget _buildRosterStatusDisplay(Game game) {
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
+    final hasStartingFives = _hasStartingFives(game);
+    
+    print('DEBUG: _buildRosterStatusDisplay - hasHomeRoster: $hasHomeRoster, hasAwayRoster: $hasAwayRoster, hasStartingFives: $hasStartingFives');
+    if (game.homeTeamRoster != null) {
+      print('DEBUG: _buildRosterStatusDisplay - home roster players: ${game.homeTeamRoster!.players.length}, starting five: ${game.homeTeamRoster!.startingFive.length}');
+    }
+    if (game.awayTeamRoster != null) {
+      print('DEBUG: _buildRosterStatusDisplay - away roster players: ${game.awayTeamRoster!.players.length}, starting five: ${game.awayTeamRoster!.startingFive.length}');
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Roster Status',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTeamRosterStatus(
+                  team: game.homeTeam,
+                  hasRoster: hasHomeRoster,
+                  roster: game.homeTeamRoster,
+                  isStartingFiveComplete: hasHomeRoster && game.homeTeamRoster!.startingFive.length == 5,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTeamRosterStatus(
+                  team: game.awayTeam,
+                  hasRoster: hasAwayRoster,
+                  roster: game.awayTeamRoster,
+                  isStartingFiveComplete: hasAwayRoster && game.awayTeamRoster!.startingFive.length == 5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTeamRosterStatus({
+    required Team team,
+    required bool hasRoster,
+    required GameRoster? roster,
+    required bool isStartingFiveComplete,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: hasRoster ? Colors.green[50] : Colors.red[50],
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: hasRoster ? Colors.green[300]! : Colors.red[300]!,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasRoster ? Icons.check_circle : Icons.cancel,
+                color: hasRoster ? Colors.green : Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  team.name,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: hasRoster ? Colors.green[800] : Colors.red[800],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (hasRoster) ...[
+            Text(
+              'Players: ${roster!.players.length}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.green[700],
+              ),
+            ),
+            Text(
+              'Starting Five: ${isStartingFiveComplete ? "✓ Complete" : "✗ Incomplete"}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isStartingFiveComplete ? Colors.green[700] : Colors.orange[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ] else ...[
+            Text(
+              'No roster created',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.red[700],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   String _getSetupStatusText(Game game) {
     final hasRosters = _hasRosters(game);
     final hasStartingFives = _hasStartingFives(game);
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
 
     if (!hasRosters) {
-      return 'Create rosters for both teams to continue (10-12 players each)';
+      if (!hasHomeRoster && !hasAwayRoster) {
+        return 'Create rosters for both teams to continue (10-12 players each)';
+      } else if (!hasHomeRoster) {
+        return 'Create roster for ${game.homeTeam.name} to continue';
+      } else if (!hasAwayRoster) {
+        return 'Create roster for ${game.awayTeam.name} to continue';
+      }
     } else if (!hasStartingFives) {
-      return 'Select starting five for both teams to enable possession logging';
+      final homeStartingFiveComplete = game.homeTeamRoster!.startingFive.length == 5;
+      final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+      
+      if (!homeStartingFiveComplete && !awayStartingFiveComplete) {
+        return 'Select starting five for both teams to enable possession logging';
+      } else if (!homeStartingFiveComplete) {
+        return 'Select starting five for ${game.homeTeam.name} to enable possession logging';
+      } else if (!awayStartingFiveComplete) {
+        return 'Select starting five for ${game.awayTeam.name} to enable possession logging';
+      }
     } else {
       return 'Game setup complete! You can now log possessions.';
     }
+    
+    return 'Game setup in progress...';
   }
 
   @override
@@ -418,6 +651,35 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 ),
               ],
             ),
+          ),
+          // Add New Possession button (only when setup is complete)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final canAddPossessions = _canAddPossessions(game);
+              
+              if (!canAddPossessions) {
+                return const SizedBox.shrink();
+              }
+              
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    context.go('/games/${widget.gameId}/add-possession');
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Possession'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           // Load/Reload possessions button (always available)
           BlocBuilder<GameDetailCubit, GameDetailState>(

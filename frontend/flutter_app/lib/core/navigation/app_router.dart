@@ -44,6 +44,7 @@ import '../../features/staff/presentation/screens/player_health_screen.dart';
 import '../../features/staff/presentation/screens/injury_reports_screen.dart';
 import '../../features/staff/presentation/screens/training_programs_screen.dart';
 import '../../features/staff/presentation/screens/performance_metrics_screen.dart';
+import '../../features/possessions/presentation/screens/log_possession_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -176,6 +177,14 @@ class AppRouter {
                       final gameId =
                           int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
                       return AdvancedPostGameReportScreen(gameId: gameId);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'add-possession', // Matches '/games/:gameId/add-possession'
+                    builder: (context, state) {
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return LiveTrackingScreen(gameId: gameId);
                     },
                   ),
                 ],

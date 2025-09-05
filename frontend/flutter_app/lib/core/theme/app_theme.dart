@@ -144,6 +144,10 @@ class AppTheme {
             fontSize: 16,
           ),
           bodyMedium: base.bodyMedium?.copyWith(fontFamily: 'Montserrat'),
+          bodySmall: base.bodySmall?.copyWith(fontFamily: 'Montserrat'),
+          labelLarge: base.labelLarge?.copyWith(fontFamily: 'Montserrat'),
+          labelMedium: base.labelMedium?.copyWith(fontFamily: 'Montserrat'),
+          labelSmall: base.labelSmall?.copyWith(fontFamily: 'Montserrat'),
         )
         .apply(bodyColor: onSurfaceColor, displayColor: onSurfaceColor);
   }

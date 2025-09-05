@@ -54,7 +54,9 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
   }
 
   Future<void> _saveRoster() async {
+    print('DEBUG: _saveRoster - starting with ${_selectedPlayers.length} players');
     if (_selectedPlayers.length < 10) {
+      print('DEBUG: _saveRoster - not enough players selected');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Minimum 10 players required'),
@@ -67,10 +69,12 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
     setState(() => _isLoading = true);
     final token = context.read<AuthCubit>().state.token;
     if (token == null) {
+      print('DEBUG: _saveRoster - no token available');
       setState(() => _isLoading = false);
       return;
     }
 
+    print('DEBUG: _saveRoster - calling createGameRoster API');
     try {
       await sl<GameRepository>().createGameRoster(
         token: token,
@@ -79,6 +83,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
         playerIds: _selectedPlayers.map((p) => p.id).toList(),
       );
 
+      print('DEBUG: _saveRoster - API call successful');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -89,6 +94,7 @@ class _RosterManagementScreenState extends State<RosterManagementScreen> {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
+      print('DEBUG: _saveRoster - API call failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

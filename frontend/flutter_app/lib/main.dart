@@ -43,7 +43,8 @@ import 'features/scouting/data/services/self_scouting_service.dart';
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: Level.warning, // Changed from Level.error to Level.warning to deactivate debug logs
+  level: Level
+      .warning, // Changed from Level.error to Level.warning to deactivate debug logs
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,
@@ -72,7 +73,9 @@ void setupServiceLocator() {
   );
   sl.registerLazySingleton<GameRepository>(() => GameRepository());
   sl.registerLazySingleton<EventRepository>(() => EventRepository());
-  sl.registerLazySingleton<SelfScoutingService>(() => SelfScoutingService(sl<ApiService>()));
+  sl.registerLazySingleton<SelfScoutingService>(
+    () => SelfScoutingService(sl<ApiService>()),
+  );
 
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(

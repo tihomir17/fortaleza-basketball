@@ -49,7 +49,16 @@ class IsTeamScopedObject(BasePermission):
         # Accept team or team_id
         team_id = data.get("team_id") or data.get("team")
         if team_id:
-            return Team.objects.filter(id=team_id, coaches=user).exists()
+            # Check if this is a GameRoster ID (for possessions) or Team ID
+            from apps.games.models import GameRoster
+            try:
+                # First try as GameRoster ID
+                game_roster = GameRoster.objects.get(id=team_id)
+                return Team.objects.filter(id=game_roster.team.id, coaches=user).exists()
+            except GameRoster.DoesNotExist:
+                # Fall back to Team ID
+                return Team.objects.filter(id=team_id, coaches=user).exists()
+        
         home_team_id = data.get("home_team")
         away_team_id = data.get("away_team")
         if home_team_id or away_team_id:
