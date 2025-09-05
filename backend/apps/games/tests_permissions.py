@@ -1,4 +1,5 @@
 import pytest
+import datetime
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -6,10 +7,17 @@ from rest_framework.test import APITestCase
 from apps.games.models import Game
 from apps.teams.models import Team
 from apps.users.models import User
+from apps.competitions.models import Competition
 
 
 class GamePermissionsTests(APITestCase):
     def setUp(self):
+        # Create competition
+        self.competition = Competition.objects.create(
+            name="Test Competition",
+            description="Test competition for testing",
+        )
+
         # Create users
         self.coach = User.objects.create_user(
             username="coach", password="testpass123", role=User.Role.COACH
@@ -22,19 +30,20 @@ class GamePermissionsTests(APITestCase):
         )
 
         # Create teams
-        self.team_a = Team.objects.create(name="Team A", created_by=self.coach)
-        self.team_b = Team.objects.create(name="Team B", created_by=self.coach)
-        self.team_c = Team.objects.create(name="Team C", created_by=self.other_coach)
+        self.team_a = Team.objects.create(name="Team A", created_by=self.coach, competition=self.competition)
+        self.team_b = Team.objects.create(name="Team B", created_by=self.coach, competition=self.competition)
+        self.team_c = Team.objects.create(name="Team C", created_by=self.other_coach, competition=self.competition)
 
         # Create games
         self.game = Game.objects.create(
             competition=self.competition,
-            home_team=self.team1,
-            away_team=self.team2,
+            home_team=self.team_a,
+            away_team=self.team_b,
             game_date=datetime.datetime.now(),
         )
 
         self.other_game = Game.objects.create(
+            competition=self.competition,
             home_team=self.team_c,
             away_team=self.team_a,
             game_date="2024-01-16",

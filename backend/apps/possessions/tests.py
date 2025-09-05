@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 from apps.teams.models import Team
 from apps.competitions.models import Competition
-from apps.games.models import Game
+from apps.games.models import Game, GameRoster
 from .models import Possession
 import datetime
 
@@ -36,10 +36,14 @@ class PossessionAPITests(APITestCase):
             game_date=datetime.date.today(),
         )
 
+        # Create game rosters
+        self.game_roster1 = GameRoster.objects.create(game=self.game, team=self.team1)
+        self.game_roster2 = GameRoster.objects.create(game=self.game, team=self.team2)
+
         self.possession_data = {
             "game_id": self.game.id,
-            "team_id": self.team1.id,
-            "opponent_id": self.team2.id,
+            "team_id": self.game_roster1.id,
+            "opponent_id": self.game_roster2.id,
             "start_time_in_game": "11:45",
             "duration_seconds": 15,
             "quarter": 1,

@@ -1,6 +1,7 @@
 from django.db.models import Count, Sum, Avg, Case, When, Value, F, Q, IntegerField
 from django.db.models.functions import Coalesce
 from .models import Possession
+from apps.games.models import Game
 
 
 class StatsService:
@@ -11,13 +12,19 @@ class StatsService:
 
     def _get_base_queryset(self, offensive=True, game_range=None):
         """Get base queryset for the team's possessions"""
-        queryset = Possession.objects.filter(
-            team=self.team if offensive else Q(opponent=self.team)
-        ).select_related("game", "team", "opponent")
+        if offensive:
+            queryset = Possession.objects.filter(team__team=self.team)
+        else:
+            queryset = Possession.objects.filter(opponent__team=self.team)
+        
+        queryset = queryset.select_related("game", "team", "team__team", "opponent", "opponent__team")
 
         if game_range:
             # Get recent games based on game_range
-            recent_games = self.team.games.order_by("-game_date")[:game_range]
+            from django.db.models import Q
+            recent_games = Game.objects.filter(
+                Q(home_team=self.team) | Q(away_team=self.team)
+            ).order_by("-game_date")[:game_range]
             queryset = queryset.filter(game__in=recent_games)
 
         return queryset
@@ -569,8 +576,8 @@ class PlayerStatsService:
     def get_player_offensive_stats(self):
         """Get player's offensive statistics"""
         queryset = Possession.objects.filter(
-            team=self.team, players_on_court=self.player
-        ).select_related("game", "team", "opponent")
+            team__team=self.team, players_on_court=self.player
+        ).select_related("game", "team", "team__team", "opponent", "opponent__team")
 
         # Overall offensive stats
         overall_stats = queryset.aggregate(
@@ -639,8 +646,8 @@ class PlayerStatsService:
     def get_player_defensive_stats(self):
         """Get player's defensive statistics"""
         queryset = Possession.objects.filter(
-            opponent=self.team, players_on_court=self.player
-        ).select_related("game", "team", "opponent")
+            opponent__team=self.team, players_on_court=self.player
+        ).select_related("game", "team", "team__team", "opponent", "opponent__team")
 
         # Overall defensive stats
         overall_stats = queryset.aggregate(

@@ -1,0 +1,505 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .dashboard-welcome {
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%);
+        backdrop-filter: blur(20px);
+        color: white;
+        padding: 4rem;
+        border-radius: var(--radius-2xl);
+        margin-bottom: 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: var(--shadow-2xl);
+    }
+
+    .dashboard-welcome::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+        opacity: 0.6;
+        animation: float 8s ease-in-out infinite;
+    }
+
+    .dashboard-welcome::after {
+        content: '🏀';
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        font-size: 3rem;
+        opacity: 0.3;
+        animation: rotate 20s linear infinite;
+    }
+
+    .dashboard-welcome h1 {
+        margin: 0 0 1rem 0;
+        font-size: 3rem;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard-welcome p {
+        margin: 0;
+        font-size: 1.25rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+        font-weight: 300;
+    }
+
+    .dashboard-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        text-align: center;
+        box-shadow: var(--shadow-xl);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(135deg, var(--red-600), var(--blue-600));
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    }
+
+    .stat-number {
+        font-size: 3.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--red-600), var(--blue-600));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-label {
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 600;
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .quick-action-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        text-align: center;
+        box-shadow: var(--shadow-xl);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .quick-action-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(135deg, var(--red-500), var(--blue-500));
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    }
+
+    .quick-action-icon {
+        font-size: 4.5rem;
+        margin-bottom: 1.5rem;
+        display: block;
+        background: linear-gradient(135deg, var(--red-600), var(--blue-600));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: float 3s ease-in-out infinite, pulse 2s ease-in-out infinite;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .quick-action-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-800);
+        margin-bottom: 1rem;
+    }
+
+    .quick-action-description {
+        color: var(--gray-600);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+
+    .quick-action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, var(--red-600), var(--blue-600));
+        color: white;
+        padding: 1.25rem 2.5rem;
+        border-radius: var(--radius-xl);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .quick-action-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .quick-action-button:hover {
+        background: linear-gradient(135deg, var(--red-700), var(--blue-700));
+        color: white;
+        text-decoration: none;
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: var(--shadow-2xl);
+    }
+
+    .quick-action-button:hover::before {
+        left: 100%;
+    }
+
+    .quick-action-button::after {
+        content: '→';
+        transition: transform 0.3s ease;
+    }
+
+    .quick-action-button:hover::after {
+        transform: translateX(4px);
+    }
+
+    .recent-activity {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        box-shadow: var(--shadow-xl);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        margin-top: 2rem;
+    }
+
+    .recent-activity h3 {
+        color: var(--gray-800);
+        margin-top: 0;
+        margin-bottom: 2rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .recent-activity h3::before {
+        content: '📈';
+        font-size: 1.5rem;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background: var(--gray-50);
+        border-radius: var(--radius);
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .activity-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.25rem;
+        color: white;
+        box-shadow: var(--shadow-md);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin-bottom: 0.25rem;
+        font-size: 1rem;
+    }
+
+    .activity-time {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Floating elements */
+    .floating-element {
+        position: absolute;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(37, 99, 235, 0.1));
+        animation: float 6s ease-in-out infinite;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .floating-element:nth-child(1) {
+        width: 100px;
+        height: 100px;
+        top: 15%;
+        left: 5%;
+        animation-delay: 0s;
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(37, 99, 235, 0.1));
+    }
+
+    .floating-element:nth-child(2) {
+        width: 150px;
+        height: 150px;
+        top: 50%;
+        right: 5%;
+        animation-delay: 2s;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(220, 38, 38, 0.1));
+    }
+
+    .floating-element:nth-child(3) {
+        width: 80px;
+        height: 80px;
+        bottom: 15%;
+        left: 15%;
+        animation-delay: 4s;
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(220, 38, 38, 0.1));
+    }
+
+    .floating-element:nth-child(4) {
+        width: 60px;
+        height: 60px;
+        top: 30%;
+        right: 20%;
+        animation-delay: 1s;
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(37, 99, 235, 0.15));
+    }
+
+    .floating-element:nth-child(5) {
+        width: 90px;
+        height: 90px;
+        bottom: 30%;
+        right: 30%;
+        animation-delay: 3s;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(124, 58, 237, 0.15));
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .dashboard-welcome {
+            padding: 2rem 1rem;
+        }
+        
+        .dashboard-welcome h1 {
+            font-size: 2rem;
+        }
+        
+        .dashboard-welcome p {
+            font-size: 1rem;
+        }
+        
+        .stat-card, .quick-action-card {
+            padding: 1.5rem;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+        }
+        
+        .quick-action-icon {
+            font-size: 3rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-welcome">
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+    <h1>🏀 Basketball Analytics Dashboard</h1>
+    <p>Welcome to your basketball team management system</p>
+</div>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_teams }}</div>
+        <div class="stat-label">Teams</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_games }}</div>
+        <div class="stat-label">Games</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_competitions }}</div>
+        <div class="stat-label">Competitions</div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <div class="quick-action-card">
+        <span class="quick-action-icon">👥</span>
+        <div class="quick-action-title">Manage Users</div>
+        <div class="quick-action-description">Add coaches, players, and staff members to your teams</div>
+        <a href="{% url 'admin:users_user_changelist' %}" class="quick-action-button">View Users</a>
+    </div>
+
+    <div class="quick-action-card">
+        <span class="quick-action-icon">🏀</span>
+        <div class="quick-action-title">Manage Teams</div>
+        <div class="quick-action-description">Create and organize your basketball teams</div>
+        <a href="{% url 'admin:teams_team_changelist' %}" class="quick-action-button">View Teams</a>
+    </div>
+
+    <div class="quick-action-card">
+        <span class="quick-action-icon">⚡</span>
+        <div class="quick-action-title">Schedule Games</div>
+        <div class="quick-action-description">Create and manage game schedules</div>
+        <a href="{% url 'admin:games_game_changelist' %}" class="quick-action-button">View Games</a>
+    </div>
+
+    <div class="quick-action-card">
+        <span class="quick-action-icon">📊</span>
+        <div class="quick-action-title">View Analytics</div>
+        <div class="quick-action-description">Access team and player performance data</div>
+        <a href="/api/schema/swagger-ui/" class="quick-action-button" target="_blank">API Docs</a>
+    </div>
+</div>
+
+<div class="recent-activity">
+    <h3>📈 Recent Activity</h3>
+    <div class="activity-item">
+        <div class="activity-icon">👤</div>
+        <div class="activity-content">
+            <div class="activity-title">New user registered</div>
+            <div class="activity-time">2 hours ago</div>
+        </div>
+    </div>
+    <div class="activity-item">
+        <div class="activity-icon">🏀</div>
+        <div class="activity-content">
+            <div class="activity-title">Team roster updated</div>
+            <div class="activity-time">4 hours ago</div>
+        </div>
+    </div>
+    <div class="activity-item">
+        <div class="activity-icon">⚡</div>
+        <div class="activity-content">
+            <div class="activity-title">Game scheduled</div>
+            <div class="activity-time">1 day ago</div>
+        </div>
+    </div>
+</div>
+
+{{ block.super }}
+{% endblock %}

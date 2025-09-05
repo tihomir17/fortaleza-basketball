@@ -4,7 +4,7 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
 from apps.teams.models import Team
-from apps.games.models import Game
+from apps.games.models import Game, GameRoster
 from apps.competitions.models import Competition
 from apps.possessions.models import Possession
 from django.utils import timezone
@@ -40,6 +40,11 @@ class PossessionPermissionsTests(APITestCase):
             away_team=self.team_b,
             game_date=timezone.now(),
         )
+        
+        # Create game rosters
+        self.game_roster_a = GameRoster.objects.create(game=self.game, team=self.team_a)
+        self.game_roster_b = GameRoster.objects.create(game=self.game, team=self.team_b)
+        
         self.url = reverse("possession-list")
 
     def auth(self, user):
@@ -49,8 +54,8 @@ class PossessionPermissionsTests(APITestCase):
     def test_member_can_read_possessions(self):
         p = Possession.objects.create(
             game=self.game,
-            team=self.team_b,
-            opponent=self.team_a,
+            team=self.game_roster_b,
+            opponent=self.game_roster_a,
             start_time_in_game="12:00",
             duration_seconds=10,
             quarter=1,

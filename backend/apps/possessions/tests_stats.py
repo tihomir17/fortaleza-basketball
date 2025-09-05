@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from apps.teams.models import Team
-from apps.games.models import Game
+from apps.games.models import Game, GameRoster
 from apps.competitions.models import Competition
 from apps.possessions.models import Possession
 from apps.possessions.services import StatsService, PlayerStatsService
@@ -67,6 +67,12 @@ class StatsServiceTestCase(APITestCase):
             game_date=timezone.now() - timedelta(days=7),
         )
 
+        # Create game rosters first
+        self.game1_roster_a = GameRoster.objects.create(game=self.game1, team=self.team_a)
+        self.game1_roster_b = GameRoster.objects.create(game=self.game1, team=self.team_b)
+        self.game2_roster_a = GameRoster.objects.create(game=self.game2, team=self.team_a)
+        self.game2_roster_b = GameRoster.objects.create(game=self.game2, team=self.team_b)
+
         # Create possessions with various scenarios
         self.create_test_possessions()
 
@@ -75,8 +81,8 @@ class StatsServiceTestCase(APITestCase):
         # Offensive possessions for Team A
         Possession.objects.create(
             game=self.game1,
-            team=self.team_a,
-            opponent=self.team_b,
+            team=self.game1_roster_a,
+            opponent=self.game1_roster_b,
             quarter=1,
             start_time_in_game="10:00",
             duration_seconds=15,
@@ -104,8 +110,8 @@ class StatsServiceTestCase(APITestCase):
 
         Possession.objects.create(
             game=self.game1,
-            team=self.team_a,
-            opponent=self.team_b,
+            team=self.game1_roster_a,
+            opponent=self.game1_roster_b,
             quarter=2,
             start_time_in_game="05:30",
             duration_seconds=20,
@@ -134,8 +140,8 @@ class StatsServiceTestCase(APITestCase):
         # Defensive possessions for Team A (opponent scoring)
         Possession.objects.create(
             game=self.game1,
-            team=self.team_b,
-            opponent=self.team_a,
+            team=self.game1_roster_b,
+            opponent=self.game1_roster_a,
             quarter=1,
             start_time_in_game="09:45",
             duration_seconds=12,
@@ -163,8 +169,8 @@ class StatsServiceTestCase(APITestCase):
 
         Possession.objects.create(
             game=self.game1,
-            team=self.team_b,
-            opponent=self.team_a,
+            team=self.game1_roster_b,
+            opponent=self.game1_roster_a,
             quarter=2,
             start_time_in_game="03:15",
             duration_seconds=18,
@@ -172,7 +178,7 @@ class StatsServiceTestCase(APITestCase):
             points_scored=0,
             offensive_set=Possession.OffensiveSetChoices.PICK_AND_ROLL,
             pnr_type=Possession.PnRTypeChoices.HANDOFF_SCREEN,
-            pnr_result=Possession.PnRResultChoices.PASS,
+            pnr_result=Possession.PnRResultChoices.KICK_OUT,
             has_paint_touch=False,
             has_kick_out=True,
             has_extra_pass=True,
@@ -191,17 +197,17 @@ class StatsServiceTestCase(APITestCase):
         )
 
         # Add players to possessions
-        possession1 = Possession.objects.get(quarter=1, team=self.team_a)
+        possession1 = Possession.objects.get(quarter=1, team=self.game1_roster_a)
         possession1.players_on_court.add(self.player1, self.player2)
 
-        possession2 = Possession.objects.get(quarter=2, team=self.team_a)
+        possession2 = Possession.objects.get(quarter=2, team=self.game1_roster_a)
         possession2.players_on_court.add(self.player1)
         possession2.offensive_rebound_players.add(self.player1)
 
-        possession3 = Possession.objects.get(quarter=1, team=self.team_b)
+        possession3 = Possession.objects.get(quarter=1, team=self.game1_roster_b)
         possession3.players_on_court.add(self.player1, self.player2)
 
-        possession4 = Possession.objects.get(quarter=2, team=self.team_b)
+        possession4 = Possession.objects.get(quarter=2, team=self.game1_roster_b)
         possession4.players_on_court.add(self.player1)
         possession4.offensive_rebound_players.add(self.player1, self.player2)
 
@@ -517,8 +523,9 @@ class PlayerStatsServiceTestCase(APITestCase):
             role=User.Role.PLAYER,
         )
 
-        # Create team
+        # Create teams
         self.team = Team.objects.create(name="Test Team", created_by=self.coach)
+        self.opponent_team = Team.objects.create(name="Opponent Team", created_by=self.coach)
         self.team.players.add(self.player)
         self.team.coaches.add(self.coach)
 
@@ -531,9 +538,13 @@ class PlayerStatsServiceTestCase(APITestCase):
         self.game = Game.objects.create(
             competition=self.competition,
             home_team=self.team,
-            away_team=self.team,
+            away_team=self.opponent_team,
             game_date=timezone.now(),
         )
+
+        # Create game rosters
+        self.game_roster = GameRoster.objects.create(game=self.game, team=self.team)
+        self.opponent_roster = GameRoster.objects.create(game=self.game, team=self.opponent_team)
 
         # Create possessions
         self.create_test_possessions()
@@ -543,8 +554,8 @@ class PlayerStatsServiceTestCase(APITestCase):
         # Offensive possession with player
         possession = Possession.objects.create(
             game=self.game,
-            team=self.team,
-            opponent=self.team,
+            team=self.game_roster,
+            opponent=self.game_roster,
             quarter=1,
             start_time_in_game="10:00",
             duration_seconds=15,
@@ -574,8 +585,8 @@ class PlayerStatsServiceTestCase(APITestCase):
         # Defensive possession with player
         defensive_possession = Possession.objects.create(
             game=self.game,
-            team=self.team,
-            opponent=self.team,
+            team=self.opponent_roster,
+            opponent=self.game_roster,
             quarter=2,
             start_time_in_game="05:30",
             duration_seconds=20,
@@ -721,11 +732,15 @@ class StatsAPITestCase(APITestCase):
             game_date=timezone.now(),
         )
 
+        # Create game rosters
+        self.game_roster = GameRoster.objects.create(game=self.game, team=self.team)
+        self.opponent_roster = GameRoster.objects.create(game=self.game, team=self.opponent_team)
+
         # Create possession
         self.possession = Possession.objects.create(
             game=self.game,
-            team=self.team,
-            opponent=self.opponent_team,
+            team=self.game_roster,
+            opponent=self.opponent_roster,
             quarter=1,
             start_time_in_game="10:00",
             duration_seconds=15,

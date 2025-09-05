@@ -328,7 +328,7 @@ class TeamRepository {
       logger.i('TeamRepository: Creating staff member $username for team $teamId.');
       
       // First, create the user
-      final createUrl = Uri.parse('${ApiClient.baseUrl}/users/register/');
+      final createUrl = Uri.parse('${ApiClient.baseUrl}/auth/register/');
       final createResponse = await _client.post(
         createUrl,
         headers: {
@@ -350,19 +350,26 @@ class TeamRepository {
         final userData = json.decode(createResponse.body);
         final userId = userData['id'];
         
+        logger.d('TeamRepository: Created user with ID: $userId');
+        logger.d('TeamRepository: User data: $userData');
+        
         // Now add the staff member to the team
         final addUrl = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
+        final requestBody = {
+          'user_id': userId,
+          'role': 'staff',
+          'staff_type': staffType,
+        };
+        
+        logger.d('TeamRepository: Adding staff to team with body: $requestBody');
+        
         final addResponse = await _client.post(
           addUrl,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: json.encode({
-            'user_id': userId,
-            'role': 'staff',
-            'staff_type': staffType,
-          }),
+          body: json.encode(requestBody),
         );
         
         if (addResponse.statusCode == 200) {

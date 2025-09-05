@@ -11,6 +11,7 @@ from apps.plays.models import PlayDefinition
 from apps.events.models import CalendarEvent
 from apps.competitions.models import Competition
 from apps.possessions.models import Possession
+from apps.games.models import Game, GameRoster
 from apps.users.permissions import IsTeamScopedObject
 from apps.plays.models import PlayCategory
 import datetime
@@ -64,6 +65,16 @@ class IsTeamScopedObjectTests(TestCase):
             game_date=datetime.datetime.now(),
         )
 
+        # Create GameRoster instances
+        self.team_roster = GameRoster.objects.create(
+            game=self.game,
+            team=self.team,
+        )
+        self.other_team_roster = GameRoster.objects.create(
+            game=self.game,
+            team=self.other_team,
+        )
+
         # Create play category
         self.category = PlayCategory.objects.create(name="Test Category")
 
@@ -86,12 +97,13 @@ class IsTeamScopedObjectTests(TestCase):
 
         self.possession = Possession.objects.create(
             game=self.game,
-            team=self.team,
-            opponent=self.other_team,
+            team=self.team_roster,
+            opponent=self.other_team_roster,
             start_time_in_game="10:00",
             duration_seconds=24,
             quarter=1,
             outcome=Possession.OutcomeChoices.MADE_2PTS,
+            created_by=self.coach,
         )
 
     def test_safe_methods_for_team_member(self):

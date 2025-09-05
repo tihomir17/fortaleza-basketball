@@ -83,11 +83,18 @@ class TeamViewSet(viewsets.ModelViewSet):
         Expects a body like: {'user_id': <id>, 'role': 'player', 'staff_type': 'PHYSIO'}
         """
         from apps.users.permissions import has_admin_rights
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"add_member called with data: {request.data}")
+        logger.info(f"Request user: {request.user.username}, role: {request.user.role}, coach_type: {request.user.coach_type}")
 
         team_to_join = self.get_object()  # The team we are adding to
         user_id = request.data.get("user_id")
         role = request.data.get("role")
         staff_type = request.data.get("staff_type")
+        
+        logger.info(f"Parsed values - user_id: {user_id}, role: {role}, staff_type: {staff_type}")
 
         if not user_id or not role:
             return Response(
@@ -205,9 +212,17 @@ class TeamViewSet(viewsets.ModelViewSet):
                 {"status": f"Coach {user_to_remove.username} removed from {team.name}"},
                 status=status.HTTP_200_OK,
             )
+        elif role.lower() == "staff":
+            # Staff members are also stored in the coaches relationship
+            team.coaches.remove(user_to_remove)
+            return Response(
+                {"status": f"Staff {user_to_remove.username} removed from {team.name}"},
+                status=status.HTTP_200_OK,
+            )
         else:
             return Response(
-                {"error": "Invalid role specified."}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid role specified. Must be 'player', 'coach', or 'staff'."}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
     @action(detail=True, methods=["post"])

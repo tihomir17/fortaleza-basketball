@@ -101,17 +101,18 @@ WSGI_APPLICATION = "basketball_analytics.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Database configuration
+# Use PostgreSQL for both development and production
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "basketball_analytics"),
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
+        "USER": os.getenv("DB_USER", os.getenv("USER", "postgres")),  # Use current user as default
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),  # Empty password for local development
         "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
         "OPTIONS": {
             "connect_timeout": 10,
-            "options": "-c default_transaction_isolation=read_committed"
         },
     }
 }
@@ -330,6 +331,7 @@ SLOW_REQUEST_MS = 1000  # Log requests taking more than 1 second
 MAX_QUERIES_PER_REQUEST = 50  # Log requests with more than 50 queries
 
 # Redis Cache Configuration
+# Use Redis for both development and production
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",

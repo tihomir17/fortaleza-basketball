@@ -10,7 +10,6 @@ from rest_framework import (  # pyright: ignore[reportMissingImports]
     viewsets,
 )  # pyright: ignore[reportMissingImports]
 from rest_framework.pagination import PageNumberPagination
-from django_ratelimit.decorators import ratelimit
 from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
@@ -38,9 +37,8 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]  # Anyone can register
     serializer_class = RegisterSerializer
 
-    @ratelimit(key='ip', rate='5/h', method='POST')
     def post(self, request, *args, **kwargs):
-        """Rate limited registration - 5 registrations per hour per IP"""
+        """Registration endpoint"""
         return super().post(request, *args, **kwargs)
 
 
@@ -95,29 +93,24 @@ class UserViewSet(viewsets.ModelViewSet):
     filterset_class = UserFilter
     pagination_class = UserPagination
 
-    @ratelimit(key='ip', rate='200/h', method='GET')
     def list(self, request, *args, **kwargs):
-        """Rate limited list view - 200 requests per hour per IP"""
+        """List view for users"""
         return super().list(request, *args, **kwargs)
 
-    @ratelimit(key='ip', rate='300/h', method='GET')
     def retrieve(self, request, *args, **kwargs):
-        """Rate limited retrieve view - 300 requests per hour per IP"""
+        """Retrieve view for users"""
         return super().retrieve(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='5/h', method='POST')
     def create(self, request, *args, **kwargs):
-        """Rate limited create view - 5 requests per hour per user"""
+        """Create view for users"""
         return super().create(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='10/h', method=['PUT', 'PATCH'])
     def update(self, request, *args, **kwargs):
-        """Rate limited update view - 10 requests per hour per user"""
+        """Update view for users"""
         return super().update(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='3/h', method='DELETE')
     def destroy(self, request, *args, **kwargs):
-        """Rate limited delete view - 3 requests per hour per user"""
+        """Delete view for users"""
         return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet[User]:

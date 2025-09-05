@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
-from django_ratelimit.decorators import ratelimit
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count, Q, Avg, Sum, QuerySet
@@ -40,27 +39,22 @@ class GameViewSet(viewsets.ModelViewSet):
     filterset_class = GameFilter
     pagination_class = GamePagination
 
-    @ratelimit(key='ip', rate='100/h', method='GET')
     def list(self, request, *args, **kwargs):
         """Rate limited list view - 100 requests per hour per IP"""
         return super().list(request, *args, **kwargs)
 
-    @ratelimit(key='ip', rate='200/h', method='GET')
     def retrieve(self, request, *args, **kwargs):
         """Rate limited retrieve view - 200 requests per hour per IP"""
         return super().retrieve(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='10/h', method='POST')
     def create(self, request, *args, **kwargs):
         """Rate limited create view - 10 requests per hour per user"""
         return super().create(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='20/h', method=['PUT', 'PATCH'])
     def update(self, request, *args, **kwargs):
         """Rate limited update view - 20 requests per hour per user"""
         return super().update(request, *args, **kwargs)
 
-    @ratelimit(key='user', rate='5/h', method='DELETE')
     def destroy(self, request, *args, **kwargs):
         """Rate limited delete view - 5 requests per hour per user"""
         return super().destroy(request, *args, **kwargs)

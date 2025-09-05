@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import functools
 from typing import Any, Callable, Optional, Dict, List
 from django.core.cache import cache
 from django.core.cache.utils import make_template_fragment_key
@@ -107,6 +108,7 @@ class CacheManager:
 def cache_analytics_data(timeout: int = 3600):
     """Decorator for caching expensive analytics functions"""
     def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Generate cache key from function name and arguments
             cache_key = CacheManager.generate_cache_key(
@@ -128,6 +130,7 @@ def cache_analytics_data(timeout: int = 3600):
 def cache_user_data(timeout: int = 1800):
     """Decorator for caching user-related data"""
     def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             cache_key = CacheManager.generate_cache_key(
                 f"user_data:{func.__name__}", 
@@ -148,6 +151,7 @@ def cache_user_data(timeout: int = 1800):
 def cache_team_data(timeout: int = 1800):
     """Decorator for caching team-related data"""
     def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             cache_key = CacheManager.generate_cache_key(
                 f"team_data:{func.__name__}", 
@@ -168,11 +172,11 @@ def cache_team_data(timeout: int = 1800):
 def cache_dashboard_data(timeout: int = 300):
     """Decorator for caching dashboard data"""
     def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             cache_key = CacheManager.generate_cache_key(
                 f"dashboard:{func.__name__}", 
-                *args, 
-                **kwargs
+                *args, **kwargs
             )
             
             return CacheManager.get_or_set(
