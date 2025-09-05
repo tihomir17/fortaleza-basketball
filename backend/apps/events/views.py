@@ -1,13 +1,20 @@
 # backend/apps/events/views.py
 
 from rest_framework import viewsets, permissions
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import CalendarEvent
-from .serializers import CalendarEventSerializer
+from .serializers import CalendarEventSerializer, CalendarEventListSerializer
 from .filters import CalendarEventFilter
 from django.db.models import Q
 from apps.teams.models import Team  # Import the Team model
 from apps.users.permissions import IsTeamScopedObject  # New import
+
+
+class CalendarEventPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
 
 
 class CalendarEventViewSet(viewsets.ModelViewSet):
@@ -16,6 +23,13 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
     queryset = CalendarEvent.objects.all()
     filter_backends = [DjangoFilterBackend]
     filterset_class = CalendarEventFilter
+    pagination_class = CalendarEventPagination
+
+    def get_serializer_class(self):
+        """Use lightweight serializer for list views"""
+        if self.action == "list":
+            return CalendarEventListSerializer
+        return CalendarEventSerializer
 
     def get_queryset(self):
         """

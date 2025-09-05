@@ -21,6 +21,22 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
+class UserListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for user lists - excludes heavy fields"""
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "role",
+            "coach_type",
+            "staff_type",
+            "jersey_number",
+        ]
+
+
 class CoachUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

@@ -1,14 +1,20 @@
 # apps/users/views.py
 
+from typing import Any, Dict, List, Optional, Type
 from django.contrib.auth import get_user_model  # pyright: ignore[reportMissingImports]
+from django.http import HttpRequest
+from django.db.models import QuerySet
 from rest_framework import (  # pyright: ignore[reportMissingImports]
     generics,
     permissions,
+    viewsets,
 )  # pyright: ignore[reportMissingImports]
+from rest_framework.pagination import PageNumberPagination
+from django_ratelimit.decorators import ratelimit
 from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
-from .serializers import RegisterSerializer, UserSerializer, CoachUpdateSerializer
+from .serializers import RegisterSerializer, UserSerializer, UserListSerializer, CoachUpdateSerializer
 from .filters import UserFilter
 from django.db.models import Q  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
@@ -21,10 +27,21 @@ from apps.users.permissions import IsTeamScopedObject  # New import
 User = get_user_model()
 
 
+class UserPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+
 # View for Registering a new User
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]  # Anyone can register
     serializer_class = RegisterSerializer
+
+    @ratelimit(key='ip', rate='5/h', method='POST')
+    def post(self, request, *args, **kwargs):
+        """Rate limited registration - 5 registrations per hour per IP"""
+        return super().post(request, *args, **kwargs)
 
 
 # View to get the current user's data
@@ -76,11 +93,37 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilter
+    pagination_class = UserPagination
 
-    def get_queryset(self):
+    @ratelimit(key='ip', rate='200/h', method='GET')
+    def list(self, request, *args, **kwargs):
+        """Rate limited list view - 200 requests per hour per IP"""
+        return super().list(request, *args, **kwargs)
+
+    @ratelimit(key='ip', rate='300/h', method='GET')
+    def retrieve(self, request, *args, **kwargs):
+        """Rate limited retrieve view - 300 requests per hour per IP"""
+        return super().retrieve(request, *args, **kwargs)
+
+    @ratelimit(key='user', rate='5/h', method='POST')
+    def create(self, request, *args, **kwargs):
+        """Rate limited create view - 5 requests per hour per user"""
+        return super().create(request, *args, **kwargs)
+
+    @ratelimit(key='user', rate='10/h', method=['PUT', 'PATCH'])
+    def update(self, request, *args, **kwargs):
+        """Rate limited update view - 10 requests per hour per user"""
+        return super().update(request, *args, **kwargs)
+
+    @ratelimit(key='user', rate='3/h', method='DELETE')
+    def destroy(self, request, *args, **kwargs):
+        """Rate limited delete view - 3 requests per hour per user"""
+        return super().destroy(request, *args, **kwargs)
+
+    def get_queryset(self) -> QuerySet[User]:
         """
-        THIS IS THE SIMPLEST POSSIBLE LOGIC.
-        It ensures a user can edit themselves or any other member of their teams.
+        Optimized query to get users that the current user can access.
+        Uses a single query with proper prefetching to avoid N+1 problems.
         """
         user = self.request.user
 
@@ -90,40 +133,29 @@ class UserViewSet(viewsets.ModelViewSet):
                 "player_on_teams", "coach_on_teams"
             )
 
-        # Step 1: Get all teams the current user is a member of.
-        my_teams = Team.objects.filter(Q(players=user) | Q(coaches=user))
-
-        # Step 2: Get all players from those teams.
-        players_on_my_teams = User.objects.filter(player_on_teams__in=my_teams)
-
-        # Step 3: Get all coaches from those teams.
-        coaches_on_my_teams = User.objects.filter(coach_on_teams__in=my_teams)
-
-        # Step 4: Combine them all with a union and add the user themselves.
-        # The .union() method combines querysets.
-        allowed_users = players_on_my_teams.union(coaches_on_my_teams)
-
-        # Step 5: Since union doesn't work well with further filtering,
-        # we get the IDs and do a final clean query.
-        allowed_ids = set(allowed_users.values_list("id", flat=True))
-        allowed_ids.add(user.id)  # Add the user's own ID
-
-        return User.objects.filter(id__in=allowed_ids).prefetch_related(
+        # Optimized single query: Get all users who are on teams where the current user is a member
+        # This avoids multiple queries and union operations
+        return User.objects.filter(
+            Q(player_on_teams__players=user) | 
+            Q(coach_on_teams__coaches=user) |
+            Q(id=user.id)  # Include the user themselves
+        ).distinct().prefetch_related(
             "player_on_teams", "coach_on_teams"
         )
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[Any]:
         """
-        Use a different serializer for updating coaches vs players.
+        Use different serializers based on action for optimal performance.
         """
-        # When updating an existing user...
-        if self.action in ["update", "partial_update"]:
+        if self.action == "list":
+            return UserListSerializer  # Lightweight for lists
+        elif self.action in ["update", "partial_update"]:
             instance = self.get_object()
             # If the user being updated is a coach, use the specific serializer
             if instance.role == User.Role.COACH:
                 return CoachUpdateSerializer
-
-        # For all other actions, use the default comprehensive serializer
+            return UserSerializer
+        # For retrieve, create, destroy - use full serializer
         return UserSerializer
 
     def perform_update(self, serializer):

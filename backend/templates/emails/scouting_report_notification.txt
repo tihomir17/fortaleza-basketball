@@ -1,0 +1,20 @@
+🏀 Basketball Analytics - New Scouting Report Available
+
+Hello {{ user.first_name|default:user.username }},
+
+A new scouting report has been uploaded and you have been granted access to view it.
+
+REPORT DETAILS:
+- Title: {{ report.title }}
+{% if report.description %}- Description: {{ report.description }}{% endif %}
+- Report Type: {% if report.report_type == 'UPLOADED_PDF' %}PDF Document{% elif report.report_type == 'YOUTUBE_LINK' %}YouTube Video{% else %}Generated Report{% endif %}
+- Uploaded by: {{ report.created_by.get_full_name|default:report.created_by.username }}
+- Date: {{ report.created_at|date:"F d, Y \a\t g:i A" }}
+
+You can access this report by logging into the Basketball Analytics application.
+
+IMPORTANT: This report is only accessible to users who have been granted permission. Please do not share this information with unauthorized personnel.
+
+---
+This is an automated notification from Basketball Analytics.
+If you have any questions, please contact your team administrator.

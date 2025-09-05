@@ -6,12 +6,14 @@ from apps.games.models import Game
 from apps.possessions.models import Possession
 from apps.teams.models import Team
 from apps.users.models import User
+from apps.core.cache_utils import cache_analytics_data
 
 
 class GameAnalyticsService:
     """Service for calculating comprehensive game analytics and statistics."""
 
     @staticmethod
+    @cache_analytics_data(timeout=1800)  # Cache for 30 minutes
     def get_comprehensive_analytics(
         team_id: Optional[int] = None,
         game_ids: Optional[List[int]] = None,

@@ -10,6 +10,24 @@ from apps.games.roster_serializers import GameRosterSerializer
 from apps.users.serializers import UserSerializer
 
 
+# Lightweight serializer for possession lists
+class PossessionListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for possession lists - minimal fields for better performance"""
+    class Meta:
+        model = Possession
+        fields = [
+            "id",
+            "game",
+            "team",
+            "opponent",
+            "quarter",
+            "start_time_in_game",
+            "outcome",
+            "points_scored",
+            "created_at",
+        ]
+
+
 # This is the "deep" serializer for the main /api/possessions/ endpoint.
 class PossessionSerializer(serializers.ModelSerializer):
     game = GameReadSerializer(read_only=True)

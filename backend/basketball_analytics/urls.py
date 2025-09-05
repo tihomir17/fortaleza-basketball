@@ -23,6 +23,7 @@ from apps.users.views import UserViewSet
 from apps.games.views import GameViewSet
 from apps.events.views import CalendarEventViewSet
 from apps.plays.views import PlayCategoryViewSet
+from apps.core.views import health_check, readiness_check, liveness_check
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
@@ -66,8 +67,10 @@ def auth_test(request):
 
 
 urlpatterns = [
-    # Health check endpoint
+    # Health check endpoints
     path("api/health/", health_check, name="health_check"),
+    path("api/health/ready/", readiness_check, name="readiness_check"),
+    path("api/health/live/", liveness_check, name="liveness_check"),
     # Authentication test endpoint
     path("api/auth-test/", auth_test, name="auth_test"),
     # The Django admin site

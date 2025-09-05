@@ -5,6 +5,9 @@ djangorestframework-simplejwt
 django-filter
 django-cors-headers
 drf-spectacular
+django-ratelimit
+django-redis
+redis
 
 # Database
 psycopg2-binary

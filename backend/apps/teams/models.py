@@ -32,6 +32,11 @@ class Team(models.Model):
 
     class Meta:
         ordering = ['name']  # Add ordering to prevent pagination warnings
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["competition"]),
+            models.Index(fields=["created_by"]),
+        ]
 
     def __str__(self):
         return self.name

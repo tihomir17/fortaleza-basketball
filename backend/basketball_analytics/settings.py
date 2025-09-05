@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     # Our apps
+    "apps.core.apps.CoreConfig",
     "apps.users.apps.UsersConfig",
     "apps.teams.apps.TeamsConfig",
     "apps.plays.apps.PlaysConfig",
@@ -63,6 +64,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # Enable GZip compression
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -73,7 +75,7 @@ MIDDLEWARE = [
     # Custom logging middlewares
     "basketball_analytics.middleware.ExceptionLoggingMiddleware",
     "basketball_analytics.middleware.RequestLoggingMiddleware",
-    "basketball_analytics.middleware.SlowQueryLoggingMiddleware",
+    "basketball_analytics.middleware.PerformanceMonitoringMiddleware",
 ]
 
 ROOT_URLCONF = "basketball_analytics.urls"
@@ -101,8 +103,16 @@ WSGI_APPLICATION = "basketball_analytics.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "basketball_analytics"),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "options": "-c default_transaction_isolation=read_committed"
+        },
     }
 }
 
@@ -211,6 +221,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
+    "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
 }
 
 SIMPLE_JWT = {
@@ -313,8 +324,61 @@ LOGGING = {
     },
 }
 
-# Slow query threshold in milliseconds
+# Performance monitoring settings
 SLOW_QUERY_MS = 100  # tuned threshold
+SLOW_REQUEST_MS = 1000  # Log requests taking more than 1 second
+MAX_QUERIES_PER_REQUEST = 50  # Log requests with more than 50 queries
+
+# Redis Cache Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 50,
+                "retry_on_timeout": True,
+            },
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "basketball_analytics",
+        "TIMEOUT": 300,  # 5 minutes default timeout
+    },
+    "analytics": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 20,
+                "retry_on_timeout": True,
+            },
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+        },
+        "KEY_PREFIX": "analytics",
+        "TIMEOUT": 3600,  # 1 hour for analytics data
+    },
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/3",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 30,
+                "retry_on_timeout": True,
+            },
+        },
+        "KEY_PREFIX": "sessions",
+        "TIMEOUT": 86400,  # 24 hours for sessions
+    },
+}
+
+# Session configuration
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "sessions"
 
 # Media files (uploads)
 MEDIA_URL = "/media/"

@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from apps.teams.models import Team
 from apps.competitions.models import Competition
+from apps.core.cache_utils import CacheManager
 
 User = get_user_model()
 
@@ -48,6 +49,22 @@ class Game(models.Model):
 
     class Meta:
         ordering = ["-game_date"]
+        indexes = [
+            models.Index(fields=["game_date"]),
+            models.Index(fields=["home_team", "game_date"]),
+            models.Index(fields=["away_team", "game_date"]),
+            models.Index(fields=["competition", "game_date"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        """Override save to invalidate cache when game data changes"""
+        super().save(*args, **kwargs)
+        # Invalidate cache for both teams
+        CacheManager.invalidate_team_cache(self.home_team.id)
+        CacheManager.invalidate_team_cache(self.away_team.id)
+        # Invalidate analytics cache
+        CacheManager.invalidate_pattern("analytics:*")
 
     def __str__(self):
         return f"{self.home_team.name} vs {self.away_team.name} - {self.game_date.strftime('%Y-%m-%d')}"
