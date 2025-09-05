@@ -1,14 +1,13 @@
 // lib/features/scouting/presentation/screens/self_scouting_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/widgets/user_profile_app_bar.dart';
 import '../cubit/self_scouting_cubit.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/progress_indicator.dart';
 import '../../data/models/self_scouting_data.dart';
-import '../../../../core/services/api_service.dart';
-import '../../data/services/self_scouting_service.dart';
 
 class SelfScoutingScreen extends StatefulWidget {
   const SelfScoutingScreen({super.key});
@@ -90,6 +89,15 @@ class _SelfScoutingScreenState extends State<SelfScoutingScreen>
   }
 
   Widget _buildContent(BuildContext context, SelfScoutingData data) {
+    // Check if user is a player - if so, show only uploaded content
+    final user = context.read<AuthCubit>().state.user;
+    final isPlayer = user?.role == 'PLAYER';
+    
+    if (isPlayer) {
+      return _buildPlayerViewOnlyContent(context);
+    }
+    
+    // For coaches and other roles, show full analytics
     return Column(
       children: [
         // Tab Bar
@@ -1462,5 +1470,215 @@ class _SelfScoutingScreenState extends State<SelfScoutingScreen>
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildPlayerViewOnlyContent(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.visibility_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Self-Scouting Materials',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'View uploaded PDFs and YouTube videos shared by your coaches.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // PDF Documents Section
+          _buildDocumentsSection(context, 'PDF Documents', Icons.picture_as_pdf, [
+            // Mock data - in real implementation, this would come from the backend
+            {
+              'title': 'Shooting Form Analysis',
+              'uploaded_by': 'Coach Vladimir',
+              'date': '2025-09-01',
+              'type': 'pdf',
+            },
+            {
+              'title': 'Defensive Positioning Guide',
+              'uploaded_by': 'Coach Jelena',
+              'date': '2025-08-28',
+              'type': 'pdf',
+            },
+          ]),
+          
+          const SizedBox(height: 16),
+          
+          // YouTube Videos Section
+          _buildDocumentsSection(context, 'YouTube Videos', Icons.play_circle_outline, [
+            // Mock data - in real implementation, this would come from the backend
+            {
+              'title': 'Free Throw Technique Tutorial',
+              'uploaded_by': 'Coach Vladimir',
+              'date': '2025-09-02',
+              'type': 'youtube',
+              'url': 'https://youtube.com/watch?v=example1',
+            },
+            {
+              'title': 'Ball Handling Drills',
+              'uploaded_by': 'Coach Jelena',
+              'date': '2025-08-30',
+              'type': 'youtube',
+              'url': 'https://youtube.com/watch?v=example2',
+            },
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentsSection(BuildContext context, String title, IconData icon, List<Map<String, dynamic>> documents) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (documents.isEmpty)
+              Text(
+                'No ${title.toLowerCase()} available yet.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+            else
+              ...documents.map((doc) => _buildDocumentItem(context, doc)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(BuildContext context, Map<String, dynamic> doc) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Document Icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: doc['type'] == 'pdf' 
+                  ? Colors.red.withOpacity(0.2)
+                  : Colors.red.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              doc['type'] == 'pdf' ? Icons.picture_as_pdf : Icons.play_circle_outline,
+              color: doc['type'] == 'pdf' ? Colors.red : Colors.red,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // Document Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doc['title'],
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Uploaded by ${doc['uploaded_by']}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  doc['date'],
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Action Button
+          IconButton(
+            onPressed: () {
+              if (doc['type'] == 'pdf') {
+                // TODO: Implement PDF download/viewing
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Opening PDF: ${doc['title']}'),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              } else {
+                // TODO: Implement YouTube video opening
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Opening YouTube video: ${doc['title']}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            icon: Icon(
+              doc['type'] == 'pdf' ? Icons.download : Icons.play_arrow,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: doc['type'] == 'pdf' ? 'Download PDF' : 'Watch Video',
+          ),
+        ],
+      ),
+    );
   }
 }

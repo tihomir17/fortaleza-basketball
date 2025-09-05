@@ -46,6 +46,29 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
     _endTime = TimeOfDay.fromDateTime(
       DateTime.now().add(const Duration(hours: 1)),
     );
+    
+    // Auto-select team for coaches
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoSelectTeamForCoach();
+    });
+  }
+  
+  void _autoSelectTeamForCoach() {
+    final user = context.read<AuthCubit>().state.user;
+    final userTeams = context.read<TeamCubit>().state.teams;
+    
+    // If user is a coach and has teams, auto-select the first team they coach
+    if (user?.role == 'COACH' && userTeams.isNotEmpty) {
+      // Find the first team where the user is a coach
+      final coachTeam = userTeams.firstWhere(
+        (team) => team.coaches.any((coach) => coach.id == user!.id),
+        orElse: () => userTeams.first, // Fallback to first team if not found
+      );
+      
+      setState(() {
+        _selectedTeamId = coachTeam.id;
+      });
+    }
   }
 
   @override
@@ -98,7 +121,11 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
         startTime: finalStartTime,
         endTime: finalEndTime,
         eventType: _selectedEventType,
-        teamId: _selectedEventType == 'PRACTICE_TEAM'
+        teamId: (_selectedEventType == 'PRACTICE_TEAM' || 
+                 _selectedEventType == 'SCOUTING_MEETING' ||
+                 _selectedEventType == 'STRENGTH_CONDITIONING' ||
+                 _selectedEventType == 'TEAM_MEETING' ||
+                 _selectedEventType == 'TEAM_BUILDING')
             ? _selectedTeamId
             : _selectedTeamIdForPractice,
         attendeeIds: _selectedAttendeeIds,
@@ -136,38 +163,134 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
               validator: (v) => v!.isEmpty ? 'Title is required' : null,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedEventType,
-              items: const [
-                DropdownMenuItem(
-                  value: 'PRACTICE_TEAM',
-                  child: Text('Team Practice'),
-                ),
-                DropdownMenuItem(
-                  value: 'PRACTICE_INDIVIDUAL',
-                  child: Text('Individual Practice'),
-                ),
-                DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-              ],
-              onChanged: (v) => setState(() => _selectedEventType = v!),
-              decoration: const InputDecoration(labelText: 'Event Type *'),
-            ),
-            if (_selectedEventType == 'PRACTICE_TEAM') ...[
-              const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                value: _selectedTeamId,
-                hint: const Text('Select a team'),
-                items: userTeams
-                    .map(
-                      (team) => DropdownMenuItem(
-                        value: team.id,
-                        child: Text(team.name),
+            Builder(
+              builder: (context) {
+                final user = context.read<AuthCubit>().state.user;
+                final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
+                
+                if (isManagement) {
+                  // Management can only create specific event types
+                  return DropdownButtonFormField<String>(
+                    value: _selectedEventType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'TRAVEL_BUS',
+                        child: Text('Travel (Bus)'),
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedTeamId = v),
-                decoration: const InputDecoration(labelText: 'Team *'),
-                validator: (v) => v == null ? 'Team is required' : null,
+                      DropdownMenuItem(
+                        value: 'TRAVEL_PLANE',
+                        child: Text('Travel (Plane)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_BUILDING',
+                        child: Text('Team Building'),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _selectedEventType = v!),
+                    decoration: const InputDecoration(labelText: 'Event Type *'),
+                  );
+                } else {
+                  // All other users can create all event types
+                  return DropdownButtonFormField<String>(
+                    value: _selectedEventType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'PRACTICE_TEAM',
+                        child: Text('Team Practice'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PRACTICE_INDIVIDUAL',
+                        child: Text('Individual Practice'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'SCOUTING_MEETING',
+                        child: Text('Scouting Meeting'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'STRENGTH_CONDITIONING',
+                        child: Text('Strength & Conditioning'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'GAME',
+                        child: Text('Game'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_MEETING',
+                        child: Text('Team Meeting'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TRAVEL_BUS',
+                        child: Text('Travel (Bus)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TRAVEL_PLANE',
+                        child: Text('Travel (Plane)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'TEAM_BUILDING',
+                        child: Text('Team Building'),
+                      ),
+                      DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                    ],
+                    onChanged: (v) => setState(() => _selectedEventType = v!),
+                    decoration: const InputDecoration(labelText: 'Event Type *'),
+                  );
+                }
+              },
+            ),
+            if (_selectedEventType == 'PRACTICE_TEAM' || 
+                _selectedEventType == 'SCOUTING_MEETING' ||
+                _selectedEventType == 'STRENGTH_CONDITIONING' ||
+                _selectedEventType == 'TEAM_MEETING' ||
+                _selectedEventType == 'TEAM_BUILDING') ...[
+              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final user = context.read<AuthCubit>().state.user;
+                  final isCoach = user?.role == 'COACH';
+                  
+                  if (isCoach && _selectedTeamId != null) {
+                    // For coaches, show the selected team as read-only
+                    final selectedTeam = userTeams.firstWhere(
+                      (team) => team.id == _selectedTeamId,
+                      orElse: () => userTeams.first,
+                    );
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.group, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Team: ${selectedTeam.name}',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    // For non-coaches or when no team is selected, show dropdown
+                    return DropdownButtonFormField<int>(
+                      value: _selectedTeamId,
+                      hint: const Text('Select a team'),
+                      items: userTeams
+                          .map(
+                            (team) => DropdownMenuItem(
+                              value: team.id,
+                              child: Text(team.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedTeamId = v),
+                      decoration: const InputDecoration(labelText: 'Team *'),
+                      validator: (v) => v == null ? 'Team is required' : null,
+                    );
+                  }
+                },
               ),
             ],
             if (_selectedEventType == 'PRACTICE_INDIVIDUAL') ...[

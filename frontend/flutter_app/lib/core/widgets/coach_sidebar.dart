@@ -23,6 +23,13 @@ class CoachSidebar extends StatelessWidget {
           final isPlayer = authState.status == AuthStatus.authenticated && 
                           authState.user != null && 
                           authState.user!.role == 'PLAYER';
+          final isStaff = authState.status == AuthStatus.authenticated && 
+                         authState.user != null && 
+                         authState.user!.role == 'STAFF';
+          final staffType = authState.user?.staffType;
+          final isPhysio = isStaff && staffType == 'PHYSIO';
+          final isStrengthConditioning = isStaff && staffType == 'STRENGTH_CONDITIONING';
+          final isManagement = isStaff && staffType == 'MANAGEMENT';
           
           return ListView(
             padding: EdgeInsets.zero,
@@ -33,7 +40,11 @@ class CoachSidebar extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: Text(
-                  isPlayer ? 'Player Menu' : 'Coach Menu',
+                  isPlayer ? 'Player Menu' : 
+                  isPhysio ? 'Physio Menu' :
+                  isStrengthConditioning ? 'S&C Menu' :
+                  isManagement ? 'Management Menu' :
+                  isStaff ? 'Staff Menu' : 'Coach Menu',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimary,
                     fontFamily: 'Anton',
@@ -41,16 +52,18 @@ class CoachSidebar extends StatelessWidget {
                 ),
               ),
               
-              // Dashboard - Always visible
-              ListTile(
-                leading: const Icon(Icons.dashboard_outlined),
-                title: const Text('Dashboard'),
-                selected: currentRoute == '/',
-                onTap: () {
-                  logger.i('CoachSidebar: Navigating to Dashboard (/).');
-                  context.go('/');
-                },
-              ),
+              // Dashboard - Visible for coaches, players, and management staff
+              if (!isStaff || isManagement) ...[
+                ListTile(
+                  leading: const Icon(Icons.dashboard_outlined),
+                  title: const Text('Dashboard'),
+                  selected: currentRoute == '/',
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Dashboard (/).');
+                    context.go('/');
+                  },
+                ),
+              ],
               
               // Calendar - Always visible
               ListTile(
@@ -63,20 +76,75 @@ class CoachSidebar extends StatelessWidget {
                 },
               ),
               
-              // Self Scouting - Only visible for players
-              if (isPlayer)
+              // Staff-specific menu items
+              if (isPhysio) ...[
                 ListTile(
-                  leading: const Icon(Icons.person_search_outlined),
-                  title: const Text('Self Scouting'),
-                  selected: currentRoute.startsWith('/self-scouting'),
+                  leading: const Icon(Icons.medical_services_outlined),
+                  title: const Text('Player Health'),
+                  selected: currentRoute.startsWith('/player-health'),
                   onTap: () {
-                    logger.i('CoachSidebar: Navigating to Self Scouting (/self-scouting).');
-                    context.go('/self-scouting');
+                    logger.i('CoachSidebar: Navigating to Player Health (/player-health).');
+                    context.go('/player-health');
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.assignment_outlined),
+                  title: const Text('Injury Reports'),
+                  selected: currentRoute.startsWith('/injury-reports'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Injury Reports (/injury-reports).');
+                    context.go('/injury-reports');
+                  },
+                ),
+              ],
               
-              // Coach-only menu items
-              if (!isPlayer) ...[
+              if (isStrengthConditioning) ...[
+                ListTile(
+                  leading: const Icon(Icons.fitness_center_outlined),
+                  title: const Text('Training Programs'),
+                  selected: currentRoute.startsWith('/training-programs'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Training Programs (/training-programs).');
+                    context.go('/training-programs');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.trending_up_outlined),
+                  title: const Text('Performance Metrics'),
+                  selected: currentRoute.startsWith('/performance-metrics'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Performance Metrics (/performance-metrics).');
+                    context.go('/performance-metrics');
+                  },
+                ),
+              ],
+              
+              // Management staff has no additional menu items - only Calendar
+              
+              // Player-only menu items (not visible to staff)
+              if (isPlayer && !isStaff) ...[
+                ListTile(
+                  leading: const Icon(Icons.sports_basketball_outlined),
+                  title: const Text('Game Preparation'),
+                  selected: currentRoute.startsWith('/individual-game-prep'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Game Preparation (/individual-game-prep).');
+                    context.go('/individual-game-prep');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.assessment_outlined),
+                  title: const Text('Post Game Scouting'),
+                  selected: currentRoute.startsWith('/individual-post-game'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Post Game Scouting (/individual-post-game).');
+                    context.go('/individual-post-game');
+                  },
+                ),
+              ],
+              
+              // Coach-only menu items (not visible to staff or players)
+              if (!isPlayer && !isStaff) ...[
                 ListTile(
                   leading: const Icon(Icons.group_outlined),
                   title: const Text('Team Management'),
@@ -114,12 +182,48 @@ class CoachSidebar extends StatelessWidget {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.video_library_outlined),
-                  title: const Text('Scouting Reports'),
+                  leading: const Icon(Icons.analytics_outlined),
+                  title: const Text('Team Analytics Reports'),
                   selected: currentRoute.startsWith('/scouting-reports'),
                   onTap: () {
-                    logger.i('CoachSidebar: Navigating to Scouting Reports (/scouting-reports).');
+                    logger.i('CoachSidebar: Navigating to Team Analytics Reports (/scouting-reports).');
                     context.go('/scouting-reports');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.search_outlined),
+                  title: const Text('Opponent Scouting'),
+                  selected: currentRoute.startsWith('/opponent-scouting'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Opponent Scouting (/opponent-scouting).');
+                    context.go('/opponent-scouting');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_search_outlined),
+                  title: const Text('Player Analytics Reports'),
+                  selected: currentRoute.startsWith('/coach-self-scouting'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Player Analytics Reports (/coach-self-scouting).');
+                    context.go('/coach-self-scouting');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sports_basketball_outlined),
+                  title: const Text('Game Preparation'),
+                  selected: currentRoute.startsWith('/individual-game-prep'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Game Preparation (/individual-game-prep).');
+                    context.go('/individual-game-prep');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.assessment_outlined),
+                  title: const Text('Post Game Scouting'),
+                  selected: currentRoute.startsWith('/individual-post-game'),
+                  onTap: () {
+                    logger.i('CoachSidebar: Navigating to Post Game Scouting (/individual-post-game).');
+                    context.go('/individual-post-game');
                   },
                 ),
               ],

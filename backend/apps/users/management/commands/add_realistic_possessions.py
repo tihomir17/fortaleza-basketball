@@ -546,7 +546,6 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"Adding possessions to game: {game.home_team.name} vs {game.away_team.name}"
                 )
-
                 if clear_existing:
                     Possession.objects.filter(game=game).delete()
                     self.stdout.write("Cleared existing possessions.")

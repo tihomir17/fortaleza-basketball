@@ -351,6 +351,18 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
+                      // Score display
+                      if (game.homeTeamScore != null && game.awayTeamScore != null) ...[
+                        Text(
+                          '${game.homeTeamScore} - ${game.awayTeamScore}',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Text(
                         game.gameDate != null
                             ? DateFormat.yMMMd().format(game.gameDate)

@@ -78,4 +78,17 @@ class SelfScoutingCubit extends Cubit<SelfScoutingState> {
       emit(SelfScoutingError(e.toString()));
     }
   }
+
+  Future<void> loadSelfScoutingDataForPlayer(int playerId) async {
+    try {
+      emit(SelfScoutingLoading());
+      
+      // For now, use mock data. In the future, this could call a specific API endpoint
+      // that returns self-scouting data for a specific player
+      final data = await _selfScoutingService.getMockSelfScoutingData();
+      emit(SelfScoutingLoaded(data));
+    } catch (e) {
+      emit(SelfScoutingError(e.toString()));
+    }
+  }
 }

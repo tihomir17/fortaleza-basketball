@@ -44,4 +44,38 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = self.request.user
+        
+        # Players cannot create events
+        if user.role == 'PLAYER':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Players cannot create events.")
+        
+        # If no team is provided and user is a coach, auto-assign their primary team
+        if not serializer.validated_data.get('team') and user.role == 'COACH':
+            # Get the first team where the user is a coach
+            coach_teams = Team.objects.filter(coaches=user)
+            if coach_teams.exists():
+                serializer.validated_data['team'] = coach_teams.first()
+        
+        serializer.save(created_by=user)
+    
+    def perform_update(self, serializer):
+        user = self.request.user
+        
+        # Players cannot update events
+        if user.role == 'PLAYER':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Players cannot edit events.")
+        
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        user = self.request.user
+        
+        # Players cannot delete events
+        if user.role == 'PLAYER':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Players cannot delete events.")
+        
+        instance.delete()

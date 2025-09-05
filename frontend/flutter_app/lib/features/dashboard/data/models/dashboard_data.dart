@@ -7,6 +7,7 @@ class DashboardData {
   final List<UpcomingGame> recentGames;
   final List<RecentReport> recentReports;
   final List<QuickAction> quickActions;
+  final List<UpcomingEvent> upcomingEvents;
 
   DashboardData({
     required this.quickStats,
@@ -15,6 +16,7 @@ class DashboardData {
     required this.recentGames,
     required this.recentReports,
     required this.quickActions,
+    required this.upcomingEvents,
   });
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,9 @@ class DashboardData {
           .toList() ?? [],
       quickActions: (json['quick_actions'] as List?)
           ?.map((e) => QuickAction.fromJson(e))
+          .toList() ?? [],
+      upcomingEvents: (json['upcoming_events'] as List?)
+          ?.map((e) => UpcomingEvent.fromJson(e))
           .toList() ?? [],
     );
   }
@@ -200,6 +205,38 @@ class QuickAction {
       title: json['title'] ?? '',
       icon: json['icon'] ?? '',
       route: json['route'] ?? '',
+    );
+  }
+}
+
+class UpcomingEvent {
+  final int id;
+  final String title;
+  final String eventType;
+  final DateTime startTime;
+  final DateTime endTime;
+  final String? location;
+  final String? description;
+
+  UpcomingEvent({
+    required this.id,
+    required this.title,
+    required this.eventType,
+    required this.startTime,
+    required this.endTime,
+    this.location,
+    this.description,
+  });
+
+  factory UpcomingEvent.fromJson(Map<String, dynamic> json) {
+    return UpcomingEvent(
+      id: json['id'] ?? 0,
+      title: json['title'] ?? '',
+      eventType: json['event_type'] ?? '',
+      startTime: DateTime.parse(json['start_time']),
+      endTime: DateTime.parse(json['end_time']),
+      location: json['location'],
+      description: json['description'],
     );
   }
 }

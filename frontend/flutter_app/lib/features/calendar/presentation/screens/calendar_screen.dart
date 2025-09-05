@@ -96,19 +96,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 
                 final user = authState.user!;
                 if (user.role == 'PLAYER') {
-                  // Players can request practice sessions
-                  return IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Request Practice Session',
-                    onPressed: () {
-                      _showPracticeRequestDialog(context);
-                    },
-                  );
+                  // Players cannot request individual practice sessions (disabled as per requirements)
+                  return const SizedBox.shrink();
                 } else {
-                  // Coaches can schedule games and practices directly
+                  // Coaches can schedule games and events directly
                   return IconButton(
                     icon: const Icon(Icons.add),
-                    tooltip: 'Schedule Game or Practice',
+                    tooltip: 'Schedule Game or Event',
                     onPressed: () {
                       // The logic for showing the choice dialog remains the same
                       showModalBottomSheet(
@@ -129,8 +123,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               },
                             ),
                             ListTile(
-                              leading: const Icon(Icons.fitness_center),
-                              title: const Text('Schedule a Practice'),
+                              leading: const Icon(Icons.event),
+                              title: const Text('Schedule an Event'),
                               onTap: () {
                                 Navigator.of(ctx).pop();
                                 Navigator.of(context).push(
@@ -335,9 +329,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Card(
       child: ListTile(
         leading: Icon(
-          event.eventType.startsWith('PRACTICE')
-              ? Icons.fitness_center
-              : Icons.event,
+          _getEventIcon(event.eventType),
           color: Theme.of(context).colorScheme.secondary,
         ),
         title: Text(
@@ -345,30 +337,79 @@ class _CalendarScreenState extends State<CalendarScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text('Starts at ${DateFormat.jm().format(event.startTime)}'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              tooltip: 'Edit Event',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EditEventScreen(event: event),
-                  ),
+        trailing: Builder(
+          builder: (context) {
+            final user = context.read<AuthCubit>().state.user;
+            final isPlayer = user?.role == 'PLAYER';
+            final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
+            
+            if (isPlayer) {
+              // Players can only view events, no edit/delete buttons
+              return const SizedBox.shrink();
+            } else if (isManagement) {
+              // Management can only edit specific event types
+              final allowedEventTypes = ['TRAVEL_BUS', 'TRAVEL_PLANE', 'TEAM_BUILDING'];
+              final canEdit = allowedEventTypes.contains(event.eventType);
+              
+              if (canEdit) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      tooltip: 'Edit Event',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EditEventScreen(event: event),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      tooltip: 'Delete Event',
+                      onPressed: () => _showDeleteConfirmation(context, event),
+                    ),
+                  ],
                 );
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 20,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              tooltip: 'Delete Event',
-              onPressed: () => _showDeleteConfirmation(context, event),
-            ),
-          ],
+              } else {
+                // Management cannot edit other event types
+                return const SizedBox.shrink();
+              }
+            } else {
+              // Coaches and other roles can edit/delete all events
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    tooltip: 'Edit Event',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    tooltip: 'Delete Event',
+                    onPressed: () => _showDeleteConfirmation(context, event),
+                  ),
+                ],
+              );
+            }
+          },
         ),
         onTap: () {
           Navigator.of(context).push(
@@ -379,6 +420,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
         },
       ),
     );
+  }
+
+  // Helper method to get appropriate icon for event type
+  IconData _getEventIcon(String eventType) {
+    switch (eventType) {
+      case 'PRACTICE_TEAM':
+      case 'PRACTICE_INDIVIDUAL':
+        return Icons.fitness_center;
+      case 'SCOUTING_MEETING':
+        return Icons.search;
+      case 'STRENGTH_CONDITIONING':
+        return Icons.sports_gymnastics;
+      case 'GAME':
+        return Icons.sports_basketball;
+      case 'TEAM_MEETING':
+        return Icons.groups;
+      case 'TRAVEL_BUS':
+        return Icons.directions_bus;
+      case 'TRAVEL_PLANE':
+        return Icons.flight;
+      case 'TEAM_BUILDING':
+        return Icons.emoji_events;
+      default:
+        return Icons.event;
+    }
   }
 
   // A NEW, GENERIC DELETE CONFIRMATION DIALOG
@@ -433,74 +499,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _showPracticeRequestDialog(BuildContext context) {
-    final selectedDate = _selectedDay ?? DateTime.now();
-    final startTime = TimeOfDay.now();
-    final endTime = TimeOfDay(hour: startTime.hour + 1, minute: startTime.minute);
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Request Practice Session'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Date: ${DateFormat.yMMMd().format(selectedDate)}',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Start Time: ${startTime.format(context)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'End Time: ${endTime.format(context)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'This request will be sent to your coach for approval.',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Implement practice request functionality
-                // This would typically send a notification/request to the coach
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Practice request sent to coach for approval'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: const Text('Send Request'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 class _EventDetailScreen extends StatelessWidget {
@@ -508,20 +506,79 @@ class _EventDetailScreen extends StatelessWidget {
 
   const _EventDetailScreen({required this.event});
 
+  // Helper method to get appropriate icon for event type
+  IconData _getEventIcon(String eventType) {
+    switch (eventType) {
+      case 'PRACTICE_TEAM':
+      case 'PRACTICE_INDIVIDUAL':
+        return Icons.fitness_center;
+      case 'SCOUTING_MEETING':
+        return Icons.search;
+      case 'STRENGTH_CONDITIONING':
+        return Icons.sports_gymnastics;
+      case 'GAME':
+        return Icons.sports_basketball;
+      case 'TEAM_MEETING':
+        return Icons.groups;
+      case 'TRAVEL_BUS':
+        return Icons.directions_bus;
+      case 'TRAVEL_PLANE':
+        return Icons.flight;
+      case 'TEAM_BUILDING':
+        return Icons.emoji_events;
+      default:
+        return Icons.event;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(event.title),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => EditEventScreen(event: event),
-                ),
-              );
+          Builder(
+            builder: (context) {
+              final user = context.read<AuthCubit>().state.user;
+              final isPlayer = user?.role == 'PLAYER';
+              final isManagement = user?.role == 'STAFF' && user?.staffType == 'MANAGEMENT';
+              
+              if (isPlayer) {
+                // Players can only view events, no edit button
+                return const SizedBox.shrink();
+              } else if (isManagement) {
+                // Management can only edit specific event types
+                final allowedEventTypes = ['TRAVEL_BUS', 'TRAVEL_PLANE', 'TEAM_BUILDING'];
+                final canEdit = allowedEventTypes.contains(event.eventType);
+                
+                if (canEdit) {
+                  return IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
+                    },
+                  );
+                } else {
+                  // Management cannot edit other event types
+                  return const SizedBox.shrink();
+                }
+              } else {
+                // Coaches and other roles can edit all events
+                return IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditEventScreen(event: event),
+                      ),
+                    );
+                  },
+                );
+              }
             },
           ),
         ],
@@ -534,9 +591,7 @@ class _EventDetailScreen extends StatelessWidget {
             Card(
               child: ListTile(
                 leading: Icon(
-                  event.eventType.startsWith('PRACTICE')
-                      ? Icons.fitness_center
-                      : Icons.event,
+                  _getEventIcon(event.eventType),
                   color: Theme.of(context).colorScheme.secondary,
                 ),
                 title: Text(

@@ -10,6 +10,7 @@ class User {
   final String lastName;
   final String role;
   final String? coachType; // Can be null
+  final String? staffType; // Can be null
   final int? jerseyNumber; 
 
   User({
@@ -20,6 +21,7 @@ class User {
     required this.lastName,
     required this.role,
     this.coachType,
+    this.staffType,
     this.jerseyNumber,
   });
 
@@ -41,6 +43,8 @@ class User {
       role: json['role'],
       // Ensure coach_type is handled correctly if it's null or missing
       coachType: json['coach_type'] == 'NONE' ? null : json['coach_type'],
+      // Ensure staff_type is handled correctly if it's null or missing
+      staffType: json['staff_type'] == 'NONE' ? null : json['staff_type'],
       jerseyNumber: json['jersey_number'],
     );
   }
@@ -54,6 +58,7 @@ class User {
       'lastName': lastName,
       'role': role,
       'coachType': coachType,
+      'staffType': staffType,
       'jerseyNumber': jerseyNumber,
     };
   }

@@ -235,6 +235,7 @@ class GameViewSet(viewsets.ModelViewSet):
             last_games = request.query_params.get("last_games")
             outcome_filter = request.query_params.get("outcome")
             home_away_filter = request.query_params.get("home_away")
+            opponent_filter = request.query_params.get("opponent")
             min_possessions = int(request.query_params.get("min_possessions", 10))
 
             # Convert team_id to int if provided
@@ -249,6 +250,10 @@ class GameViewSet(viewsets.ModelViewSet):
             if last_games:
                 last_games = int(last_games)
 
+            # Convert opponent_filter to int if provided
+            if opponent_filter:
+                opponent_filter = int(opponent_filter)
+
             # Get comprehensive analytics
             analytics_data = GameAnalyticsService.get_comprehensive_analytics(
                 team_id=team_id,
@@ -256,6 +261,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 last_games=last_games,
                 outcome_filter=outcome_filter,
                 home_away_filter=home_away_filter,
+                opponent_filter=opponent_filter,
                 min_possessions=min_possessions,
             )
 
@@ -400,7 +406,12 @@ class GameViewSet(viewsets.ModelViewSet):
             valid_reports = []
 
             for report in reports:
-                if report.file_size == 0:
+                # Only consider PDF reports with 0 file size as corrupted
+                # YouTube links and generated reports don't have file_size
+                if (
+                    report.report_type == ScoutingReport.ReportType.UPLOADED_PDF
+                    and report.file_size == 0
+                ):
                     corrupted_reports.append(report)
                 else:
                     valid_reports.append(report)
@@ -428,6 +439,123 @@ class GameViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=["post"])
+    def upload_scouting_report(self, request):
+        """
+        Upload a new scouting report (PDF or YouTube link).
+        """
+        try:
+            from .serializers import ScoutingReportCreateSerializer
+
+            serializer = ScoutingReportCreateSerializer(data=request.data)
+            if serializer.is_valid():
+                # Set the creator
+                report = serializer.save(created_by=request.user)
+
+                # Send notifications to tagged users
+                self._send_scouting_notifications(report)
+
+                # Return the created report
+                response_serializer = ScoutingReportSerializer(report)
+                return Response(
+                    response_serializer.data, status=status.HTTP_201_CREATED
+                )
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _send_scouting_notifications(self, report):
+        """
+        Send email and app notifications to tagged users about new scouting report.
+        """
+        try:
+            tagged_users = report.tagged_users.all()
+            if not tagged_users:
+                return
+
+            # Log the notification
+            print(
+                f"New scouting report '{report.title}' uploaded by {report.created_by.username}"
+            )
+            print(f"Tagged users: {[user.username for user in tagged_users]}")
+
+            # Send email notifications to users with email addresses
+            self._send_email_notifications(report, tagged_users)
+
+            # TODO: Implement app notifications (push notifications, in-app notifications, etc.)
+
+        except Exception as e:
+            print(f"Error sending scouting notifications: {e}")
+
+    def _send_email_notifications(self, report, tagged_users):
+        """
+        Send email notifications to tagged users about new scouting report.
+        """
+        from django.core.mail import EmailMultiAlternatives
+        from django.template.loader import render_to_string
+        from django.conf import settings
+
+        try:
+            # Get the app URL (you might want to make this configurable)
+            app_url = getattr(settings, "FRONTEND_URL", "http://localhost:8080")
+
+            for user in tagged_users:
+                # Only send email if user has an email address
+                if user.email:
+                    try:
+                        # Render email templates
+                        html_content = render_to_string(
+                            "emails/scouting_report_notification.html",
+                            {
+                                "user": user,
+                                "report": report,
+                                "app_url": app_url,
+                            },
+                        )
+
+                        text_content = render_to_string(
+                            "emails/scouting_report_notification.txt",
+                            {
+                                "user": user,
+                                "report": report,
+                                "app_url": app_url,
+                            },
+                        )
+
+                        # Create email
+                        subject = f"New Scouting Report: {report.title}"
+                        from_email = settings.DEFAULT_FROM_EMAIL
+                        to_email = [user.email]
+
+                        # Create multipart email
+                        email = EmailMultiAlternatives(
+                            subject=subject,
+                            body=text_content,
+                            from_email=from_email,
+                            to=to_email,
+                        )
+                        email.attach_alternative(html_content, "text/html")
+
+                        # Send email
+                        email.send()
+                        print(
+                            f"Email notification sent to {user.email} for report '{report.title}'"
+                        )
+
+                    except Exception as e:
+                        print(f"Error sending email to {user.email}: {e}")
+                else:
+                    print(
+                        f"User {user.username} has no email address, skipping email notification"
+                    )
+
+        except Exception as e:
+            print(f"Error in email notification system: {e}")
 
     @action(detail=True, methods=["get"])
     def download_report(self, request, pk=None):
@@ -740,6 +868,35 @@ class GameViewSet(viewsets.ModelViewSet):
                     {"title": "Calendar", "icon": "event", "route": "/calendar"},
                 ]
 
+            # Upcoming Events (today only)
+            upcoming_events = []
+            if user_teams and team_ids:
+                # Get events for today for the user's teams
+                today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                today_end = today_start + timedelta(days=1)
+                
+                upcoming_events = (
+                    CalendarEvent.objects.filter(
+                        team_id__in=team_ids,
+                        start_time__gte=today_start,
+                        start_time__lt=today_end,
+                    )
+                    .select_related("team")
+                    .order_by("start_time")
+                )
+
+                upcoming_events = [
+                    {
+                        "id": event.id,
+                        "title": event.title,
+                        "event_type": event.event_type,
+                        "start_time": event.start_time,
+                        "end_time": event.end_time,
+                        "description": event.description,
+                    }
+                    for event in upcoming_events
+                ]
+
             return Response(
                 {
                     "quick_stats": quick_stats,
@@ -747,10 +904,54 @@ class GameViewSet(viewsets.ModelViewSet):
                     "recent_games": recent_games,
                     "recent_reports": recent_reports,
                     "quick_actions": quick_actions,
+                    "upcoming_events": upcoming_events,
                 }
             )
 
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["delete"])
+    def delete_report(self, request, pk=None):
+        """
+        Delete a scouting report.
+        Only the creator or admin can delete the report.
+        """
+        try:
+            report = ScoutingReport.objects.get(id=pk)
+
+            # Check permissions - only creator or admin can delete
+            if report.created_by != request.user and not request.user.is_staff:
+                return Response(
+                    {"error": "You don't have permission to delete this report."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Store report info for logging
+            report_title = report.title
+            report_type = report.report_type
+
+            # Delete the report (this will also delete the associated file)
+            report.delete()
+
+            print(
+                f"Scouting report '{report_title}' ({report_type}) deleted by {request.user.username}"
+            )
+
+            return Response(
+                {"message": f"Scouting report '{report_title}' deleted successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        except ScoutingReport.DoesNotExist:
+            return Response(
+                {"error": "Scouting report not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
