@@ -61,6 +61,26 @@ services:
       timeout: 10s
       retries: 3
 
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`your-domain.com`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
   nginx:
     image: nginx:alpine
     ports:
@@ -73,6 +93,7 @@ services:
       - ./ssl:/etc/nginx/ssl
     depends_on:
       - web
+      - frontend
     restart: unless-stopped
 
 volumes:
