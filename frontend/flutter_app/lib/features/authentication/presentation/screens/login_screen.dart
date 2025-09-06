@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/auth_cubit.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,9 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       logger.d('LoginScreen: Login button pressed. Username: ${_usernameController.text.trim()}');
-      context
-          .read<AuthCubit>()
-          .login(_usernameController.text.trim(), _passwordController.text)
+      context.read<AuthCubit>().login(_usernameController.text.trim(), _passwordController.text)
           .whenComplete(() {
             if (mounted) {
               setState(() => _isLoading = false);

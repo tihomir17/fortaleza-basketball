@@ -1,4 +1,4 @@
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 // lib/features/calendar/data/models/calendar_event_model.dart
 

@@ -2,13 +2,13 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/features/dashboard/data/models/dashboard_data.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/features/dashboard/data/models/dashboard_data.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:go_router/go_router.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../widgets/quick_stats_card.dart';

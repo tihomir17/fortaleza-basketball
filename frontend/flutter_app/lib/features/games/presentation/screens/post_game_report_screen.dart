@@ -7,7 +7,7 @@ import '../../data/models/post_game_report_model.dart';
 import '../../data/repositories/game_repository.dart';
 import '../cubit/post_game_report_cubit.dart';
 import '../cubit/post_game_report_state.dart';
-import 'package:flutter_app/main.dart' as main_app;
+import 'package:fortaleza_basketball_analytics/main.dart' as main_app;
 
 class PostGameReportScreen extends StatelessWidget {
   final int gameId;

@@ -1,8 +1,8 @@
 import 'package:get_it/get_it.dart';
-import 'package:flutter_app/features/authentication/data/repositories/auth_repository.dart';
-import 'package:flutter_app/features/teams/data/repositories/team_repository.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/repositories/auth_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/repositories/team_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 
 final getIt = GetIt.instance;
 

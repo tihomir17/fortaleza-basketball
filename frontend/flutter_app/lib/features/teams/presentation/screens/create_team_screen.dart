@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart'; // For Service Locator (sl)
+import 'package:fortaleza_basketball_analytics/main.dart'; // For Service Locator (sl)
 import 'package:go_router/go_router.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/team_repository.dart';

@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 
 class IndividualGamePrepScreen extends StatefulWidget {
   const IndividualGamePrepScreen({super.key});

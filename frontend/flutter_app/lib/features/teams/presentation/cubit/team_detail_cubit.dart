@@ -3,7 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/team_repository.dart';
 import 'team_detail_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class TeamDetailCubit extends Cubit<TeamDetailState> {
   final TeamRepository _teamRepository;

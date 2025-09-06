@@ -1,7 +1,7 @@
 // lib/features/scouting/presentation/screens/self_scouting_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/widgets/user_profile_app_bar.dart';
 import '../cubit/self_scouting_cubit.dart';

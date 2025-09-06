@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
 import '../../data/models/game_model.dart';
 
 class GameCard extends StatelessWidget {

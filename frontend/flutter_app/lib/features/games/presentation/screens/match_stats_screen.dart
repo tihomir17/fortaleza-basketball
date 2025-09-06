@@ -3,11 +3,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/models/possession_model.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 
 class MatchStatsScreen extends StatefulWidget {
   final int gameId;

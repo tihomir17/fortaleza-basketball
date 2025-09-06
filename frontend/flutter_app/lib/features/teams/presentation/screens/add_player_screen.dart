@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import for input formatters
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart'; // Import the signal
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart'; // Import the signal
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/team_repository.dart';
 

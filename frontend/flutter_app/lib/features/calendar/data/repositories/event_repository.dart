@@ -2,9 +2,9 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 import '../models/calendar_event_model.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class EventRepository {
   final http.Client _client = http.Client();

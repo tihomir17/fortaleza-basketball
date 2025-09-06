@@ -1,5 +1,5 @@
 // lib/features/teams/data/models/team_model.dart
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
 
 class Team {
   final int id;

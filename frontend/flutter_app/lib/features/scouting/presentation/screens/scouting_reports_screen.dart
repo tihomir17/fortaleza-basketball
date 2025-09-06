@@ -3,7 +3,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
 
 class ScoutingReportsScreen extends StatelessWidget {
   const ScoutingReportsScreen({super.key});

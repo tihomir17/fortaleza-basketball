@@ -1,16 +1,16 @@
 // lib/features/games/presentation/screens/schedule_game_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_cubit.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_state.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/features/calendar/utils/calendar_validators.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/competitions/presentation/cubit/competition_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/competitions/presentation/cubit/competition_state.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/calendar/utils/calendar_validators.dart';
 
 class ScheduleGameScreen extends StatefulWidget {
   const ScheduleGameScreen({super.key});

@@ -1,7 +1,7 @@
 // lib/features/games/presentation/cubit/game_detail_state.dart
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/models/possession_model.dart';
 import '../../data/models/game_model.dart';
 
 enum GameDetailStatus { initial, loading, success, failure }

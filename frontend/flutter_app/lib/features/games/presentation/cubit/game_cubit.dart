@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/game_repository.dart';
 import '../../data/models/game_model.dart';
 import 'game_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class GameCubit extends Cubit<GameState> {
   final GameRepository _gameRepository;

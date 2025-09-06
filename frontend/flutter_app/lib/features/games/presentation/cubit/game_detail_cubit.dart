@@ -1,11 +1,11 @@
 // lib/features/games/presentation/cubit/game_detail_cubit.dart
 
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/game_repository.dart';
 import '../../data/models/game_model.dart';
 import 'game_detail_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class GameDetailCubit extends Cubit<GameDetailState> {
   final GameRepository _gameRepository;

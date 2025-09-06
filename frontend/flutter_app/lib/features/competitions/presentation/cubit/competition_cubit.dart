@@ -3,7 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/repositories/competition_repository.dart';
 import 'competition_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class CompetitionCubit extends Cubit<CompetitionState> {
   final CompetitionRepository _competitionRepository;

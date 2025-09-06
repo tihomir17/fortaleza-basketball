@@ -1,11 +1,11 @@
 // lib/features/teams/data/repositories/team_repository.dart
 
 import 'dart:convert';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 import '../models/team_model.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class TeamRepository {
   final http.Client _client = http.Client();

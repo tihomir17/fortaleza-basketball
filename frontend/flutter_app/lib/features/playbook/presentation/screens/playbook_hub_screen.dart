@@ -2,16 +2,16 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_state.dart';
-import 'package:flutter_app/features/plays/presentation/cubit/playbook_cubit.dart';
-import 'package:flutter_app/features/plays/presentation/cubit/playbook_state.dart';
-import 'package:flutter_app/features/plays/presentation/widgets/playbook_tree_view.dart';
-import 'package:flutter_app/main.dart'; // For GetIt
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_state.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit/playbook_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit/playbook_state.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/widgets/playbook_tree_view.dart';
+import 'package:fortaleza_basketball_analytics/main.dart'; // For GetIt
 
 class PlaybookHubScreen extends StatefulWidget {
   const PlaybookHubScreen({super.key});

@@ -1,8 +1,8 @@
 // lib/features/teams/presentation/screens/add_coach_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/team_repository.dart';
 

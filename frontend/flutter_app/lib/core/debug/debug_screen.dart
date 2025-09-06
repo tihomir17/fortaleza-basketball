@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:fortaleza_basketball_analytics/core/logging/file_logger.dart';
 
 class DebugScreen extends StatefulWidget {
   const DebugScreen({super.key});

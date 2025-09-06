@@ -2,9 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;

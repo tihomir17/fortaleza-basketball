@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/play_definition_model.dart';
 import '../../data/repositories/play_repository.dart';
 import 'playbook_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class PlaybookCubit extends Cubit<PlaybookState> {
   final PlayRepository _playRepository;

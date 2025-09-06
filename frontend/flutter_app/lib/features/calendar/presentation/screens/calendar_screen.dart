@@ -2,20 +2,20 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_state.dart';
-import 'package:flutter_app/features/calendar/presentation/screens/edit_event_screen.dart';
-import 'package:flutter_app/features/games/presentation/screens/schedule_game_screen.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
+import 'package:fortaleza_basketball_analytics/features/calendar/presentation/screens/edit_event_screen.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/screens/schedule_game_screen.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart'; // Import for navigation
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/calendar/data/repositories/event_repository.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/calendar/data/repositories/event_repository.dart';
 
 import 'schedule_event_screen.dart';
 import '../../../games/data/models/game_model.dart';

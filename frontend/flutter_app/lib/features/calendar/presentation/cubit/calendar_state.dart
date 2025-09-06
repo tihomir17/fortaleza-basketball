@@ -3,7 +3,7 @@
 import 'package:equatable/equatable.dart';
 import '../../../games/data/models/game_model.dart';
 import '../../data/models/calendar_event_model.dart'; // We will create this model
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 enum CalendarStatus { initial, loading, success, failure }
 

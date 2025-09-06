@@ -5,12 +5,12 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/game_repository.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import 'package:flutter_app/core/services/web_download_service.dart';
+import 'package:fortaleza_basketball_analytics/core/services/web_download_service.dart';
 import 'upload_scouting_report_screen.dart';
 
 class ScoutingReportsScreen extends StatefulWidget {

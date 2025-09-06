@@ -1,13 +1,13 @@
 // lib/features/calendar/presentation/screens/schedule_event_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
 import '../../data/repositories/event_repository.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
 

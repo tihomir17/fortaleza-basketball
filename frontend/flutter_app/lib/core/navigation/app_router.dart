@@ -1,10 +1,10 @@
 // lib/core/navigation/app_router.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 // Import the shell and all necessary screens/cubits
 import 'coach_scaffold.dart';
