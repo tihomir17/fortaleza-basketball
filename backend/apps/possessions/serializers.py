@@ -8,6 +8,7 @@ from apps.teams.serializers import TeamReadSerializer
 from apps.games.serializers import GameReadSerializer, GameWriteSerializer
 from apps.games.roster_serializers import GameRosterSerializer
 from apps.users.serializers import UserSerializer
+from apps.users.models import User
 
 
 # Lightweight serializer for possession lists
@@ -52,6 +53,20 @@ class PossessionSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         allow_null=True,
+    )
+    
+    # ManyToMany fields for players on court - using custom handling
+    players_on_court = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
+    )
+    defensive_players_on_court = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
     )
 
     def validate_outcome(self, value: str) -> str:
@@ -126,7 +141,8 @@ class PossessionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop("players_on_court", [])
+        players_on_court_ids = validated_data.pop("players_on_court", [])
+        defensive_players_on_court_ids = validated_data.pop("defensive_players_on_court", [])
         offensive_rebound_players_data = validated_data.pop(
             "offensive_rebound_players", []
         )
@@ -134,9 +150,13 @@ class PossessionSerializer(serializers.ModelSerializer):
         # Create the possession
         possession = super().create(validated_data)
 
-        # Add ManyToMany relationships
-        if players_on_court_data:
-            possession.players_on_court.set(players_on_court_data)
+        # Convert player IDs to User objects and set ManyToMany relationships
+        if players_on_court_ids:
+            players_on_court_users = User.objects.filter(id__in=players_on_court_ids)
+            possession.players_on_court.set(players_on_court_users)
+        if defensive_players_on_court_ids:
+            defensive_players_on_court_users = User.objects.filter(id__in=defensive_players_on_court_ids)
+            possession.defensive_players_on_court.set(defensive_players_on_court_users)
         if offensive_rebound_players_data:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
 
@@ -144,7 +164,8 @@ class PossessionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop("players_on_court", None)
+        players_on_court_ids = validated_data.pop("players_on_court", None)
+        defensive_players_on_court_ids = validated_data.pop("defensive_players_on_court", None)
         offensive_rebound_players_data = validated_data.pop(
             "offensive_rebound_players", None
         )
@@ -153,8 +174,12 @@ class PossessionSerializer(serializers.ModelSerializer):
         possession = super().update(instance, validated_data)
 
         # Update ManyToMany relationships if provided
-        if players_on_court_data is not None:
-            possession.players_on_court.set(players_on_court_data)
+        if players_on_court_ids is not None:
+            players_on_court_users = User.objects.filter(id__in=players_on_court_ids)
+            possession.players_on_court.set(players_on_court_users)
+        if defensive_players_on_court_ids is not None:
+            defensive_players_on_court_users = User.objects.filter(id__in=defensive_players_on_court_ids)
+            possession.defensive_players_on_court.set(defensive_players_on_court_users)
         if offensive_rebound_players_data is not None:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
 
@@ -202,6 +227,7 @@ class PossessionSerializer(serializers.ModelSerializer):
             "stolen_by",
             "fouled_by",
             "players_on_court",
+            "defensive_players_on_court",
             "notes",
             # Sequence fields
             "offensive_sequence",

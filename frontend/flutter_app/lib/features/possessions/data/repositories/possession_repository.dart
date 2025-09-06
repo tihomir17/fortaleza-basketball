@@ -20,6 +20,8 @@ class PossessionRepository {
     required String outcome,
     required String offensiveSequence,
     required String defensiveSequence,
+    List<int>? playersOnCourtIds, // IDs of players on court for the team with possession
+    List<int>? defensivePlayersOnCourtIds, // IDs of players on court for the defending team
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/');
     
@@ -34,6 +36,8 @@ class PossessionRepository {
       'outcome': outcome,
       'offensive_sequence': offensiveSequence,
       'defensive_sequence': defensiveSequence,
+      if (playersOnCourtIds != null) 'players_on_court': playersOnCourtIds,
+      if (defensivePlayersOnCourtIds != null) 'defensive_players_on_court': defensivePlayersOnCourtIds,
     };
     
     await FileLogger().logPossessionData('createPossession', requestData);
@@ -91,6 +95,8 @@ class PossessionRepository {
     required String outcome,
     required String offensiveSequence,
     required String defensiveSequence,
+    List<int>? playersOnCourtIds, // IDs of players on court for the team with possession
+    List<int>? defensivePlayersOnCourtIds, // IDs of players on court for the defending team
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/possessions/$possessionId/');
     logger.d('PossessionRepository: Updating possession $possessionId at $url');
@@ -112,6 +118,8 @@ class PossessionRepository {
           'outcome': outcome,
           'offensive_sequence': offensiveSequence,
           'defensive_sequence': defensiveSequence,
+          if (playersOnCourtIds != null) 'players_on_court': playersOnCourtIds,
+          if (defensivePlayersOnCourtIds != null) 'defensive_players_on_court': defensivePlayersOnCourtIds,
         }),
       );
       if (response.statusCode == 200) {
