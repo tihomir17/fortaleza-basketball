@@ -1,36 +1,54 @@
-# Basketball Analytics - Deployment Guide
+# Fortaleza Basketball Analytics - Unified Deployment Guide
 
-This guide covers deploying the Basketball Analytics application to production.
+This guide covers deploying the complete Fortaleza Basketball Analytics application (backend + frontend) to production.
 
 ## Prerequisites
 
-- Python 3.11+
-- PostgreSQL 13+
-- Redis 6+
-- Nginx (for reverse proxy)
-- SSL Certificate (for HTTPS)
+- Docker and Docker Compose
+- Domain name (optional, for production)
+- SSL Certificate (optional, for HTTPS)
 
-## Quick Deployment with Docker
+## 🚀 Quick Unified Deployment
 
-The easiest way to deploy is using Docker Compose:
+The easiest way to deploy both backend and frontend together:
 
 ```bash
 # Clone the repository
 git clone <your-repo-url>
 cd fortaleza-basketball/backend
 
-# Set environment variables
+# Set environment variables (optional for development)
 export SECRET_KEY="your-secret-key-here"
 export DB_PASSWORD="your-db-password"
 export EMAIL_HOST_USER="your-email@domain.com"
 export EMAIL_HOST_PASSWORD="your-email-password"
 
-# Deploy with Docker Compose
-docker-compose up -d
+# Deploy everything with one command
+./deploy-unified.sh
 
 # Create superuser
 docker-compose exec web python manage.py createsuperuser
 ```
+
+## 🎯 What Gets Deployed
+
+The unified deployment includes:
+
+- **Backend API** (Django + PostgreSQL + Redis)
+- **Frontend** (Flutter Web App)
+- **Nginx** (Reverse proxy serving both backend and frontend)
+- **Database** (PostgreSQL with persistent storage)
+- **Cache** (Redis for performance)
+
+## 🌐 Access Points
+
+After deployment:
+- **Main Application**: `http://localhost` (or your domain)
+- **API Endpoints**: `http://localhost/api/`
+- **Admin Panel**: `http://localhost/admin/`
+- **Health Checks**:
+  - Backend: `http://localhost/api/health/`
+  - Frontend: `http://localhost/health`
 
 ## Manual Deployment
 
