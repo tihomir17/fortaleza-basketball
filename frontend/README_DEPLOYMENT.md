@@ -113,3 +113,21 @@ Your Fortaleza Basketball Analytics frontend is now production-ready with:
 - ✅ One-command deployment
 
 **Happy Deploying!** 🚀🏀
+
+
+
+Procedura deploy-a:
+One time cmd lokalno za authentifikaciju dokera i auth registry:
+gcloud auth configure-docker us-central1-docker.pkg.dev
+
+iz backenda na svaku izmjenu koju hoces da deploy
+
+docker build . -t backend -f Dockerfile
+docker tag backend us-central1-docker.pkg.dev/inatdrive/backend
+docker push us-central1-docker.pkg.dev/inatdrive/backend
+
+iz frontenda na svaku izmjenu koju hoces da deploy
+
+docker build . -t frontend -f Dockerfile
+docker tag frontend us-central1-docker.pkg.dev/inatdrive/frontend
+docker push us-central1-docker.pkg.dev/inatdrive/frontend
