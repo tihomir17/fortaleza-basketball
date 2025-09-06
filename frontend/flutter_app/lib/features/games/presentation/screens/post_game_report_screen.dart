@@ -148,6 +148,10 @@ class _PostGameReportContent extends StatelessWidget {
           _buildHeader(),
           const SizedBox(height: 20),
           
+          // Key Performance Summary
+          _buildPerformanceSummary(),
+          const SizedBox(height: 20),
+          
           // Main content in three columns
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,10 +277,10 @@ class _PostGameReportContent extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         
-        // OFFENCE SETS
+        // OFFENCE SETS (showing first 10 sets)
         _buildSubSection('OFFENCE SETS', [
-          for (int i = 0; i < 3; i++)
-            _buildDataRow('$i', report.offence.offensiveSets['set_$i'] ?? _emptyStats()),
+          for (int i = 1; i <= 10; i++)
+            _buildDataRow('Set $i', report.offence.offensiveSets['set_$i'] ?? _emptyStats()),
         ]),
         const SizedBox(height: 12),
         
@@ -438,6 +442,10 @@ class _PostGameReportContent extends StatelessWidget {
   }
 
   Widget _buildDataRow(String playType, PlayTypeStats stats) {
+    // Color coding based on performance
+    Color pppColor = _getPerformanceColor(stats.ppp);
+    Color possessionColor = stats.possessions > 0 ? Colors.green : Colors.grey;
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       decoration: BoxDecoration(
@@ -455,24 +463,184 @@ class _PostGameReportContent extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              stats.possessions.toString(),
-              style: const TextStyle(color: Colors.white, fontSize: 10),
-              textAlign: TextAlign.center,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: possessionColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                stats.possessions.toString(),
+                style: TextStyle(
+                  color: possessionColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              stats.ppp.toStringAsFixed(1),
-              style: const TextStyle(color: Colors.white, fontSize: 10),
-              textAlign: TextAlign.center,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: pppColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                stats.ppp.toStringAsFixed(1),
+                style: TextStyle(
+                  color: pppColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              stats.adjustedSq.toStringAsFixed(1),
-              style: const TextStyle(color: Colors.white, fontSize: 10),
-              textAlign: TextAlign.center,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: pppColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                stats.adjustedSq.toStringAsFixed(1),
+                style: TextStyle(
+                  color: pppColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPerformanceColor(double ppp) {
+    if (ppp >= 1.2) return Colors.green;
+    if (ppp >= 0.8) return Colors.orange;
+    if (ppp > 0) return Colors.red;
+    return Colors.grey;
+  }
+
+  Widget _buildPerformanceSummary() {
+    // Calculate key metrics
+    final fastBreak = report.offence.transition.fastBreak;
+    final kickOut = report.offence.otherOffensive['kick_out'] ?? _emptyStats();
+    final extraPass = report.offence.otherOffensive['extra_pass'] ?? _emptyStats();
+    final paintTouch = report.summary.paintTouch;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF2D2D2D), const Color(0xFF1A1A1A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF0066CC), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.analytics, color: const Color(0xFF0066CC), size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'KEY PERFORMANCE METRICS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  'Fast Break',
+                  '${fastBreak.possessions}',
+                  '${fastBreak.ppp.toStringAsFixed(1)} PPP',
+                  _getPerformanceColor(fastBreak.ppp),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricCard(
+                  'Kick Out',
+                  '${kickOut.possessions}',
+                  '${kickOut.ppp.toStringAsFixed(1)} PPP',
+                  _getPerformanceColor(kickOut.ppp),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricCard(
+                  'Extra Pass',
+                  '${extraPass.possessions}',
+                  '${extraPass.ppp.toStringAsFixed(1)} PPP',
+                  _getPerformanceColor(extraPass.ppp),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricCard(
+                  'Paint Touch',
+                  '${paintTouch.count}',
+                  '${paintTouch.percentage.toStringAsFixed(1)}%',
+                  paintTouch.percentage > 25 ? Colors.green : Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, String subtitle, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white60,
+              fontSize: 10,
             ),
           ),
         ],

@@ -24,7 +24,7 @@ class CalendarCubit extends Cubit<CalendarState> {
     logger.d('CalendarCubit: fetchCalendarData started.');
     try {
       // Fetch both sets of data in parallel
-      final futureGames = _gameRepository.getAllGames(token);
+      final futureGames = _gameRepository.getCalendarGames(token);
       final futureEvents = _eventRepository.getAllEvents(token);
 
       // Wait for both API calls to complete

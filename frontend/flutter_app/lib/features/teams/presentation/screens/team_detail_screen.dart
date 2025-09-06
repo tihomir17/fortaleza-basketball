@@ -2,6 +2,7 @@
 
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
@@ -23,15 +24,17 @@ class TeamDetailScreen extends StatefulWidget {
 }
 
 class _TeamDetailScreenState extends State<TeamDetailScreen> {
+  StreamSubscription? _refreshSubscription;
+
   @override
   void initState() {
     super.initState();
-    sl<RefreshSignal>().addListener(_refreshTeamDetails);
+    _refreshSubscription = sl<RefreshSignal>().stream.listen((_) => _refreshTeamDetails());
   }
 
   @override
   void dispose() {
-    // sl<RefreshSignal>().removeListener(_refreshTeamDetails);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
@@ -48,6 +51,16 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   String _formatCoachType(String? coachType) {
     if (coachType == null || coachType == 'NONE') return 'Coach';
     return coachType
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  String _formatStaffType(String? staffType) {
+    if (staffType == null || staffType == 'NONE') return 'Staff';
+    return staffType
         .replaceAll('_', ' ')
         .toLowerCase()
         .split(' ')
@@ -173,6 +186,59 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => EditCoachScreen(coach: coach),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // --- STAFF CARD ---
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 16.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                        child: Text(
+                          "STAFF",
+                          style: theme.textTheme.titleLarge,
+                        ),
+                      ),
+                      const Divider(),
+                      if (team.staff.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(child: Text('No staff assigned.')),
+                        )
+                      else
+                        ...team.staff.map(
+                          (staff) => ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: theme.colorScheme.secondary
+                                  .withAlpha(50),
+                              child: Icon(
+                                Icons.work_outline,
+                                color: theme.colorScheme.secondary,
+                              ),
+                            ),
+                            title: Text(
+                              staff.displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(_formatStaffType(staff.staffType)),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditUserScreen(user: staff),
                               ),
                             ),
                           ),

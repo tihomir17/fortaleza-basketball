@@ -29,10 +29,235 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>flutter_app</title>
+  <title>Fortaleza Basketball Analytics</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- Window dimension constraints and responsive design -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      min-width: 1024px;
+      min-height: 600px;
+      max-width: 1920px;
+      max-height: 1080px;
+    }
+    
+    /* Prevent window from being too small */
+    @media (max-width: 1023px) {
+      body::before {
+        content: "This application requires a minimum window size of 1024x600 pixels. Please resize your browser window.";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        color: #333;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+    }
+    
+    /* Prevent window from being too large */
+    @media (min-width: 1921px) {
+      body {
+        max-width: 1920px;
+        margin: 0 auto;
+        border-left: 1px solid #ddd;
+        border-right: 1px solid #ddd;
+      }
+    }
+    
+    /* Flutter app container */
+    #flutter_target {
+      width: 100%;
+      height: 100%;
+      min-width: 1024px;
+      min-height: 600px;
+      max-width: 1920px;
+      max-height: 1080px;
+    }
+    
+    /* Size warning overlay styles */
+    .size-warning-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.8));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      backdrop-filter: blur(5px);
+    }
+    
+    .size-warning-content {
+      text-align: center;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 500px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .warning-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    
+    .size-warning-content h2 {
+      margin: 0 0 20px 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .size-warning-content p {
+      margin: 10px 0;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    
+    .size-indicator {
+      margin: 15px 0;
+      text-align: left;
+    }
+    
+    .size-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 5px;
+    }
+    
+    .size-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff6b6b, #ffa500);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    
+    .instruction {
+      margin-top: 20px;
+      font-style: italic;
+      opacity: 0.8;
+    }
+  </style>
 </head>
 <body>
+  <div id="flutter_target"></div>
   <script src="flutter_bootstrap.js" async></script>
+  <script src="resize_handler.js"></script>
+  
+  <!-- Window resize constraints -->
+  <script>
+    // Set minimum and maximum window dimensions
+    const MIN_WIDTH = 1024;
+    const MIN_HEIGHT = 600;
+    const MAX_WIDTH = 1920;
+    const MAX_HEIGHT = 1080;
+    
+    // Function to enforce window size constraints
+    function enforceWindowConstraints() {
+      const currentWidth = window.innerWidth;
+      const currentHeight = window.innerHeight;
+      
+      // Check if window is too small
+      if (currentWidth < MIN_WIDTH || currentHeight < MIN_HEIGHT) {
+        // Show warning message
+        showSizeWarning();
+        return;
+      }
+      
+      // Check if window is too large (for desktop apps)
+      if (currentWidth > MAX_WIDTH || currentHeight > MAX_HEIGHT) {
+        // Optionally resize to maximum allowed size
+        // window.resizeTo(MAX_WIDTH, MAX_HEIGHT);
+      }
+      
+      // Hide warning if it exists
+      hideSizeWarning();
+    }
+    
+    // Show size warning
+    function showSizeWarning() {
+      let warning = document.getElementById('size-warning');
+      if (!warning) {
+        warning = document.createElement('div');
+        warning.id = 'size-warning';
+        warning.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          font-family: Arial, sans-serif;
+          font-size: 18px;
+          text-align: center;
+          padding: 20px;
+          box-sizing: border-box;
+        `;
+        warning.innerHTML = `
+          <div>
+            <h2>Window Size Too Small</h2>
+            <p>This application requires a minimum window size of ${MIN_WIDTH}x${MIN_HEIGHT} pixels.</p>
+            <p>Current size: ${window.innerWidth}x${window.innerHeight} pixels</p>
+            <p>Please resize your browser window to continue.</p>
+          </div>
+        `;
+        document.body.appendChild(warning);
+      }
+    }
+    
+    // Hide size warning
+    function hideSizeWarning() {
+      const warning = document.getElementById('size-warning');
+      if (warning) {
+        warning.remove();
+      }
+    }
+    
+    // Listen for window resize events
+    window.addEventListener('resize', enforceWindowConstraints);
+    
+    // Check constraints on page load
+    window.addEventListener('load', enforceWindowConstraints);
+    
+    // Check constraints when DOM is ready
+    document.addEventListener('DOMContentLoaded', enforceWindowConstraints);
+    
+    // Prevent context menu on right click (optional)
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+    
+    // Prevent text selection (optional)
+    document.addEventListener('selectstart', function(e) {
+      e.preventDefault();
+    });
+  </script>
 </body>
 </html>

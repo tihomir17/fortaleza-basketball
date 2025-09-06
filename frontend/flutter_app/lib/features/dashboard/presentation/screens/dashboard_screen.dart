@@ -1,5 +1,6 @@
 // lib/features/dashboard/presentation/screens/dashboard_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/features/dashboard/data/models/dashboard_data.dart';
@@ -26,29 +27,30 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshDashboard);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshDashboard());
     
-    // Load dashboard data when screen initializes
+    // Load dashboard data when screen initializes - always force refresh for latest data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<DashboardCubit>().loadDashboardData();
+        context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
       }
     });
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshDashboard);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
   void _refreshDashboard() {
     if (mounted) {
-      context.read<DashboardCubit>().loadDashboardData();
+      context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
     }
   }
 
@@ -57,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: UserProfileAppBar(
         title: 'DASHBOARD',
-        onRefresh: () => context.read<DashboardCubit>().loadDashboardData(),
+        onRefresh: () => context.read<DashboardCubit>().loadDashboardData(forceRefresh: true),
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, authState) {
@@ -139,7 +141,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              context.read<DashboardCubit>().loadDashboardData();
+              context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
             },
             child: const Text('Retry'),
           ),
@@ -151,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDashboardContent(dashboardData, bool isPlayer, bool isStaff, String? staffType) {
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<DashboardCubit>().refresh();
+        context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),

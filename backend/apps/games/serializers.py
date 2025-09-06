@@ -7,6 +7,7 @@ from .models import Game, ScoutingReport
 from apps.teams.models import Team
 from apps.teams.serializers import TeamReadSerializer
 from apps.possessions.nested_serializers import PossessionInGameSerializer
+from .roster_serializers import GameRosterSerializer
 
 
 # --- LIGHTWEIGHT SERIALIZER (For game lists) ---
@@ -116,6 +117,8 @@ class GameReadSerializer(serializers.ModelSerializer):
     home_team = TeamReadSerializer(read_only=True)
     away_team = TeamReadSerializer(read_only=True)
     possessions = PossessionInGameSerializer(many=True, read_only=True, required=False)
+    home_team_roster = GameRosterSerializer(read_only=True, required=False)
+    away_team_roster = GameRosterSerializer(read_only=True, required=False)
 
     class Meta:
         model = Game
@@ -128,6 +131,8 @@ class GameReadSerializer(serializers.ModelSerializer):
             "home_team_score",
             "away_team_score",
             "possessions",
+            "home_team_roster",
+            "away_team_roster",
         ]
 
 
@@ -136,6 +141,9 @@ class GameReadLightweightSerializer(serializers.ModelSerializer):
     # When reading, we show the full, nested objects but without possessions.
     home_team = TeamReadSerializer(read_only=True)
     away_team = TeamReadSerializer(read_only=True)
+    # Include roster data for game setup functionality
+    home_team_roster = GameRosterSerializer(read_only=True, required=False)
+    away_team_roster = GameRosterSerializer(read_only=True, required=False)
 
     class Meta:
         model = Game
@@ -147,6 +155,8 @@ class GameReadLightweightSerializer(serializers.ModelSerializer):
             "game_date",
             "home_team_score",
             "away_team_score",
+            "home_team_roster",
+            "away_team_roster",
         ]
 
 

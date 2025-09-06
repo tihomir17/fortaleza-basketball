@@ -12,7 +12,7 @@ class TeamActionsTests(APITestCase):
     def setUp(self):
         # Create users
         self.coach = User.objects.create_user(
-            username="coach", password="testpass123", role=User.Role.COACH
+            username="coach", password="testpass123", role=User.Role.COACH, coach_type=User.CoachType.HEAD_COACH
         )
         self.player = User.objects.create_user(
             username="player", password="testpass123", role=User.Role.PLAYER
@@ -21,7 +21,7 @@ class TeamActionsTests(APITestCase):
             username="new_player", password="testpass123", role=User.Role.PLAYER
         )
         self.other_coach = User.objects.create_user(
-            username="other_coach", password="testpass123", role=User.Role.COACH
+            username="other_coach", password="testpass123", role=User.Role.COACH, coach_type=User.CoachType.ASSISTANT_COACH
         )
 
         # Create competition
@@ -124,7 +124,7 @@ class TeamActionsTests(APITestCase):
     def test_coach_can_remove_member(self):
         """Coach can remove a member from their team."""
         self.auth(self.coach)
-        data = {"user_id": self.player.id}
+        data = {"user_id": self.player.id, "role": "player"}
         res = self.client.post(
             f"{self.team_detail_url}remove_member/", data, format="json"
         )
@@ -135,12 +135,28 @@ class TeamActionsTests(APITestCase):
         """Coach can remove another coach from their team."""
         self.team.coaches.add(self.other_coach)
         self.auth(self.coach)
-        data = {"user_id": self.other_coach.id}
+        data = {"user_id": self.other_coach.id, "role": "coach"}
         res = self.client.post(
             f"{self.team_detail_url}remove_member/", data, format="json"
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertNotIn(self.other_coach, self.team.coaches.all())
+
+    def test_coach_can_remove_staff(self):
+        """Coach can remove a staff member from their team."""
+        # Create a staff member
+        staff_member = User.objects.create_user(
+            username="staff", password="testpass123", role=User.Role.STAFF
+        )
+        self.team.coaches.add(staff_member)
+        
+        self.auth(self.coach)
+        data = {"user_id": staff_member.id, "role": "staff"}
+        res = self.client.post(
+            f"{self.team_detail_url}remove_member/", data, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotIn(staff_member, self.team.coaches.all())
 
     def test_player_cannot_remove_member(self):
         """Players cannot remove members from the team."""

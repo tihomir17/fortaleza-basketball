@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from apps.teams.models import Team
 from apps.competitions.models import Competition
+from apps.core.cache_utils import CacheManager
 
 User = get_user_model()
 
@@ -48,6 +49,56 @@ class Game(models.Model):
 
     class Meta:
         ordering = ["-game_date"]
+        indexes = [
+            models.Index(fields=["game_date"]),
+            models.Index(fields=["home_team", "game_date"]),
+            models.Index(fields=["away_team", "game_date"]),
+            models.Index(fields=["competition", "game_date"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        """Override save to invalidate cache when game data changes"""
+        super().save(*args, **kwargs)
+        # Invalidate cache for both teams
+        CacheManager.invalidate_team_cache(self.home_team.id)
+        CacheManager.invalidate_team_cache(self.away_team.id)
+        # Invalidate analytics cache
+        CacheManager.invalidate_pattern("analytics:*")
+        # Invalidate dashboard cache to show new/updated games immediately
+        CacheManager.invalidate_dashboard_cache()
+
+    def delete(self, *args, **kwargs):
+        """Override delete to invalidate cache when game is deleted"""
+        # Store team IDs before deletion
+        home_team_id = self.home_team.id
+        away_team_id = self.away_team.id
+        
+        super().delete(*args, **kwargs)
+        
+        # Invalidate cache for both teams
+        CacheManager.invalidate_team_cache(home_team_id)
+        CacheManager.invalidate_team_cache(away_team_id)
+        # Invalidate analytics cache
+        CacheManager.invalidate_pattern("analytics:*")
+        # Invalidate dashboard cache to remove deleted games immediately
+        CacheManager.invalidate_dashboard_cache()
+
+    @property
+    def home_team_roster(self):
+        """Get the home team roster for this game"""
+        try:
+            return self.rosters.get(team=self.home_team)
+        except GameRoster.DoesNotExist:
+            return None
+
+    @property
+    def away_team_roster(self):
+        """Get the away team roster for this game"""
+        try:
+            return self.rosters.get(team=self.away_team)
+        except GameRoster.DoesNotExist:
+            return None
 
     def __str__(self):
         return f"{self.home_team.name} vs {self.away_team.name} - {self.game_date.strftime('%Y-%m-%d')}"

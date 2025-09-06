@@ -173,7 +173,8 @@ class TeamRepository {
     required String token,
     required int teamId,
     required int userId,
-    required String role, // 'player' or 'coach'
+    required String role, // 'player', 'coach', or 'staff'
+    String? staffType, // Required if role is 'staff'
   }) async {
     final url = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
     logger.d('TeamRepository: Adding $role $userId to team $teamId at $url');
@@ -184,7 +185,11 @@ class TeamRepository {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({'user_id': userId, 'role': role}),
+        body: json.encode({
+          'user_id': userId, 
+          'role': role,
+          if (role == 'staff' && staffType != null) 'staff_type': staffType,
+        }),
       );
       if (response.statusCode != 200) {
         logger.e('TeamRepository: Failed to add member. Status: ${response.statusCode}, Body: ${response.body}');
@@ -328,7 +333,7 @@ class TeamRepository {
       logger.i('TeamRepository: Creating staff member $username for team $teamId.');
       
       // First, create the user
-      final createUrl = Uri.parse('${ApiClient.baseUrl}/users/register/');
+      final createUrl = Uri.parse('${ApiClient.baseUrl}/auth/register/');
       final createResponse = await _client.post(
         createUrl,
         headers: {
@@ -350,19 +355,26 @@ class TeamRepository {
         final userData = json.decode(createResponse.body);
         final userId = userData['id'];
         
+        logger.d('TeamRepository: Created user with ID: $userId');
+        logger.d('TeamRepository: User data: $userData');
+        
         // Now add the staff member to the team
         final addUrl = Uri.parse('${ApiClient.baseUrl}/teams/$teamId/add_member/');
+        final requestBody = {
+          'user_id': userId,
+          'role': 'staff',
+          'staff_type': staffType,
+        };
+        
+        logger.d('TeamRepository: Adding staff to team with body: $requestBody');
+        
         final addResponse = await _client.post(
           addUrl,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: json.encode({
-            'user_id': userId,
-            'role': 'staff',
-            'staff_type': staffType,
-          }),
+          body: json.encode(requestBody),
         );
         
         if (addResponse.statusCode == 200) {

@@ -2,6 +2,7 @@
 
 // ignore_for_file: unused_import
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/live_tracking_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,7 +12,9 @@ import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:flutter_app/features/teams/data/models/team_model.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
 import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
 import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
 import 'package:flutter_app/features/possessions/presentation/screens/edit_possession_screen.dart';
@@ -19,6 +22,8 @@ import 'package:flutter_app/core/logging/file_logger.dart';
 import '../cubit/game_detail_cubit.dart';
 import '../cubit/game_detail_state.dart';
 import '../../data/repositories/game_repository.dart';
+import 'roster_management_screen.dart';
+import 'starting_five_screen.dart';
 
 class GameDetailScreen extends StatefulWidget {
   final int gameId;
@@ -32,27 +37,169 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   int? _selectedQuarterFilter;
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
   bool _isLoadingMorePossessions = false;
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
-    _refreshSignal.addListener(_refreshGameDetails);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshGameDetails());
   }
 
   @override
   void dispose() {
-    _refreshSignal.removeListener(_refreshGameDetails);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
   void _refreshGameDetails() {
+    print('DEBUG: _refreshGameDetails - starting refresh for game ${widget.gameId}');
     final token = context.read<AuthCubit>().state.token;
     if (token != null && mounted) {
+      print('DEBUG: _refreshGameDetails - clearing cache and fetching fresh data');
+      // Clear the cache to ensure fresh data is loaded
+      context.read<GameDetailCubit>().clearGameCache(widget.gameId);
       context.read<GameDetailCubit>().fetchGameDetails(
         token: token,
         gameId: widget.gameId,
         loadPossessions: true, // Load possessions for detail view
       );
+      print('DEBUG: _refreshGameDetails - fetchGameDetails called');
+    } else {
+      print('DEBUG: _refreshGameDetails - token is null or widget not mounted');
+    }
+  }
+
+  // Helper methods for game setup flow
+  bool _hasRosters(Game? game) {
+    if (game == null) {
+      print('DEBUG: _hasRosters - game is null');
+      return false;
+    }
+    final hasHome = game.homeTeamRoster != null;
+    final hasAway = game.awayTeamRoster != null;
+    print('DEBUG: _hasRosters - home: $hasHome, away: $hasAway');
+    return hasHome && hasAway;
+  }
+
+  bool _hasHomeRoster(Game? game) {
+    if (game == null) {
+      print('DEBUG: _hasHomeRoster - game is null');
+      return false;
+    }
+    final hasHome = game.homeTeamRoster != null;
+    print('DEBUG: _hasHomeRoster - result: $hasHome');
+    if (game.homeTeamRoster != null) {
+      print('DEBUG: _hasHomeRoster - home roster players: ${game.homeTeamRoster!.players.length}');
+    }
+    return hasHome;
+  }
+
+  bool _hasAwayRoster(Game? game) {
+    if (game == null) {
+      print('DEBUG: _hasAwayRoster - game is null');
+      return false;
+    }
+    final hasAway = game.awayTeamRoster != null;
+    print('DEBUG: _hasAwayRoster - result: $hasAway');
+    return hasAway;
+  }
+
+  bool _hasStartingFives(Game? game) {
+    if (!_hasRosters(game)) {
+      print('DEBUG: _hasStartingFives - no rosters, returning false');
+      return false;
+    }
+    
+    // Check if both rosters have exactly 5 starting five players
+    final homeStartingFiveComplete = game!.homeTeamRoster!.startingFive.length == 5;
+    final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+    
+    print('DEBUG: _hasStartingFives - home starting five: ${game.homeTeamRoster!.startingFive.length}/5, away starting five: ${game.awayTeamRoster!.startingFive.length}/5');
+    print('DEBUG: _hasStartingFives - home complete: $homeStartingFiveComplete, away complete: $awayStartingFiveComplete');
+    
+    return homeStartingFiveComplete && awayStartingFiveComplete;
+  }
+
+  bool _canAddPossessions(Game? game) {
+    if (game == null) {
+      print('DEBUG: _canAddPossessions - game is null');
+      return false;
+    }
+    
+    // Must have both rosters AND both starting fives complete
+    final hasBothRosters = game.homeTeamRoster != null && game.awayTeamRoster != null;
+    if (!hasBothRosters) {
+      print('DEBUG: _canAddPossessions - missing rosters, returning false');
+      return false;
+    }
+    
+    final homeStartingFiveComplete = game.homeTeamRoster!.startingFive.length == 5;
+    final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+    
+    final canAdd = homeStartingFiveComplete && awayStartingFiveComplete;
+    print('DEBUG: _canAddPossessions - home starting five: ${game.homeTeamRoster!.startingFive.length}/5, away starting five: ${game.awayTeamRoster!.startingFive.length}/5');
+    print('DEBUG: _canAddPossessions - can add possessions: $canAdd');
+    
+    return canAdd;
+  }
+
+  // Navigation methods
+  Future<void> _navigateToRosterManagement(Team team) async {
+    print('DEBUG: _navigateToRosterManagement - starting for team: ${team.name}');
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) {
+      print('DEBUG: _navigateToRosterManagement - game is null, returning');
+      return;
+    }
+
+    print('DEBUG: _navigateToRosterManagement - navigating to roster management for ${team.name}');
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RosterManagementScreen(
+          game: game,
+          team: team,
+        ),
+      ),
+    );
+
+    print('DEBUG: _navigateToRosterManagement - returned with result: $result');
+    if (result == true && mounted) {
+      print('DEBUG: _navigateToRosterManagement - roster created successfully, refreshing game details');
+      // Add a small delay to ensure backend has processed the roster creation
+      await Future.delayed(const Duration(milliseconds: 500));
+      _refreshGameDetails();
+    } else {
+      print('DEBUG: _navigateToRosterManagement - roster creation cancelled or failed');
+    }
+  }
+
+  Future<void> _navigateToStartingFive(Team team, GameRoster roster) async {
+    print('DEBUG: _navigateToStartingFive - starting for team: ${team.name}');
+    final game = context.read<GameDetailCubit>().state.game;
+    if (game == null) {
+      print('DEBUG: _navigateToStartingFive - game is null, returning');
+      return;
+    }
+
+    print('DEBUG: _navigateToStartingFive - navigating to starting five for ${team.name}');
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => StartingFiveScreen(
+          game: game,
+          team: team,
+          rosterPlayers: roster.players,
+        ),
+      ),
+    );
+
+    print('DEBUG: _navigateToStartingFive - returned with result: $result');
+    if (result == true && mounted) {
+      print('DEBUG: _navigateToStartingFive - starting five updated successfully, refreshing game details');
+      // Add a small delay to ensure backend has processed the starting five update
+      await Future.delayed(const Duration(milliseconds: 500));
+      _refreshGameDetails();
+    } else {
+      print('DEBUG: _navigateToStartingFive - starting five update cancelled or failed');
     }
   }
 
@@ -164,6 +311,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
   }
 
+
   int _parseTimeToSeconds(String time) {
     try {
       final parts = time.split(':');
@@ -176,135 +324,343 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
   }
 
+  Widget _buildGameSetupSection(Game game) {
+    final hasRosters = _hasRosters(game);
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
+    final hasStartingFives = _hasStartingFives(game);
+    final canAddPossessions = _canAddPossessions(game);
+
+    print('DEBUG: _buildGameSetupSection - hasRosters: $hasRosters, hasHomeRoster: $hasHomeRoster, hasAwayRoster: $hasAwayRoster, hasStartingFives: $hasStartingFives, canAddPossessions: $canAddPossessions');
+    print('DEBUG: _buildGameSetupSection - game.homeTeamRoster: ${game.homeTeamRoster}');
+    print('DEBUG: _buildGameSetupSection - game.awayTeamRoster: ${game.awayTeamRoster}');
+
+    // Don't show setup section if everything is complete
+    if (canAddPossessions) {
+      print('DEBUG: _buildGameSetupSection - setup complete, hiding section');
+      return const SizedBox.shrink();
+    }
+
+    // Log which buttons will be shown
+    if (!hasHomeRoster) {
+      print('DEBUG: _buildGameSetupSection - showing home roster button');
+    } else if (!hasAwayRoster) {
+      print('DEBUG: _buildGameSetupSection - showing away roster button');
+    } else if (!hasStartingFives) {
+      print('DEBUG: _buildGameSetupSection - showing starting five buttons');
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Game Setup',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Roster Status Display
+            _buildRosterStatusDisplay(game),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Step 1: Create home roster first
+                if (!hasHomeRoster) ...[
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToRosterManagement(game.homeTeam),
+                    icon: const Icon(Icons.people, size: 18),
+                    label: Text('${game.homeTeam.name} Roster'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ] else if (!hasAwayRoster) ...[
+                  // Step 2: Create away roster after home roster is done
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToRosterManagement(game.awayTeam),
+                    icon: const Icon(Icons.people, size: 18),
+                    label: Text('${game.awayTeam.name} Roster'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ] else if (!hasStartingFives) ...[
+                  // Step 3: Select starting fives for both teams after both rosters are done
+                  if (game.homeTeamRoster!.startingFive.length != 5) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToStartingFive(game.homeTeam, game.homeTeamRoster!),
+                      icon: const Icon(Icons.star, size: 18),
+                      label: Text('${game.homeTeam.name} Starting Five'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                  if (game.awayTeamRoster!.startingFive.length != 5) ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToStartingFive(game.awayTeam, game.awayTeamRoster!),
+                      icon: const Icon(Icons.star, size: 18),
+                      label: Text('${game.awayTeam.name} Starting Five'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+                                  Text(
+                        _getSetupStatusText(game),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Both teams need rosters with minimum 10 players and complete starting fives before logging possessions.',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRosterStatusDisplay(Game game) {
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
+    final hasStartingFives = _hasStartingFives(game);
+    
+    print('DEBUG: _buildRosterStatusDisplay - hasHomeRoster: $hasHomeRoster, hasAwayRoster: $hasAwayRoster, hasStartingFives: $hasStartingFives');
+    if (game.homeTeamRoster != null) {
+      print('DEBUG: _buildRosterStatusDisplay - home roster players: ${game.homeTeamRoster!.players.length}, starting five: ${game.homeTeamRoster!.startingFive.length}');
+    }
+    if (game.awayTeamRoster != null) {
+      print('DEBUG: _buildRosterStatusDisplay - away roster players: ${game.awayTeamRoster!.players.length}, starting five: ${game.awayTeamRoster!.startingFive.length}');
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Roster Status',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTeamRosterStatus(
+                  team: game.homeTeam,
+                  hasRoster: hasHomeRoster,
+                  roster: game.homeTeamRoster,
+                  isStartingFiveComplete: hasHomeRoster && game.homeTeamRoster!.startingFive.length == 5,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTeamRosterStatus(
+                  team: game.awayTeam,
+                  hasRoster: hasAwayRoster,
+                  roster: game.awayTeamRoster,
+                  isStartingFiveComplete: hasAwayRoster && game.awayTeamRoster!.startingFive.length == 5,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTeamRosterStatus({
+    required Team team,
+    required bool hasRoster,
+    required GameRoster? roster,
+    required bool isStartingFiveComplete,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: hasRoster ? Colors.green[50] : Colors.red[50],
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: hasRoster ? Colors.green[300]! : Colors.red[300]!,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasRoster ? Icons.check_circle : Icons.cancel,
+                color: hasRoster ? Colors.green : Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  team.name,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: hasRoster ? Colors.green[800] : Colors.red[800],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (hasRoster) ...[
+            // Show player count with validation
+            Row(
+              children: [
+                Icon(
+                  roster!.players.length >= 10 ? Icons.check : Icons.warning,
+                  color: roster.players.length >= 10 ? Colors.green : Colors.orange,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Players: ${roster.players.length}${roster.players.length < 10 ? " (Min: 10)" : ""}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: roster.players.length >= 10 ? Colors.green[700] : Colors.orange[700],
+                    fontWeight: roster.players.length < 10 ? FontWeight.w500 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            // Show starting five status
+            Row(
+              children: [
+                Icon(
+                  isStartingFiveComplete ? Icons.check : Icons.warning,
+                  color: isStartingFiveComplete ? Colors.green : Colors.orange,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Starting Five: ${isStartingFiveComplete ? "✓ Complete" : "✗ Incomplete"}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isStartingFiveComplete ? Colors.green[700] : Colors.orange[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            // Show possession readiness
+            if (roster.players.length >= 10 && isStartingFiveComplete) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.play_arrow,
+                    color: Colors.green,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Ready for possessions',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ] else ...[
+            Text(
+              'No roster created',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.red[700],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _getSetupStatusText(Game game) {
+    final hasRosters = _hasRosters(game);
+    final hasStartingFives = _hasStartingFives(game);
+    final hasHomeRoster = _hasHomeRoster(game);
+    final hasAwayRoster = _hasAwayRoster(game);
+
+    if (!hasRosters) {
+      if (!hasHomeRoster && !hasAwayRoster) {
+        return 'Create rosters for both teams to continue (10-12 players each)';
+      } else if (!hasHomeRoster) {
+        return 'Create roster for ${game.homeTeam.name} to continue';
+      } else if (!hasAwayRoster) {
+        return 'Create roster for ${game.awayTeam.name} to continue';
+      }
+    } else if (!hasStartingFives) {
+      final homeStartingFiveComplete = game.homeTeamRoster!.startingFive.length == 5;
+      final awayStartingFiveComplete = game.awayTeamRoster!.startingFive.length == 5;
+      
+      if (!homeStartingFiveComplete && !awayStartingFiveComplete) {
+        return 'Select starting five for both teams to enable possession logging';
+      } else if (!homeStartingFiveComplete) {
+        return 'Select starting five for ${game.homeTeam.name} to enable possession logging';
+      } else if (!awayStartingFiveComplete) {
+        return 'Select starting five for ${game.awayTeam.name} to enable possession logging';
+      }
+    } else {
+      return 'Game setup complete! You can now log possessions.';
+    }
+    
+    return 'Game setup in progress...';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Analysis'),
-        actions: [
-          IconButton(
-            tooltip: 'Match Stats',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () {
-              context.go('/games/${widget.gameId}/stats');
-            },
-          ),
-          IconButton(
-            tooltip: 'Player Stats',
-            icon: const Icon(Icons.people),
-            onPressed: () {
-              context.go('/games/${widget.gameId}/player-stats');
-            },
-          ),
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0066CC),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.analytics_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    // Get the user's team ID from the game
-                    final game = context.read<GameDetailCubit>().state.game;
-                    if (game != null) {
-                      final userTeams = context.read<TeamCubit>().state.teams;
-                      final userTeamInGame = userTeams.firstWhere(
-                        (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
-                        orElse: () => game.homeTeam,
-                      );
-                      context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
-                    }
-                  },
-                  tooltip: 'Post Game Report',
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.assessment,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    final game = context.read<GameDetailCubit>().state.game;
-                    if (game != null) {
-                      context.go('/games/${game.id}/advanced-report');
-                    }
-                  },
-                  tooltip: 'Advanced Post-Game Report',
-                ),
-              ],
-            ),
-          ),
-                     Padding(
-             padding: const EdgeInsets.only(
-               right: 8.0,
-             ), // Add some space from the edge
-             child: Center(
-               // Use Center to vertically align the button
-               child: BlocBuilder<GameDetailCubit, GameDetailState>(
-                 builder: (context, state) {
-                   final game = state.game;
-                   final hasPossessions = game?.possessions.isNotEmpty ?? false;
-                   final isLoading = _isLoadingMorePossessions;
-                   
-                   return TextButton.icon(
-                     onPressed: isLoading ? null : _loadPossessionsFromDatabase,
-                     icon: Icon(
-                       isLoading ? Icons.hourglass_empty : Icons.download,
-                       size: 18,
-                     ),
-                     label: Text(
-                       isLoading ? 'Loading...' : (hasPossessions ? 'Reload' : 'Load Possessions'),
-                     ),
-                     style: TextButton.styleFrom(
-                       // Use different colors based on state
-                       foregroundColor: Colors.white,
-                       backgroundColor: isLoading 
-                           ? Colors.grey 
-                           : (hasPossessions ? Colors.orange : Colors.green),
-                       // Add a subtle border
-                       shape: RoundedRectangleBorder(
-                         borderRadius: BorderRadius.circular(20),
-                       ),
-                     ),
-                   );
-                 },
-               ),
-             ),
-           ),
-          Padding(
-            padding: const EdgeInsets.only(
-              right: 8.0,
-            ), // Add some space from the edge
-            child: Center(
-              // Use Center to vertically align the button
-              child: TextButton.icon(
-                onPressed: () {
-                  // The router will get the ID from the URL.
-                  context.go('/games/${widget.gameId}/track');
-                },
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Add Possession'),
-                style: TextButton.styleFrom(
-                  // Use the theme's accent color for high visibility
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.blueGrey,
-                  // Add a subtle border
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        actions: [],
       ),
       body: BlocBuilder<GameDetailCubit, GameDetailState>(
         builder: (context, state) {
@@ -337,8 +693,14 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
             return timeB.compareTo(timeA);
           });
 
-          return Column(
+          return Row(
             children: [
+              // Main content area
+              Expanded(
+                child: Column(
+                  children: [
+                    // Game Setup Section
+                    _buildGameSetupSection(game),
               Card(
                 margin: const EdgeInsets.all(8.0),
                 child: Padding(
@@ -481,9 +843,192 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                         ],
                       ),
               ),
+                  ],
+                ),
+              ),
+              // Right sidebar
+              _buildRightSidebar(game),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRightSidebar(Game game) {
+    return Container(
+      width: 80,
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(left: BorderSide(color: Colors.grey[300]!)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          
+          // Analytics buttons section
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0066CC),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.analytics_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    final userTeams = context.read<TeamCubit>().state.teams;
+                    final userTeamInGame = userTeams.firstWhere(
+                      (t) => t.id == game.homeTeam.id || t.id == game.awayTeam.id,
+                      orElse: () => game.homeTeam,
+                    );
+                    context.go('/games/${game.id}/post-game-report?teamId=${userTeamInGame.id}');
+                  },
+                  tooltip: 'Post Game Report',
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.assessment,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    context.go('/games/${game.id}/advanced-report');
+                  },
+                  tooltip: 'Advanced Post-Game Report',
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Match Stats button
+          IconButton(
+            tooltip: 'Match Stats',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/stats');
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue[100],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Player Stats button
+          IconButton(
+            tooltip: 'Player Stats',
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              context.go('/games/${widget.gameId}/player-stats');
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue[100],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Add New Possession button (only when setup is complete)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final canAddPossessions = _canAddPossessions(game);
+              
+              if (!canAddPossessions) {
+                return const SizedBox.shrink();
+              }
+              
+              return Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.go('/games/${widget.gameId}/add-possession');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 20),
+                      SizedBox(height: 4),
+                      Text(
+                        'Add\nPossession',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Load/Reload possessions button (always available)
+          BlocBuilder<GameDetailCubit, GameDetailState>(
+            builder: (context, state) {
+              final game = state.game;
+              final hasPossessions = game?.possessions.isNotEmpty ?? false;
+              
+              return Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoadingMorePossessions ? null : _loadPossessionsFromDatabase,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: _isLoadingMorePossessions 
+                        ? Colors.grey 
+                        : (hasPossessions ? Colors.orange : Colors.blueGrey),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isLoadingMorePossessions ? Icons.hourglass_empty : Icons.download,
+                        size: 20,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _isLoadingMorePossessions 
+                            ? 'Loading...' 
+                            : (hasPossessions ? 'Reload' : 'Load\nPossessions'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          const Spacer(),
+        ],
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:flutter_app/features/possessions/data/models/possession_model.da
 import 'package:flutter_app/core/logging/file_logger.dart';
 
 import '../../../teams/data/models/team_model.dart';
+import 'game_roster_model.dart';
 
 class Game {
   final int id;
@@ -17,6 +18,10 @@ class Game {
   List<Possession> possessions; // Make mutable for dynamic loading
   final int? homeTeamScore; // <-- ADD THIS
   final int? awayTeamScore; // <-- ADD THIS
+  
+  // Game rosters
+  final GameRoster? homeTeamRoster;
+  final GameRoster? awayTeamRoster;
   
   // Lightweight possession statistics for list view
   final int totalPossessions;
@@ -33,6 +38,8 @@ class Game {
     this.possessions = const [],
     this.homeTeamScore,
     this.awayTeamScore,
+    this.homeTeamRoster,
+    this.awayTeamRoster,
     this.totalPossessions = 0,
     this.offensivePossessions = 0,
     this.defensivePossessions = 0,
@@ -56,6 +63,17 @@ class Game {
       compId = json['competition']['id'];
     }
 
+    // Parse roster information
+    GameRoster? homeRoster;
+    GameRoster? awayRoster;
+    
+    if (json['home_team_roster'] != null) {
+      homeRoster = GameRoster.fromJson(json['home_team_roster']);
+    }
+    if (json['away_team_roster'] != null) {
+      awayRoster = GameRoster.fromJson(json['away_team_roster']);
+    }
+
     final game = Game(
       id: json['id'],
       // If the key is null or not a map, the result will be null.
@@ -68,6 +86,8 @@ class Game {
       possessions: parsedPossessions,
       homeTeamScore: json['home_team_score'],
       awayTeamScore: json['away_team_score'],
+      homeTeamRoster: homeRoster,
+      awayTeamRoster: awayRoster,
       
       // Add lightweight possession statistics
       totalPossessions: json['total_possessions'] as int? ?? 0,

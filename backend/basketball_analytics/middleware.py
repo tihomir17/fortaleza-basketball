@@ -57,30 +57,69 @@ class RequestLoggingMiddleware:
             request_logger.info("request completed", extra=extra)
 
 
-class SlowQueryLoggingMiddleware:
+class PerformanceMonitoringMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        threshold_ms = getattr(settings, "SLOW_QUERY_MS", 200)
+        # Performance monitoring settings
+        slow_query_threshold_ms = getattr(settings, "SLOW_QUERY_MS", 200)
+        slow_request_threshold_ms = getattr(settings, "SLOW_REQUEST_MS", 1000)
+        max_queries_per_request = getattr(settings, "MAX_QUERIES_PER_REQUEST", 50)
+        
+        # Track request performance
         start_count = len(connection.queries)
         start_time = time.perf_counter()
+        
         response = self.get_response(request)
+        
+        # Calculate performance metrics
         total_time = (time.perf_counter() - start_time) * 1000
+        query_count = len(connection.queries) - start_count
+        
+        # Log slow requests
+        if total_time >= slow_request_threshold_ms:
+            request_logger.warning(
+                "slow request",
+                extra={
+                    "path": request.path,
+                    "method": request.method,
+                    "duration_ms": int(total_time),
+                    "query_count": query_count,
+                    "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') else None,
+                },
+            )
+        
+        # Log high query count requests
+        if query_count >= max_queries_per_request:
+            request_logger.warning(
+                "high query count",
+                extra={
+                    "path": request.path,
+                    "method": request.method,
+                    "query_count": query_count,
+                    "duration_ms": int(total_time),
+                    "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') else None,
+                },
+            )
+        
+        # Log slow individual queries
         for q in connection.queries[start_count:]:
             try:
                 duration = float(q.get("time", 0)) * 1000  # seconds -> ms
             except Exception:
                 duration = 0
-            if duration >= threshold_ms:
+            if duration >= slow_query_threshold_ms:
                 slow_logger.info(
                     "slow query",
                     extra={
                         "duration_ms": int(duration),
                         "sql": q.get("sql", ""),
                         "params": q.get("params", ""),
+                        "path": request.path,
                     },
                 )
+        
         return response
 
 

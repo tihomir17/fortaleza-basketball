@@ -43,7 +43,8 @@ import 'features/scouting/data/services/self_scouting_service.dart';
 final sl = GetIt.instance;
 
 final Logger logger = Logger(
-  level: Level.warning, // Changed from Level.error to Level.warning to deactivate debug logs
+  level: Level
+      .warning, // Changed from Level.error to Level.warning to deactivate debug logs
   printer: PrettyPrinter(
     methodCount: 0,
     errorMethodCount: 5,
@@ -72,7 +73,9 @@ void setupServiceLocator() {
   );
   sl.registerLazySingleton<GameRepository>(() => GameRepository());
   sl.registerLazySingleton<EventRepository>(() => EventRepository());
-  sl.registerLazySingleton<SelfScoutingService>(() => SelfScoutingService(sl<ApiService>()));
+  sl.registerLazySingleton<SelfScoutingService>(
+    () => SelfScoutingService(sl<ApiService>()),
+  );
 
   // Cubits with global or session-wide state are lazy singletons.
   sl.registerLazySingleton<AuthCubit>(
@@ -156,11 +159,11 @@ class _MyAppState extends State<MyApp> {
       providers: [
         BlocProvider.value(value: sl<AuthCubit>()),
         BlocProvider.value(value: sl<ThemeCubit>()),
-        BlocProvider(create: (context) => sl<TeamCubit>()),
-        BlocProvider(create: (context) => sl<CompetitionCubit>()),
-        BlocProvider(create: (context) => sl<GameCubit>()),
-        BlocProvider(create: (context) => sl<CalendarCubit>()),
-        BlocProvider(create: (context) => sl<PlayCategoryCubit>()),
+        BlocProvider.value(value: sl<TeamCubit>()),
+        BlocProvider.value(value: sl<CompetitionCubit>()),
+        BlocProvider.value(value: sl<GameCubit>()),
+        BlocProvider.value(value: sl<CalendarCubit>()),
+        BlocProvider.value(value: sl<PlayCategoryCubit>()),
         BlocProvider.value(value: sl<DashboardCubit>()),
       ],
       child: BlocListener<AuthCubit, AuthState>(

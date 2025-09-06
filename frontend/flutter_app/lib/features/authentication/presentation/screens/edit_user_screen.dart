@@ -66,7 +66,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
         userId: widget.user.id,
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
-        jerseyNumber: int.tryParse(_numberController.text),
+        jerseyNumber: widget.user.role == 'PLAYER' ? int.tryParse(_numberController.text) : null,
       );
       if (mounted) {
         sl<RefreshSignal>().notify(); // Fire global refresh
@@ -103,30 +103,33 @@ class _EditUserScreenState extends State<EditUserScreen> {
               controller: _lastNameController,
               decoration: const InputDecoration(labelText: 'Last Name'),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _numberController,
-              decoration: const InputDecoration(
-                labelText: 'Jersey Number',
-                counterText: "", // Hide the default counter
+            // Only show jersey number field for players
+            if (widget.user.role == 'PLAYER') ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _numberController,
+                decoration: const InputDecoration(
+                  labelText: 'Jersey Number',
+                  counterText: "", // Hide the default counter
+                ),
+                keyboardType: TextInputType.number,
+                maxLength: 2, // Limit to 2 digits
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return null; // Empty is allowed
+                  }
+                  final number = int.tryParse(value);
+                  if (number == null) {
+                    return 'Invalid number';
+                  }
+                  if (number < 0 || number > 99) {
+                    return 'Enter a number 0-99';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.number,
-              maxLength: 2, // Limit to 2 digits
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return null; // Empty is allowed
-                }
-                final number = int.tryParse(value);
-                if (number == null) {
-                  return 'Invalid number';
-                }
-                if (number < 0 || number > 99) {
-                  return 'Enter a number 0-99';
-                }
-                return null;
-              },
-            ),
+            ],
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitForm,

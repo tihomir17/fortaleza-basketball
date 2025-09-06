@@ -216,6 +216,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
         name: 'No Team',
         players: [],
         coaches: [],
+        staff: [],
       ),
     );
     

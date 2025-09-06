@@ -1,10 +1,26 @@
 // lib/core/navigation/refresh_signal.dart
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter_app/main.dart'; // Import for global logger
 
-class RefreshSignal with ChangeNotifier {
+class RefreshSignal {
+  static final RefreshSignal _instance = RefreshSignal._internal();
+  factory RefreshSignal() => _instance;
+  RefreshSignal._internal();
+
+  final StreamController<void> _controller = StreamController<void>.broadcast();
+
+  Stream<void> get stream => _controller.stream;
+
   void notify() {
-    notifyListeners();
-    logger.d('RefreshSignal: Notifying listeners.');
+    try {
+      _controller.add(null);
+      logger.d('RefreshSignal: Notifying listeners.');
+    } catch (e) {
+      logger.w('RefreshSignal: Error notifying listeners: $e');
+    }
+  }
+
+  void dispose() {
+    _controller.close();
   }
 }

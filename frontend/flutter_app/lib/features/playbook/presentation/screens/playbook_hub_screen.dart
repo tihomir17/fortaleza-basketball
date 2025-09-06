@@ -1,5 +1,6 @@
 // lib/features/playbook/presentation/screens/playbook_hub_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/navigation/refresh_signal.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,18 +23,19 @@ class PlaybookHubScreen extends StatefulWidget {
 class _PlaybookHubScreenState extends State<PlaybookHubScreen> {
   final RefreshSignal _refreshSignal = sl<RefreshSignal>();
   Team? _selectedTeam;
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
     // Subscribe to the signal
-    _refreshSignal.addListener(_refreshPlays);
+    _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshPlays());
   }
 
   @override
   void dispose() {
     // Unsubscribe
-    _refreshSignal.removeListener(_refreshPlays);
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 

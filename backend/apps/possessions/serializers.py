@@ -8,6 +8,25 @@ from apps.teams.serializers import TeamReadSerializer
 from apps.games.serializers import GameReadSerializer, GameWriteSerializer
 from apps.games.roster_serializers import GameRosterSerializer
 from apps.users.serializers import UserSerializer
+from apps.users.models import User
+
+
+# Lightweight serializer for possession lists
+class PossessionListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for possession lists - minimal fields for better performance"""
+    class Meta:
+        model = Possession
+        fields = [
+            "id",
+            "game",
+            "team",
+            "opponent",
+            "quarter",
+            "start_time_in_game",
+            "outcome",
+            "points_scored",
+            "created_at",
+        ]
 
 
 # This is the "deep" serializer for the main /api/possessions/ endpoint.
@@ -34,6 +53,20 @@ class PossessionSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         allow_null=True,
+    )
+    
+    # ManyToMany fields for players on court - using custom handling
+    players_on_court = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
+    )
+    defensive_players_on_court = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
     )
 
     def validate_outcome(self, value: str) -> str:
@@ -75,13 +108,41 @@ class PossessionSerializer(serializers.ModelSerializer):
                 errors["opponent_id"] = [
                     "Opponent must be the other team in the game, not the same as the possession team."
                 ]
+
+        # Validate that rosters are properly created before allowing possession logging
+        if game and team and opponent:
+            from apps.games.models import GameRoster
+            
+            # Check if both rosters exist
+            try:
+                home_roster = GameRoster.objects.get(game=game, team=game.home_team)
+                away_roster = GameRoster.objects.get(game=game, team=game.away_team)
+                
+                # Check if rosters have minimum required players (10)
+                if home_roster.players.count() < 10:
+                    errors["roster"] = [
+                        f"Home team ({game.home_team.name}) roster has only {home_roster.players.count()} players. Minimum 10 players required before logging possessions."
+                    ]
+                
+                if away_roster.players.count() < 10:
+                    errors["roster"] = [
+                        f"Away team ({game.away_team.name}) roster has only {away_roster.players.count()} players. Minimum 10 players required before logging possessions."
+                    ]
+                    
+            except GameRoster.DoesNotExist as e:
+                missing_team = game.home_team.name if "home" in str(e) else game.away_team.name
+                errors["roster"] = [
+                    f"Game roster for {missing_team} not found. Please create rosters for both teams before logging possessions."
+                ]
+
         if errors:
             raise serializers.ValidationError(errors)
         return attrs
 
     def create(self, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop("players_on_court", [])
+        players_on_court_ids = validated_data.pop("players_on_court", [])
+        defensive_players_on_court_ids = validated_data.pop("defensive_players_on_court", [])
         offensive_rebound_players_data = validated_data.pop(
             "offensive_rebound_players", []
         )
@@ -89,9 +150,13 @@ class PossessionSerializer(serializers.ModelSerializer):
         # Create the possession
         possession = super().create(validated_data)
 
-        # Add ManyToMany relationships
-        if players_on_court_data:
-            possession.players_on_court.set(players_on_court_data)
+        # Convert player IDs to User objects and set ManyToMany relationships
+        if players_on_court_ids:
+            players_on_court_users = User.objects.filter(id__in=players_on_court_ids)
+            possession.players_on_court.set(players_on_court_users)
+        if defensive_players_on_court_ids:
+            defensive_players_on_court_users = User.objects.filter(id__in=defensive_players_on_court_ids)
+            possession.defensive_players_on_court.set(defensive_players_on_court_users)
         if offensive_rebound_players_data:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
 
@@ -99,7 +164,8 @@ class PossessionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Handle ManyToMany fields separately
-        players_on_court_data = validated_data.pop("players_on_court", None)
+        players_on_court_ids = validated_data.pop("players_on_court", None)
+        defensive_players_on_court_ids = validated_data.pop("defensive_players_on_court", None)
         offensive_rebound_players_data = validated_data.pop(
             "offensive_rebound_players", None
         )
@@ -108,8 +174,12 @@ class PossessionSerializer(serializers.ModelSerializer):
         possession = super().update(instance, validated_data)
 
         # Update ManyToMany relationships if provided
-        if players_on_court_data is not None:
-            possession.players_on_court.set(players_on_court_data)
+        if players_on_court_ids is not None:
+            players_on_court_users = User.objects.filter(id__in=players_on_court_ids)
+            possession.players_on_court.set(players_on_court_users)
+        if defensive_players_on_court_ids is not None:
+            defensive_players_on_court_users = User.objects.filter(id__in=defensive_players_on_court_ids)
+            possession.defensive_players_on_court.set(defensive_players_on_court_users)
         if offensive_rebound_players_data is not None:
             possession.offensive_rebound_players.set(offensive_rebound_players_data)
 
@@ -157,6 +227,7 @@ class PossessionSerializer(serializers.ModelSerializer):
             "stolen_by",
             "fouled_by",
             "players_on_court",
+            "defensive_players_on_court",
             "notes",
             # Sequence fields
             "offensive_sequence",

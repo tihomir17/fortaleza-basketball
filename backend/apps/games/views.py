@@ -1,3 +1,4 @@
+from typing import Any, Dict, List, Optional, Type
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
@@ -5,12 +6,14 @@ from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Count, Q, Avg, Sum
+from django.db.models import Count, Q, Avg, Sum, QuerySet
 from django.db.models.functions import TruncDate
+from django.http import HttpRequest
 
-from .models import Game, ScoutingReport
+from .models import Game, ScoutingReport, GameRoster
 from apps.teams.models import Team
 from .serializers import GameReadSerializer, GameWriteSerializer, GameListSerializer
+from .roster_serializers import GameRosterSerializer
 from .filters import GameFilter
 from .services import GameAnalyticsService
 from .pdf_export import AnalyticsPDFExporter
@@ -18,9 +21,48 @@ from .models import ScoutingReport
 from .serializers import ScoutingReportSerializer
 from django.db.models import Q  # Import Q
 from apps.users.permissions import IsTeamScopedObject  # New import
+from rest_framework.permissions import BasePermission
 from .serializers import GameReadLightweightSerializer  # New import
 from apps.possessions.models import Possession
 from apps.events.models import CalendarEvent
+from apps.core.cache_utils import cache_analytics_data, cache_dashboard_data, CacheManager
+
+
+class IsGameRosterPermission(BasePermission):
+    """
+    Custom permission for game roster management.
+    Allows coaches to create rosters for both teams in a game they're involved in.
+    """
+    message = "You do not have permission to manage rosters for this game."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        
+        # Only coaches can manage rosters
+        if user.role != 'COACH':
+            return False
+            
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+            
+        # For Game objects, check if user coaches either team in the game
+        if isinstance(obj, Game):
+            # Check if user coaches the home team or away team
+            home_team_coached = obj.home_team.coaches.filter(id=user.id).exists()
+            away_team_coached = obj.away_team.coaches.filter(id=user.id).exists()
+            return home_team_coached or away_team_coached
+            
+        return False
 
 
 class GamePagination(PageNumberPagination):
@@ -36,7 +78,27 @@ class GameViewSet(viewsets.ModelViewSet):
     filterset_class = GameFilter
     pagination_class = GamePagination
 
-    def get_serializer_class(self):
+    def list(self, request, *args, **kwargs):
+        """Rate limited list view - 100 requests per hour per IP"""
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        """Rate limited retrieve view - 200 requests per hour per IP"""
+        return super().retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        """Rate limited create view - 10 requests per hour per user"""
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        """Rate limited update view - 20 requests per hour per user"""
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Rate limited delete view - 5 requests per hour per user"""
+        return super().destroy(request, *args, **kwargs)
+
+    def get_serializer_class(self) -> Type[Any]:
         """
         Use the appropriate serializer based on the action:
         - 'list': Use lightweight GameListSerializer for performance
@@ -59,7 +121,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 return GameReadLightweightSerializer
         return GameReadLightweightSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Game]:
         """
         Filters games to only show those involving teams the user is a member of.
         Superusers can see all games.
@@ -73,15 +135,11 @@ class GameViewSet(viewsets.ModelViewSet):
                 "competition", "home_team", "away_team"
             )
         else:
-            # Get all teams the user is a member of
-            member_of_teams = Team.objects.filter(
-                Q(players=user) | Q(coaches=user)
-            ).distinct()
-
-            # Filter games where one of the user's teams was either home or away
+            # Optimized single query: Filter games where the user is a member of either team
             base_queryset = (
                 self.queryset.filter(
-                    Q(home_team__in=member_of_teams) | Q(away_team__in=member_of_teams)
+                    Q(home_team__players=user) | Q(home_team__coaches=user) |
+                    Q(away_team__players=user) | Q(away_team__coaches=user)
                 )
                 .distinct()
                 .select_related("competition", "home_team", "away_team")
@@ -223,10 +281,12 @@ class GameViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["get"])
+    @cache_analytics_data(timeout=1800)  # Cache for 30 minutes
     def comprehensive_analytics(self, request):
         """
         Get comprehensive analytics with extensive filtering options.
         Supports filtering by team, quarters, time ranges, outcomes, etc.
+        Cached for 30 minutes to improve performance
         """
         try:
             # Get filter parameters
@@ -688,7 +748,25 @@ class GameViewSet(viewsets.ModelViewSet):
     def dashboard_data(self, request):
         """
         Get dashboard data including quick stats, recent activity, and upcoming games
+        Cached for 1 minute to improve performance while maintaining real-time updates
         """
+        # Check if force refresh is requested
+        force_refresh = request.query_params.get('force_refresh')
+        
+        if force_refresh:
+            # Bypass cache and get fresh data
+            return self._get_dashboard_data(request)
+        else:
+            # Use cached data
+            return self._get_dashboard_data_cached(request)
+    
+    @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
+    def _get_dashboard_data_cached(self, request):
+        """Cached version of dashboard data"""
+        return self._get_dashboard_data(request)
+    
+    def _get_dashboard_data(self, request):
+        """Get fresh dashboard data without cache"""
         try:
             user = request.user
             today = timezone.now().date()
@@ -913,6 +991,195 @@ class GameViewSet(viewsets.ModelViewSet):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    # Roster Management Endpoints
+    @action(detail=True, methods=["post"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def create_roster(self, request, pk=None):
+        """
+        Create or update a game roster for a team.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            player_ids = request.data.get('player_ids', [])
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(player_ids) < 10 or len(player_ids) > 12:
+                return Response(
+                    {"error": "Roster must have between 10 and 12 players"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if team is part of this game
+            if game.home_team.id != team_id and game.away_team.id != team_id:
+                return Response(
+                    {"error": "Team is not part of this game"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            
+            # Get or create roster
+            roster, created = GameRoster.objects.get_or_create(
+                game=game,
+                team=team,
+                defaults={}
+            )
+            
+            # Set players
+            from apps.users.models import User
+            players = User.objects.filter(id__in=player_ids, role='PLAYER')
+            roster.players.set(players)
+            
+            serializer = GameRosterSerializer(roster)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except Team.DoesNotExist:
+            return Response(
+                {"error": "Team not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["patch"], url_path="roster/starting-five", permission_classes=[IsGameRosterPermission])
+    def update_starting_five(self, request, pk=None):
+        """
+        Update the starting five for a team's roster.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            starting_five_ids = request.data.get('starting_five_ids', [])
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(starting_five_ids) != 5:
+                return Response(
+                    {"error": "Starting five must have exactly 5 players"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if team is part of this game
+            if game.home_team.id != team_id and game.away_team.id != team_id:
+                return Response(
+                    {"error": "Team is not part of this game"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            
+            try:
+                roster = GameRoster.objects.get(game=game, team=team)
+            except GameRoster.DoesNotExist:
+                return Response(
+                    {"error": "Roster not found. Create roster first."}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Validate that starting five players are in the roster
+            roster_player_ids = set(roster.players.values_list('id', flat=True))
+            if not set(starting_five_ids).issubset(roster_player_ids):
+                return Response(
+                    {"error": "Starting five players must be in the roster"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set starting five
+            from apps.users.models import User
+            starting_five = User.objects.filter(id__in=starting_five_ids)
+            roster.starting_five.set(starting_five)
+            
+            serializer = GameRosterSerializer(roster)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Team.DoesNotExist:
+            return Response(
+                {"error": "Team not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["get"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def get_roster(self, request, pk=None):
+        """
+        Get roster information for a game.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.query_params.get('team_id')
+            
+            if team_id:
+                # Get specific team roster
+                try:
+                    team = Team.objects.get(id=team_id)
+                    roster = GameRoster.objects.get(game=game, team=team)
+                    serializer = GameRosterSerializer(roster)
+                    return Response(serializer.data)
+                except (Team.DoesNotExist, GameRoster.DoesNotExist):
+                    return Response(
+                        {"error": "Roster not found"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                # Get all rosters for the game
+                rosters = GameRoster.objects.filter(game=game)
+                serializer = GameRosterSerializer(rosters, many=True)
+                return Response(serializer.data)
+                
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["delete"], url_path="roster", permission_classes=[IsGameRosterPermission])
+    def delete_roster(self, request, pk=None):
+        """
+        Delete a roster for a team.
+        """
+        try:
+            game = self.get_object()
+            team_id = request.data.get('team_id')
+            
+            if not team_id:
+                return Response(
+                    {"error": "team_id is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            team = Team.objects.get(id=team_id)
+            roster = GameRoster.objects.get(game=game, team=team)
+            roster.delete()
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except (Team.DoesNotExist, GameRoster.DoesNotExist):
+            return Response(
+                {"error": "Roster not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=True, methods=["delete"])
     def delete_report(self, request, pk=None):
         """
@@ -955,3 +1222,245 @@ class GameViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(detail=True, methods=["get"], url_path="player-stats")
+    def get_game_player_stats(self, request, pk=None):
+        """Get player statistics for a specific game"""
+        try:
+            game = self.get_object()
+            
+            # Get all possessions for this game
+            from apps.possessions.models import Possession
+            from django.db.models import Count, Sum, Case, When, Value, IntegerField
+            
+            possessions = Possession.objects.filter(game=game).select_related('scorer', 'team__team')
+            
+            # Get player stats for each team
+            home_team_stats = {}
+            away_team_stats = {}
+            
+            # Process home team possessions
+            home_possessions = possessions.filter(team__team=game.home_team)
+            for possession in home_possessions:
+                if possession.scorer:
+                    player_id = possession.scorer.id
+                    if player_id not in home_team_stats:
+                        home_team_stats[player_id] = {
+                            'player': {
+                                'id': possession.scorer.id,
+                                'first_name': possession.scorer.first_name,
+                                'last_name': possession.scorer.last_name,
+                                'jersey_number': possession.scorer.jersey_number,
+                            },
+                            'stats': {
+                                'total_points': 0,
+                                'field_goals_made': 0,
+                                'field_goals_attempted': 0,
+                                'three_pointers_made': 0,
+                                'three_pointers_attempted': 0,
+                                'free_throws_made': 0,
+                                'free_throws_attempted': 0,
+                            }
+                        }
+                    
+                    # Update stats based on outcome
+                    stats = home_team_stats[player_id]['stats']
+                    if possession.outcome == 'MADE_2PTS':
+                        stats['total_points'] += 2
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MISSED_2PTS':
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MADE_3PTS':
+                        stats['total_points'] += 3
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_made'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MISSED_3PTS':
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MADE_FTS':
+                        stats['total_points'] += 1
+                        stats['free_throws_made'] += 1
+                        stats['free_throws_attempted'] += 1
+                    elif possession.outcome == 'MISSED_FTS':
+                        stats['free_throws_attempted'] += 1
+            
+            # Process away team possessions
+            away_possessions = possessions.filter(team__team=game.away_team)
+            for possession in away_possessions:
+                if possession.scorer:
+                    player_id = possession.scorer.id
+                    if player_id not in away_team_stats:
+                        away_team_stats[player_id] = {
+                            'player': {
+                                'id': possession.scorer.id,
+                                'first_name': possession.scorer.first_name,
+                                'last_name': possession.scorer.last_name,
+                                'jersey_number': possession.scorer.jersey_number,
+                            },
+                            'stats': {
+                                'total_points': 0,
+                                'field_goals_made': 0,
+                                'field_goals_attempted': 0,
+                                'three_pointers_made': 0,
+                                'three_pointers_attempted': 0,
+                                'free_throws_made': 0,
+                                'free_throws_attempted': 0,
+                            }
+                        }
+                    
+                    # Update stats based on outcome
+                    stats = away_team_stats[player_id]['stats']
+                    if possession.outcome == 'MADE_2PTS':
+                        stats['total_points'] += 2
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MISSED_2PTS':
+                        stats['field_goals_attempted'] += 1
+                    elif possession.outcome == 'MADE_3PTS':
+                        stats['total_points'] += 3
+                        stats['field_goals_made'] += 1
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_made'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MISSED_3PTS':
+                        stats['field_goals_attempted'] += 1
+                        stats['three_pointers_attempted'] += 1
+                    elif possession.outcome == 'MADE_FTS':
+                        stats['total_points'] += 1
+                        stats['free_throws_made'] += 1
+                        stats['free_throws_attempted'] += 1
+                    elif possession.outcome == 'MISSED_FTS':
+                        stats['free_throws_attempted'] += 1
+            
+            # Calculate shooting percentages
+            for player_data in home_team_stats.values():
+                stats = player_data['stats']
+                if stats['field_goals_attempted'] > 0:
+                    stats['field_goal_percentage'] = round((stats['field_goals_made'] / stats['field_goals_attempted']) * 100, 1)
+                else:
+                    stats['field_goal_percentage'] = 0.0
+                
+                if stats['three_pointers_attempted'] > 0:
+                    stats['three_point_percentage'] = round((stats['three_pointers_made'] / stats['three_pointers_attempted']) * 100, 1)
+                else:
+                    stats['three_point_percentage'] = 0.0
+                
+                if stats['free_throws_attempted'] > 0:
+                    stats['free_throw_percentage'] = round((stats['free_throws_made'] / stats['free_throws_attempted']) * 100, 1)
+                else:
+                    stats['free_throw_percentage'] = 0.0
+            
+            for player_data in away_team_stats.values():
+                stats = player_data['stats']
+                if stats['field_goals_attempted'] > 0:
+                    stats['field_goal_percentage'] = round((stats['field_goals_made'] / stats['field_goals_attempted']) * 100, 1)
+                else:
+                    stats['field_goal_percentage'] = 0.0
+                
+                if stats['three_pointers_attempted'] > 0:
+                    stats['three_point_percentage'] = round((stats['three_pointers_made'] / stats['three_pointers_attempted']) * 100, 1)
+                else:
+                    stats['three_point_percentage'] = 0.0
+                
+                if stats['free_throws_attempted'] > 0:
+                    stats['free_throw_percentage'] = round((stats['free_throws_made'] / stats['free_throws_attempted']) * 100, 1)
+                else:
+                    stats['free_throw_percentage'] = 0.0
+            
+            return Response({
+                'game': {
+                    'id': game.id,
+                    'home_team': game.home_team.name,
+                    'away_team': game.away_team.name,
+                    'home_team_score': game.home_team_score,
+                    'away_team_score': game.away_team_score,
+                },
+                'home_team_player_stats': list(home_team_stats.values()),
+                'away_team_player_stats': list(away_team_stats.values()),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="invalidate-cache")
+    def invalidate_cache(self, request):
+        """
+        Manually invalidate dashboard cache for immediate updates
+        """
+        try:
+            # Invalidate dashboard cache
+            CacheManager.invalidate_dashboard_cache()
+            
+            return Response({
+                "message": "Dashboard cache invalidated successfully",
+                "timestamp": timezone.now().isoformat(),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["get"], url_path="calendar-data")
+    def get_calendar_data(self, request):
+        """
+        Get all games for calendar display (no team scoping restrictions)
+        This endpoint allows authenticated users to see all games for calendar purposes
+        """
+        try:
+            user = request.user
+            if not user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            # Get all games without team scoping for calendar display
+            games = Game.objects.all().select_related(
+                "home_team", "away_team", "competition"
+            ).order_by("game_date")
+
+            # Serialize games for calendar
+            games_data = []
+            for game in games:
+                games_data.append({
+                    "id": game.id,
+                    "home_team": {
+                        "id": game.home_team.id,
+                        "name": game.home_team.name,
+                    },
+                    "away_team": {
+                        "id": game.away_team.id,
+                        "name": game.away_team.name,
+                    },
+                    "competition": {
+                        "id": game.competition.id,
+                        "name": game.competition.name,
+                    },
+                    "game_date": game.game_date,
+                    "home_team_score": game.home_team_score,
+                    "away_team_score": game.away_team_score,
+                    "quarter": game.quarter,
+                    "created_by": game.created_by.id if game.created_by else None,
+                    "created_at": game.created_at,
+                    "updated_at": game.updated_at,
+                })
+
+            return Response({
+                "games": games_data,
+                "count": len(games_data),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

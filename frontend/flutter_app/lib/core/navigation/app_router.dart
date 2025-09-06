@@ -27,6 +27,8 @@ import '../../features/calendar/presentation/screens/calendar_screen.dart';
 // Import the new screens
 import '../../features/games/presentation/screens/scouting_reports_screen.dart';
 import '../../features/scouting/presentation/screens/self_scouting_screen.dart';
+import '../../features/scouting/presentation/screens/coach_self_scouting_screen.dart';
+import '../../features/scouting/presentation/screens/opponent_scouting_screen.dart';
 import '../../features/games/presentation/screens/game_analytics_screen.dart';
 import '../../features/games/presentation/screens/post_game_report_screen.dart';
 import '../../features/games/presentation/screens/advanced_post_game_report_screen.dart';
@@ -42,6 +44,7 @@ import '../../features/staff/presentation/screens/player_health_screen.dart';
 import '../../features/staff/presentation/screens/injury_reports_screen.dart';
 import '../../features/staff/presentation/screens/training_programs_screen.dart';
 import '../../features/staff/presentation/screens/performance_metrics_screen.dart';
+import '../../features/possessions/presentation/screens/log_possession_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -176,6 +179,14 @@ class AppRouter {
                       return AdvancedPostGameReportScreen(gameId: gameId);
                     },
                   ),
+                  GoRoute(
+                    path: 'add-possession', // Matches '/games/:gameId/add-possession'
+                    builder: (context, state) {
+                      final gameId =
+                          int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
+                      return LiveTrackingScreen(gameId: gameId);
+                    },
+                  ),
                 ],
               ),
             ],
@@ -212,6 +223,10 @@ class AppRouter {
             builder: (context, state) => const ScoutingReportsScreen(),
           ),
           GoRoute(
+            path: '/opponent-scouting',
+            builder: (context, state) => const OpponentScoutingScreen(),
+          ),
+          GoRoute(
             path: '/games/:gameId/player-stats',
             builder: (context, state) {
               final gameId = int.tryParse(state.pathParameters['gameId'] ?? '') ?? 0;
@@ -223,6 +238,13 @@ class AppRouter {
             builder: (context, state) => BlocProvider(
               create: (context) => sl<SelfScoutingCubit>(),
               child: const SelfScoutingScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/coach-self-scouting',
+            builder: (context, state) => BlocProvider(
+              create: (context) => sl<SelfScoutingCubit>(),
+              child: const CoachSelfScoutingScreen(),
             ),
           ),
           GoRoute(

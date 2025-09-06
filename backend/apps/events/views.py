@@ -1,13 +1,20 @@
 # backend/apps/events/views.py
 
 from rest_framework import viewsets, permissions
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import CalendarEvent
-from .serializers import CalendarEventSerializer
+from .serializers import CalendarEventSerializer, CalendarEventListSerializer
 from .filters import CalendarEventFilter
 from django.db.models import Q
 from apps.teams.models import Team  # Import the Team model
 from apps.users.permissions import IsTeamScopedObject  # New import
+
+
+class CalendarEventPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
 
 
 class CalendarEventViewSet(viewsets.ModelViewSet):
@@ -16,6 +23,13 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
     queryset = CalendarEvent.objects.all()
     filter_backends = [DjangoFilterBackend]
     filterset_class = CalendarEventFilter
+    pagination_class = CalendarEventPagination
+
+    def get_serializer_class(self):
+        """Use lightweight serializer for list views"""
+        if self.action == "list":
+            return CalendarEventListSerializer
+        return CalendarEventSerializer
 
     def get_queryset(self):
         """
@@ -31,7 +45,7 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         # Get the actual Team objects the user is a member of.
         # We use the correct related_names from the Team model.
         member_of_teams = Team.objects.filter(
-            Q(players=user) | Q(coaches=user)
+            Q(players=user) | Q(coaches=user) | Q(staff=user)
         ).distinct()
 
         # Filter events where the event's team is in our list of teams,
@@ -51,12 +65,14 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Players cannot create events.")
         
-        # If no team is provided and user is a coach, auto-assign their primary team
-        if not serializer.validated_data.get('team') and user.role == 'COACH':
-            # Get the first team where the user is a coach
-            coach_teams = Team.objects.filter(coaches=user)
-            if coach_teams.exists():
-                serializer.validated_data['team'] = coach_teams.first()
+        # If no team is provided and user is a coach or staff, auto-assign their primary team
+        if not serializer.validated_data.get('team') and user.role in ['COACH', 'STAFF']:
+            # Get the first team where the user is a coach or staff
+            user_teams = Team.objects.filter(
+                Q(coaches=user) | Q(staff=user)
+            )
+            if user_teams.exists():
+                serializer.validated_data['team'] = user_teams.first()
         
         serializer.save(created_by=user)
     

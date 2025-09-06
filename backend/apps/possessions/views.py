@@ -4,14 +4,21 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 
 from .models import Possession
-from .serializers import PossessionSerializer
+from .serializers import PossessionSerializer, PossessionListSerializer
 from .filters import PossessionFilter
 from .services import StatsService, PlayerStatsService
 from apps.users.permissions import IsTeamScopedObject
+
+
+class PossessionPagination(PageNumberPagination):
+    page_size = 100  # Larger page size for possessions as they're smaller objects
+    page_size_query_param = "page_size"
+    max_page_size = 500
 
 
 class PossessionViewSet(viewsets.ModelViewSet):
@@ -20,6 +27,13 @@ class PossessionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsTeamScopedObject]
     filter_backends = [DjangoFilterBackend]
     filterset_class = PossessionFilter
+    pagination_class = PossessionPagination
+
+    def get_serializer_class(self):
+        """Use lightweight serializer for list views"""
+        if self.action == "list":
+            return PossessionListSerializer
+        return PossessionSerializer
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -30,12 +44,12 @@ class PossessionViewSet(viewsets.ModelViewSet):
             "game", "team__team", "opponent__team", "created_by"
         ).prefetch_related("players_on_court", "offensive_rebound_players")
 
-        # Filter by team membership - now team and opponent are GameRoster instances
-        if hasattr(user, "teams"):
-            user_teams = user.teams.all()
+        # Filter by team membership - optimize with single query
+        if not user.is_superuser:
             queryset = queryset.filter(
-                Q(team__team__in=user_teams) | Q(opponent__team__in=user_teams)
-            )
+                Q(team__team__players=user) | Q(team__team__coaches=user) |
+                Q(opponent__team__players=user) | Q(opponent__team__coaches=user)
+            ).distinct()
 
         return queryset
 

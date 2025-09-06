@@ -90,6 +90,12 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(

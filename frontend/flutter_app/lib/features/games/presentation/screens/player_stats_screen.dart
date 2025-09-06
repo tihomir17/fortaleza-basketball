@@ -99,6 +99,28 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
   void _createGameRosters() {
     if (_game == null) return;
     
+    // Use the actual game rosters if they exist
+    if (_game!.homeTeamRoster != null) {
+      final homeTeamId = _game!.homeTeam.id.toString();
+      _gameRoster[homeTeamId] = _game!.homeTeamRoster!;
+      _minutesTrackers[homeTeamId] = PlayerMinutesTracker();
+    }
+    
+    if (_game!.awayTeamRoster != null) {
+      final awayTeamId = _game!.awayTeam.id.toString();
+      _gameRoster[awayTeamId] = _game!.awayTeamRoster!;
+      _minutesTrackers[awayTeamId] = PlayerMinutesTracker();
+    }
+    
+    // Fallback: If no rosters exist, try to create them from possessions
+    if (_gameRoster.isEmpty) {
+      _createRostersFromPossessions();
+    }
+  }
+  
+  void _createRostersFromPossessions() {
+    if (_game == null) return;
+    
     // Get unique teams from possessions
     final Set<String> teamIds = {};
     for (final possession in _possessions) {
@@ -122,10 +144,12 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         // This team was the offensive team
         final roster = teamPossession.team!;
         _gameRoster[teamId] = roster;
+        _minutesTrackers[teamId] = PlayerMinutesTracker();
       } else if (teamPossession.opponent?.team.id.toString() == teamId) {
         // This team was the defensive team
         final roster = teamPossession.opponent!;
         _gameRoster[teamId] = roster;
+        _minutesTrackers[teamId] = PlayerMinutesTracker();
       }
     }
   }
@@ -621,7 +645,13 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
     final playerList = _getSortedPlayerStats(teamStats.team.id.toString());
     
     if (playerList.isEmpty) {
-      return const Center(child: Text('No player stats available'));
+      // Check if we have roster data but no stats yet
+      final teamId = teamStats.team.id.toString();
+      if (_gameRoster.containsKey(teamId)) {
+        return _buildRosterDisplay(teamStats.team);
+      } else {
+        return const Center(child: Text('No player stats available'));
+      }
     }
 
     return Card(
@@ -679,6 +709,101 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
     final mm = minutes.toString();
     final ss = seconds.toString().padLeft(2, '0');
     return '$mm:$ss';
+  }
+  
+  Widget _buildRosterDisplay(Team team) {
+    final teamId = team.id.toString();
+    final roster = _gameRoster[teamId];
+    
+    if (roster == null) {
+      return const Center(child: Text('No roster available'));
+    }
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  '${team.name} Roster',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Players are loaded but no game data yet.\nStart logging possessions to see stats.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Roster Players (${roster.players.length}):',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: roster.players.map((player) {
+                final isStartingFive = roster.isStartingFive(player.id);
+                return Chip(
+                  label: Text(
+                    '${player.jerseyNumber ?? '?'} ${player.displayName}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isStartingFive ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  backgroundColor: isStartingFive ? Colors.orange[100] : Colors.grey[100],
+                  side: BorderSide(
+                    color: isStartingFive ? Colors.orange : Colors.grey,
+                    width: isStartingFive ? 2 : 1,
+                  ),
+                );
+              }).toList(),
+            ),
+            if (roster.startingFive.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Starting Five:',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: roster.startingFive.map((player) {
+                  return Chip(
+                    label: Text(
+                      '${player.jerseyNumber ?? '?'} ${player.displayName}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    backgroundColor: Colors.orange[100],
+                    side: const BorderSide(color: Colors.orange, width: 2),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 

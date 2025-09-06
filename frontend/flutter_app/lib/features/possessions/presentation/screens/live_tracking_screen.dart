@@ -10,6 +10,7 @@ import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
 import 'package:flutter_app/features/authentication/data/models/user_model.dart';
 import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
 import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
@@ -175,6 +176,73 @@ class __LiveTrackingStatefulWrapperState
   String? _finalOutcome; // To hold outcomes like 'MADE_2PT', 'TO_TRAVEL', etc.
   String? _shotType; // To track if '2pts' or '3pts' was pressed
   bool? _isHomeTeamPossession; // To determine which team had the ball
+  
+  // Track current players on court for both teams
+  Set<int> _homeTeamPlayersOnCourt = {}; // Set of player IDs currently on court
+  Set<int> _awayTeamPlayersOnCourt = {}; // Set of player IDs currently on court
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeStartingFive();
+  }
+
+  void _initializeStartingFive() {
+    // Initialize with starting five players from both teams
+    if (widget.game.homeTeamRoster != null) {
+      _homeTeamPlayersOnCourt = widget.game.homeTeamRoster!.startingFive
+          .map((player) => player.id)
+          .toSet();
+    }
+    
+    if (widget.game.awayTeamRoster != null) {
+      _awayTeamPlayersOnCourt = widget.game.awayTeamRoster!.startingFive
+          .map((player) => player.id)
+          .toSet();
+    }
+  }
+
+  void _handleSubstitution(int playerInNumber, int playerOutNumber) {
+    setState(() {
+      // Find the player IDs by jersey number
+      final homeTeamPlayers = widget.game.homeTeamRoster?.players ?? [];
+      final awayTeamPlayers = widget.game.awayTeamRoster?.players ?? [];
+      
+      // Check home team first
+      final homePlayerIn = homeTeamPlayers.firstWhere(
+        (player) => player.jerseyNumber == playerInNumber,
+        orElse: () => homeTeamPlayers.first, // fallback
+      );
+      final homePlayerOut = homeTeamPlayers.firstWhere(
+        (player) => player.jerseyNumber == playerOutNumber,
+        orElse: () => homeTeamPlayers.first, // fallback
+      );
+      
+      // Check away team
+      final awayPlayerIn = awayTeamPlayers.firstWhere(
+        (player) => player.jerseyNumber == playerInNumber,
+        orElse: () => awayTeamPlayers.first, // fallback
+      );
+      final awayPlayerOut = awayTeamPlayers.firstWhere(
+        (player) => player.jerseyNumber == playerOutNumber,
+        orElse: () => awayTeamPlayers.first, // fallback
+      );
+      
+      // Determine which team the substitution is for
+      // We'll assume it's for the team that has the ball, or home team as default
+      final isHomeTeamSubstitution = _isHomeTeamPossession ?? true;
+      
+      if (isHomeTeamSubstitution) {
+        // Home team substitution
+        _homeTeamPlayersOnCourt.remove(homePlayerOut.id);
+        _homeTeamPlayersOnCourt.add(homePlayerIn.id);
+      } else {
+        // Away team substitution
+        _awayTeamPlayersOnCourt.remove(awayPlayerOut.id);
+        _awayTeamPlayersOnCourt.add(awayPlayerIn.id);
+      }
+    });
+  }
 
   void _onButtonPressed(String action) {
     if (action.startsWith('TO_') ||
@@ -255,25 +323,34 @@ class __LiveTrackingStatefulWrapperState
   }
 
   Future<void> savePossessionToDatabase(
-    Team team,
-    Team opponent,
+    GameRoster teamRoster,
+    GameRoster opponentRoster,
     String sequence,
   ) async {
     final token = context.read<AuthCubit>().state.token;
     if (token == null) return;
 
+    print('DEBUG: savePossessionToDatabase - teamRoster: ${teamRoster.team.name} (GameRoster ID: ${teamRoster.id}), opponentRoster: ${opponentRoster.team.name} (GameRoster ID: ${opponentRoster.id})');
+    print('DEBUG: savePossessionToDatabase - gameId: ${widget.game.id}');
+
     try {
+      // Get current players on court for both teams
+      final homeTeamPlayersOnCourtIds = _homeTeamPlayersOnCourt.toList();
+      final awayTeamPlayersOnCourtIds = _awayTeamPlayersOnCourt.toList();
+      
       await sl<PossessionRepository>().createPossession(
         token: token,
         gameId: widget.game.id,
-        teamId: team.id,
-        opponentId: opponent.id,
+        teamId: teamRoster.id, // Use GameRoster ID, not Team ID
+        opponentId: opponentRoster.id, // Use GameRoster ID, not Team ID
         startTime: "00:00", // Placeholder
         duration: 10, // Placeholder
         quarter: int.tryParse(widget.currentPeriod.replaceAll('Q', '')) ?? 1,
-        outcome: _finalOutcome!,
+        outcome: _finalOutcome ?? 'TURNOVER', // Default to TURNOVER if no outcome specified
         offensiveSequence: _isHomeTeamPossession! ? sequence : '',
         defensiveSequence: !_isHomeTeamPossession! ? sequence : '',
+        playersOnCourtIds: _isHomeTeamPossession! ? homeTeamPlayersOnCourtIds : awayTeamPlayersOnCourtIds,
+        defensivePlayersOnCourtIds: _isHomeTeamPossession! ? awayTeamPlayersOnCourtIds : homeTeamPlayersOnCourtIds,
       );
 
       if (mounted) {
@@ -317,6 +394,59 @@ class __LiveTrackingStatefulWrapperState
     final opponentTeam = _isHomeTeamPossession! ? game.awayTeam : game.homeTeam;
     final sequenceString = _sequence.join(' / ');
 
+    // Get the GameRoster objects instead of Team objects
+    final teamRoster = _isHomeTeamPossession! ? game.homeTeamRoster : game.awayTeamRoster;
+    final opponentRoster = _isHomeTeamPossession! ? game.awayTeamRoster : game.homeTeamRoster;
+
+    // Check if rosters are created
+    if (teamRoster == null || opponentRoster == null) {
+      final missingRosters = <String>[];
+      if (teamRoster == null) {
+        missingRosters.add(teamWithBall.name);
+      }
+      if (opponentRoster == null) {
+        missingRosters.add(opponentTeam.name);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${missingRosters.join(' and ')} roster${missingRosters.length > 1 ? 's' : ''} not created yet. Please create rosters first.",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    // Check if rosters have enough players (minimum 10)
+    if (teamRoster.players.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${teamWithBall.name} roster has only ${teamRoster.players.length} players. Minimum 10 players required.",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
+    if (opponentRoster.players.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Cannot log possession: ${opponentTeam.name} roster has only ${opponentRoster.players.length} players. Minimum 10 players required.",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -332,7 +462,38 @@ class __LiveTrackingStatefulWrapperState
               ),
               Text(sequenceString),
               const SizedBox(height: 16),
-              // TODO: Add outcome and other details to this summary
+              if (_finalOutcome == null) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange[700], size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "No specific outcome selected. Will be saved as 'TURNOVER'.",
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                Text(
+                  "Outcome: $_finalOutcome",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+              ],
             ],
           ),
         ),
@@ -343,10 +504,10 @@ class __LiveTrackingStatefulWrapperState
           ),
           ElevatedButton(
             onPressed: () {
-              // Call the repository method on confirm
+              // Call the repository method on confirm with GameRoster objects
               savePossessionToDatabase(
-                teamWithBall,
-                opponentTeam,
+                teamRoster,
+                opponentRoster,
                 sequenceString,
               );
               Navigator.of(dialogContext).pop();
@@ -412,11 +573,21 @@ class __LiveTrackingStatefulWrapperState
               child: const Text('Confirm'),
               onPressed: () {
                 if (formKey.currentState!.validate()) {
-                  // If the form is valid, create the action string
-                  final String subAction =
-                      'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
-                  // Call the main onPressed callback to add it to the sequence
-                  _onButtonPressed(subAction);
+                  // Parse the jersey numbers
+                  final playerInNumber = int.tryParse(playerInController.text);
+                  final playerOutNumber = int.tryParse(playerOutController.text);
+                  
+                  if (playerInNumber != null && playerOutNumber != null) {
+                    // Handle the substitution
+                    _handleSubstitution(playerInNumber, playerOutNumber);
+                    
+                    // If the form is valid, create the action string
+                    final String subAction =
+                        'Sub: #${playerInController.text} IN <-> #${playerOutController.text} OUT';
+                    // Call the main onPressed callback to add it to the sequence
+                    _onButtonPressed(subAction);
+                  }
+                  
                   // Close the dialog
                   Navigator.of(dialogContext).pop();
                 }
@@ -565,6 +736,8 @@ class __LiveTrackingStatefulWrapperState
                                 onButtonPressed: _onButtonPressed,
                                 phase: _phase,
                                 game: widget.game,
+                                homeTeamPlayersOnCourt: _homeTeamPlayersOnCourt,
+                                awayTeamPlayersOnCourt: _awayTeamPlayersOnCourt,
                               ),
                             ),
                           ),
@@ -680,6 +853,7 @@ class _ActionButton extends StatelessWidget {
   final int? flex;
   final double? textSize;
   final bool isEnabled;
+  final bool isHighlighted; // New parameter for highlighting
 
   const _ActionButton({
     required this.text,
@@ -689,28 +863,45 @@ class _ActionButton extends StatelessWidget {
     this.textColor,
     this.flex,
     this.isEnabled = false,
+    this.isHighlighted = false, // Default to not highlighted
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(2.0),
-      child: ElevatedButton(
-        onPressed: isEnabled ? () => onPressed(text) : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color ?? Colors.lightBlue,
-          foregroundColor: textColor ?? Colors.white,
-          // Let the button fill the height provided by the TableRow
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          textStyle: TextStyle(
-            fontSize: textSize ?? 14,
-            fontWeight: FontWeight.bold,
-            height: 1.1,
-            fontFamily: 'Montserrat',
+      child: Container(
+        decoration: isHighlighted ? BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: Colors.yellow,
+            width: 3,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.yellow.withOpacity(0.5),
+              blurRadius: 8,
+              spreadRadius: 2,
+            ),
+          ],
+        ) : null,
+        child: ElevatedButton(
+          onPressed: isEnabled ? () => onPressed(text) : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color ?? Colors.lightBlue,
+            foregroundColor: textColor ?? Colors.white,
+            // Let the button fill the height provided by the TableRow
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            textStyle: TextStyle(
+              fontSize: textSize ?? 14,
+              fontWeight: FontWeight.bold,
+              height: 1.1,
+              fontFamily: 'Montserrat',
+            ),
+          ),
+          child: Text(text),
         ),
-        child: Text(text),
       ),
     );
   }
@@ -933,22 +1124,26 @@ class _PlayersPanel extends StatelessWidget {
   final ValueChanged<String> onButtonPressed;
   final PossessionLoggingPhase phase;
   final Game game;
+  final Set<int> homeTeamPlayersOnCourt;
+  final Set<int> awayTeamPlayersOnCourt;
 
   const _PlayersPanel({
     required this.onButtonPressed, 
     required this.phase,
     required this.game,
+    required this.homeTeamPlayersOnCourt,
+    required this.awayTeamPlayersOnCourt,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Get players from both teams and sort by jersey number
-    final homeTeamPlayers = (game.homeTeam.players)
+    // Get players from the actual game rosters (not all team players)
+    final homeTeamPlayers = (game.homeTeamRoster?.players ?? [])
         .where((player) => player.jerseyNumber != null)
         .toList()
       ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
     
-    final awayTeamPlayers = (game.awayTeam.players)
+    final awayTeamPlayers = (game.awayTeamRoster?.players ?? [])
         .where((player) => player.jerseyNumber != null)
         .toList()
       ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
@@ -980,23 +1175,35 @@ class _PlayersPanel extends StatelessWidget {
                 final playerIndex = rowIndex * 3 + (colIndex % 3);
                 String playerText = '#';
                 
+                bool isPlayerOnCourt = false;
+                
                 if (colIndex < 3) {
                   // Home team players (first 3 columns)
                   if (playerIndex < homeTeamPlayers.length) {
-                    playerText = homeTeamPlayers[playerIndex].jerseyNumber?.toString() ?? '#';
+                    final player = homeTeamPlayers[playerIndex];
+                    playerText = player.jerseyNumber?.toString() ?? '#';
+                    isPlayerOnCourt = homeTeamPlayersOnCourt.contains(player.id);
                   }
                 } else {
                   // Away team players (last 3 columns)
                   if (playerIndex < awayTeamPlayers.length) {
-                    playerText = awayTeamPlayers[playerIndex].jerseyNumber?.toString() ?? '#';
+                    final player = awayTeamPlayers[playerIndex];
+                    playerText = player.jerseyNumber?.toString() ?? '#';
+                    isPlayerOnCourt = awayTeamPlayersOnCourt.contains(player.id);
                   }
                 }
                 
+                // Highlight players who are currently on court
+                final buttonColor = isPlayerOnCourt 
+                    ? (colIndex < 3 ? Colors.green[700] : Colors.green[700]) // Green for on court
+                    : color; // Original color for bench players
+                
                 return _ActionButton(
                   text: playerText,
-                  color: color,
+                  color: buttonColor,
                   onPressed: onButtonPressed,
-                  isEnabled: phase == PossessionLoggingPhase.active,
+                  isEnabled: phase == PossessionLoggingPhase.active && isPlayerOnCourt, // Only enable players on court
+                  isHighlighted: isPlayerOnCourt, // Highlight players on court
                 );
               }),
             );

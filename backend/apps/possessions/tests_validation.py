@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.games.models import Game
+from apps.games.models import Game, GameRoster
 from apps.possessions.models import Possession
 from apps.teams.models import Team
 from apps.competitions.models import Competition
@@ -42,6 +42,11 @@ class PossessionValidationTests(APITestCase):
             game_date=datetime.datetime.now(),
         )
 
+        # Create game rosters
+        self.game_roster_a = GameRoster.objects.create(game=self.game, team=self.team_a)
+        self.game_roster_b = GameRoster.objects.create(game=self.game, team=self.team_b)
+        self.game_roster_c = GameRoster.objects.create(game=self.game, team=self.team_c)
+
         self.team_a.coaches.add(self.coach)
 
         self.url = reverse("possession-list")
@@ -54,8 +59,8 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_c.id,  # Team C is not in the game
-            "opponent_id": self.team_b.id,
+            "team_id": self.game_roster_c.id,  # Team C is not in the game
+            "opponent_id": self.game_roster_b.id,
             "start_time_in_game": "10:00",
             "duration_seconds": 24,
             "quarter": 1,
@@ -70,8 +75,8 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_a.id,
-            "opponent_id": self.team_c.id,  # Team C is not in the game
+            "team_id": self.game_roster_a.id,
+            "opponent_id": self.game_roster_c.id,  # Team C is not in the game
             "start_time_in_game": "10:00",
             "duration_seconds": 24,
             "quarter": 1,
@@ -86,8 +91,8 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_a.id,
-            "opponent_id": self.team_a.id,  # Same as team
+            "team_id": self.game_roster_a.id,
+            "opponent_id": self.game_roster_a.id,  # Same as team
             "start_time_in_game": "10:00",
             "duration_seconds": 24,
             "quarter": 1,
@@ -102,8 +107,8 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_a.id,
-            "opponent_id": self.team_b.id,
+            "team_id": self.game_roster_a.id,
+            "opponent_id": self.game_roster_b.id,
             "start_time_in_game": "10:00",
             "duration_seconds": 24,
             "quarter": 1,
@@ -127,8 +132,8 @@ class PossessionValidationTests(APITestCase):
         for alias, expected in aliases:
             data = {
                 "game_id": self.game.id,
-                "team_id": self.team_a.id,
-                "opponent_id": self.team_b.id,
+                "team_id": self.game_roster_a.id,
+                "opponent_id": self.game_roster_b.id,
                 "start_time_in_game": "10:00",
                 "duration_seconds": 24,
                 "quarter": 1,
@@ -143,8 +148,8 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_a.id,
-            "opponent_id": self.team_b.id,
+            "team_id": self.game_roster_a.id,
+            "opponent_id": self.game_roster_b.id,
             "start_time_in_game": "10:00",
             "duration_seconds": 24,
             "quarter": 1,
@@ -161,7 +166,7 @@ class PossessionValidationTests(APITestCase):
         self.auth(self.coach)
         data = {
             "game_id": self.game.id,
-            "team_id": self.team_a.id,
+            "team_id": self.game_roster_a.id,
             # No opponent_id
             "start_time_in_game": "10:00",
             "duration_seconds": 24,

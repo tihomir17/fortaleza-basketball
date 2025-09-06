@@ -1,4 +1,5 @@
 # apps/users/models.py
+from typing import Any, Optional
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -96,7 +97,17 @@ class User(AbstractUser):
         help_text=_("Player rebounding rating (1-100)"),
     )
 
-    def save(self, *args, **kwargs):
+    class Meta:
+        indexes = [
+            models.Index(fields=["role"]),
+            models.Index(fields=["coach_type"]),
+            models.Index(fields=["staff_type"]),
+            models.Index(fields=["position"]),
+            models.Index(fields=["jersey_number"]),
+            models.Index(fields=["date_joined"]),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if self.role != self.Role.COACH:
             self.coach_type = self.CoachType.NONE
         if self.role != self.Role.STAFF:

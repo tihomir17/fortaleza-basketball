@@ -58,10 +58,10 @@ class PlayPermissionsTests(APITestCase):
             category=self.category,
         )
 
-        self.url = reverse("playdefinition-list")
-        self.play_detail_url = reverse("playdefinition-detail", args=[self.play.id])
+        self.url = reverse("play-list")
+        self.play_detail_url = reverse("play-detail", args=[self.play.id])
         self.other_play_detail_url = reverse(
-            "playdefinition-detail", args=[self.other_play.id]
+            "play-detail", args=[self.other_play.id]
         )
 
     def auth(self, user):

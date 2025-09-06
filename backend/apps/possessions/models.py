@@ -4,6 +4,8 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from apps.games.models import Game, GameRoster
 from apps.users.models import User
 
@@ -317,6 +319,12 @@ class Possession(models.Model):
         else:
             self.points_scored = 0
 
+        # Auto-set scorer if not already set and we have an offensive sequence
+        if not self.scorer and self.offensive_sequence and self.points_scored > 0:
+            scorer = parse_player_from_sequence(self.offensive_sequence, self.team)
+            if scorer:
+                self.scorer = scorer
+
         super().save(*args, **kwargs)
 
     @property
@@ -338,3 +346,65 @@ class Possession(models.Model):
     def has_sequence_actions(self):
         """Whether the possession has any sequence actions"""
         return self.has_paint_touch or self.has_kick_out or self.has_extra_pass
+
+
+# Signal handlers to update game score when possessions change
+@receiver(post_save, sender=Possession)
+def update_game_score_on_possession_save(sender, instance, created, **kwargs):
+    """Update game score when a possession is created or updated"""
+    update_game_score(instance.game)
+
+
+@receiver(post_delete, sender=Possession)
+def update_game_score_on_possession_delete(sender, instance, **kwargs):
+    """Update game score when a possession is deleted"""
+    update_game_score(instance.game)
+
+
+def update_game_score(game):
+    """Calculate and update the game score based on all possessions"""
+    from django.db.models import Sum, Case, When, IntegerField
+    
+    # Get all possessions for this game
+    possessions = Possession.objects.filter(game=game)
+    
+    # Calculate home team score (points scored by home team roster)
+    home_team_score = possessions.filter(
+        team__team=game.home_team
+    ).aggregate(
+        total=Sum('points_scored')
+    )['total'] or 0
+    
+    # Calculate away team score (points scored by away team roster)
+    away_team_score = possessions.filter(
+        team__team=game.away_team
+    ).aggregate(
+        total=Sum('points_scored')
+    )['total'] or 0
+    
+    # Update the game scores
+    game.home_team_score = home_team_score
+    game.away_team_score = away_team_score
+    game.save(update_fields=['home_team_score', 'away_team_score'])
+
+
+def parse_player_from_sequence(sequence, team_roster):
+    """Parse the offensive sequence to extract the player number who scored"""
+    if not sequence or not team_roster:
+        return None
+    
+    # Split the sequence by '/' and look for player numbers
+    parts = [part.strip() for part in sequence.split('/')]
+    
+    for part in parts:
+        # Check if this part is a number (player jersey number)
+        if part.isdigit():
+            player_number = int(part)
+            # Find the player with this jersey number in the roster
+            try:
+                player = team_roster.players.get(jersey_number=player_number)
+                return player
+            except:
+                continue
+    
+    return None

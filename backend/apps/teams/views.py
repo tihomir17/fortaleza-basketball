@@ -83,11 +83,18 @@ class TeamViewSet(viewsets.ModelViewSet):
         Expects a body like: {'user_id': <id>, 'role': 'player', 'staff_type': 'PHYSIO'}
         """
         from apps.users.permissions import has_admin_rights
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"add_member called with data: {request.data}")
+        logger.info(f"Request user: {request.user.username}, role: {request.user.role}, coach_type: {request.user.coach_type}")
 
         team_to_join = self.get_object()  # The team we are adding to
         user_id = request.data.get("user_id")
         role = request.data.get("role")
         staff_type = request.data.get("staff_type")
+        
+        logger.info(f"Parsed values - user_id: {user_id}, role: {role}, staff_type: {staff_type}")
 
         if not user_id or not role:
             return Response(
@@ -148,10 +155,8 @@ class TeamViewSet(viewsets.ModelViewSet):
             user_to_add.staff_type = staff_type
             user_to_add.save()
 
-            # Add to team (staff are associated with teams but not as players or coaches)
-            # We'll need to add a staff field to the Team model or use a different approach
-            # For now, we'll add them as coaches but with staff role
-            team_to_join.coaches.add(user_to_add)
+            # Add to team staff relationship
+            team_to_join.staff.add(user_to_add)
 
             return Response(
                 {
@@ -205,9 +210,17 @@ class TeamViewSet(viewsets.ModelViewSet):
                 {"status": f"Coach {user_to_remove.username} removed from {team.name}"},
                 status=status.HTTP_200_OK,
             )
+        elif role.lower() == "staff":
+            # Staff members are stored in the staff relationship
+            team.staff.remove(user_to_remove)
+            return Response(
+                {"status": f"Staff {user_to_remove.username} removed from {team.name}"},
+                status=status.HTTP_200_OK,
+            )
         else:
             return Response(
-                {"error": "Invalid role specified."}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid role specified. Must be 'player', 'coach', or 'staff'."}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
     @action(detail=True, methods=["post"])
