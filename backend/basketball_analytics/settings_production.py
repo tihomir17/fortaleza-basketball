@@ -152,16 +152,19 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
 # CORS settings for production
 CORS_ALLOWED_ORIGINS = [
-    "https://yourdomain.com",
-    "https://www.yourdomain.com",
+    "https://admin.inatdrive.com",
+    "https://inatdrive.com",
+    "https://www.inatdrive.com",
 ]
 
 # Allowed hosts
 ALLOWED_HOSTS = [
-    "yourdomain.com",
-    "www.yourdomain.com",
+    "admin.inatdrive.com",
+    "inatdrive.com",
+    "www.inatdrive.com",
     "localhost",
     "127.0.0.1",
+    "0.0.0.0",  # For Docker containers
 ]
 
 # Secret key (should be set via environment variable)
