@@ -1030,13 +1030,13 @@ class _PlayersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get players from both teams and sort by jersey number
-    final homeTeamPlayers = (game.homeTeam.players)
+    // Get players from the actual game rosters (not all team players)
+    final homeTeamPlayers = (game.homeTeamRoster?.players ?? [])
         .where((player) => player.jerseyNumber != null)
         .toList()
       ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
     
-    final awayTeamPlayers = (game.awayTeam.players)
+    final awayTeamPlayers = (game.awayTeamRoster?.players ?? [])
         .where((player) => player.jerseyNumber != null)
         .toList()
       ..sort((a, b) => (a.jerseyNumber ?? 0).compareTo(b.jerseyNumber ?? 0));
