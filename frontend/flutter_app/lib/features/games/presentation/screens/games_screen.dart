@@ -3,17 +3,17 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
 import '../cubit/game_cubit.dart';
 import '../cubit/game_state.dart';
-import 'package:flutter_app/features/games/presentation/widgets/game_card.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/widgets/game_card.dart';
 
 class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});

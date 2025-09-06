@@ -1,4 +1,4 @@
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 // lib/core/api/api_client.dart
 class ApiClient {

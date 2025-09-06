@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/features/teams/presentation/cubit/team_cubit.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/game_repository.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'scouting_reports_screen.dart';
 
 class GameAnalyticsScreen extends StatefulWidget {

@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../games/data/repositories/game_repository.dart';
 import '../../data/repositories/event_repository.dart'; // Create this repository
 import 'calendar_state.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class CalendarCubit extends Cubit<CalendarState> {
   final GameRepository _gameRepository;

@@ -1,7 +1,7 @@
 // lib/core/theme/app_theme.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class AppTheme {
   // --- BRAND COLORS ---

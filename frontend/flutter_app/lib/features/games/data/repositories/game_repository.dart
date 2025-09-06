@@ -7,12 +7,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 import '../models/game_model.dart';
 import '../models/post_game_report_model.dart';
 import '../models/game_roster_model.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
-import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/core/logging/file_logger.dart';
 
 class GameRepository {
   final http.Client _client = http.Client();

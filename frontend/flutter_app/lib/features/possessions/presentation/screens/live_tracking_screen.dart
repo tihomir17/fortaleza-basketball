@@ -5,21 +5,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/core/widgets/user_profile_app_bar.dart';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
-import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
-import 'package:flutter_app/features/games/presentation/cubit/game_detail_state.dart';
-import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
-import 'package:flutter_app/features/plays/presentation/cubit/playbook_cubit.dart';
-import 'package:flutter_app/features/plays/presentation/cubit/playbook_state.dart';
-import 'package:flutter_app/features/possessions/data/repositories/possession_repository.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_roster_model.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/cubit/game_detail_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/cubit/game_detail_state.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/data/models/play_definition_model.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit/playbook_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit/playbook_state.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/repositories/possession_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum PossessionLoggingPhase {

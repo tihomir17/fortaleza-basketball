@@ -1,11 +1,11 @@
 // lib/features/authentication/presentation/cubit/auth_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart'; // To access GetIt (sl)
+import 'package:fortaleza_basketball_analytics/main.dart'; // To access GetIt (sl)
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
-import 'package:flutter_app/core/services/api_service.dart';
+import 'package:fortaleza_basketball_analytics/core/services/api_service.dart';
 // Import all the cubits that need to be triggered
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../competitions/presentation/cubit/competition_cubit.dart';

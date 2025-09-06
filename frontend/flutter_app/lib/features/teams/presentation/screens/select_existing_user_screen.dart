@@ -3,12 +3,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/data/repositories/user_repository.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/team_repository.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
 
 class SelectExistingUserScreen extends StatefulWidget {
   final int teamId;

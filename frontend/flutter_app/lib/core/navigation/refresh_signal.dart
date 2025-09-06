@@ -1,6 +1,6 @@
 // lib/core/navigation/refresh_signal.dart
 import 'dart:async';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class RefreshSignal {
   static final RefreshSignal _instance = RefreshSignal._internal();

@@ -1,8 +1,8 @@
 // lib/features/games/presentation/cubit/post_game_report_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/game_repository.dart';
 import 'post_game_report_state.dart';
 

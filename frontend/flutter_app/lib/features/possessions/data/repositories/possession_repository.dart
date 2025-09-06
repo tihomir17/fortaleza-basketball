@@ -1,10 +1,10 @@
 // lib/features/possessions/data/repositories/possession_repository.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 import '../models/possession_model.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
-import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/core/logging/file_logger.dart';
 
 class PossessionRepository {
   final http.Client _client = http.Client();

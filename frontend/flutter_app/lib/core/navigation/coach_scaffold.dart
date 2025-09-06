@@ -1,7 +1,7 @@
 // lib/core/navigation/coach_scaffold.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/widgets/coach_sidebar.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/coach_sidebar.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 
 class CoachScaffold extends StatelessWidget {
   final Widget child;

@@ -2,8 +2,8 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 
 class ApiService {
   final http.Client _client = http.Client();

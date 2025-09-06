@@ -1,6 +1,6 @@
-import 'package:flutter_app/main.dart'; // Import for global logger
-
 // lib/features/authentication/data/models/user_model.dart
+
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class User {
   final int id;

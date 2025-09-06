@@ -3,14 +3,14 @@
 // ignore_for_file: unused_import, unused_field, unused_element
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_state.dart';
+import 'package:fortaleza_basketball_analytics/features/competitions/presentation/cubit/competition_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/competitions/presentation/cubit/competition_cubit.dart';
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/competitions/presentation/cubit/competition_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
 import '../../data/models/game_model.dart';
 import '../../data/repositories/game_repository.dart';
 

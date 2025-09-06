@@ -1,7 +1,7 @@
 // lib/features/games/data/models/game_roster_model.dart
 
-import 'package:flutter_app/features/teams/data/models/team_model.dart';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
 
 class GameRoster {
   final int id;

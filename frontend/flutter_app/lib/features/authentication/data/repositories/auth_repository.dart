@@ -2,9 +2,9 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_app/core/api/api_client.dart';
+import 'package:fortaleza_basketball_analytics/core/api/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 import '../models/user_model.dart'; // <-- IMPORT THE PACKAGE
 

@@ -1,6 +1,6 @@
 // lib/features/games/data/models/player_minutes_tracker.dart
 
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/models/possession_model.dart';
 
 class PlayerMinutesTracker {
   final Map<int, int> playerSecondsOnCourt = {}; // playerId -> total seconds

@@ -1,12 +1,12 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/core/services/api_service.dart';
-import 'package:flutter_app/features/dashboard/data/services/dashboard_service.dart';
-import 'package:flutter_app/features/dashboard/presentation/cubit/dashboard_cubit.dart';
-import 'package:flutter_app/features/games/data/repositories/game_repository.dart';
-import 'package:flutter_app/features/games/presentation/cubit/game_cubit.dart';
-import 'package:flutter_app/features/games/presentation/cubit/game_detail_cubit.dart';
+import 'package:fortaleza_basketball_analytics/core/services/api_service.dart';
+import 'package:fortaleza_basketball_analytics/features/dashboard/data/services/dashboard_service.dart';
+import 'package:fortaleza_basketball_analytics/features/dashboard/presentation/cubit/dashboard_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/cubit/game_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/presentation/cubit/game_detail_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart'; // Import GoRouter here

@@ -3,7 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart'; // For Service Locator (sl)
+import 'package:fortaleza_basketball_analytics/main.dart'; // For Service Locator (sl)
 import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/data/repositories/user_repository.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';

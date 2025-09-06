@@ -3,13 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/core/navigation/refresh_signal.dart';
-import 'package:flutter_app/main.dart';
-import 'package:flutter_app/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/plays/data/models/play_definition_model.dart';
-import 'package:flutter_app/features/plays/data/repositories/play_repository.dart';
-import 'package:flutter_app/features/plays/presentation/widgets/playbook_tree_view.dart';
+import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/data/models/play_definition_model.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/data/repositories/play_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/plays/presentation/widgets/playbook_tree_view.dart';
 import '../../data/models/possession_model.dart';
 import '../../data/repositories/possession_repository.dart';
 

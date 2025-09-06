@@ -1,8 +1,8 @@
 // lib/features/possessions/data/models/possession_model.dart
 
-import 'package:flutter_app/features/games/data/models/game_model.dart';
-import 'package:flutter_app/features/authentication/data/models/user_model.dart';
-import 'package:flutter_app/features/games/data/models/game_roster_model.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_roster_model.dart';
 
 class Possession {
   final int id;

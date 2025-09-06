@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/main.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/models/play_definition_model.dart';
 import '../../data/repositories/play_repository.dart';

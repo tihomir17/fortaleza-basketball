@@ -2,10 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_app/features/calendar/presentation/cubit/calendar_cubit.dart';
-import 'package:flutter_app/features/games/data/models/game_model.dart';
+import 'package:fortaleza_basketball_analytics/features/calendar/presentation/cubit/calendar_cubit.dart';
+import 'package:fortaleza_basketball_analytics/features/games/data/models/game_model.dart';
 import '../data/models/calendar_event_model.dart';
-import 'package:flutter_app/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 
 class CalendarValidators {
   static String? validateNoConflicts({

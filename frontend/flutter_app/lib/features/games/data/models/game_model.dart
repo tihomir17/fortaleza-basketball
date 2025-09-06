@@ -2,8 +2,8 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_app/features/possessions/data/models/possession_model.dart';
-import 'package:flutter_app/core/logging/file_logger.dart';
+import 'package:fortaleza_basketball_analytics/features/possessions/data/models/possession_model.dart';
+import 'package:fortaleza_basketball_analytics/core/logging/file_logger.dart';
 
 import '../../../teams/data/models/team_model.dart';
 import 'game_roster_model.dart';
