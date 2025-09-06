@@ -34,10 +34,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshDashboard());
     
-    // Load dashboard data when screen initializes
+    // Load dashboard data when screen initializes - always force refresh for latest data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<DashboardCubit>().loadDashboardData();
+        context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
       }
     });
   }
@@ -141,7 +141,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              context.read<DashboardCubit>().loadDashboardData();
+              context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
             },
             child: const Text('Retry'),
           ),

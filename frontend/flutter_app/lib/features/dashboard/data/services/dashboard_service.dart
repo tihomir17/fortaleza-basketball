@@ -9,9 +9,17 @@ class DashboardService {
 
   DashboardService(this._apiService);
 
-  Future<DashboardData> getDashboardData() async {
+  Future<DashboardData> getDashboardData({bool forceRefresh = false}) async {
     try {
-      final response = await _apiService.get('/games/dashboard_data/');
+      String url = '/games/dashboard_data/';
+      
+      // Add cache-busting parameter when force refresh is requested
+      if (forceRefresh) {
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        url += '?force_refresh=$timestamp';
+      }
+      
+      final response = await _apiService.get(url);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);

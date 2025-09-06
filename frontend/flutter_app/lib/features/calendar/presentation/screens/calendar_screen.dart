@@ -520,6 +520,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   // Refresh calendar data
                   _refreshCalendar();
                   
+                  // Notify other screens to refresh (like dashboard)
+                  _refreshSignal.notify();
+                  
                 } catch (e) {
                   logger.e('Calendar: Failed to delete ${isGame ? 'game' : 'event'}: $e');
                   

@@ -745,12 +745,28 @@ class GameViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["get"])
-    @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
     def dashboard_data(self, request):
         """
         Get dashboard data including quick stats, recent activity, and upcoming games
         Cached for 1 minute to improve performance while maintaining real-time updates
         """
+        # Check if force refresh is requested
+        force_refresh = request.query_params.get('force_refresh')
+        
+        if force_refresh:
+            # Bypass cache and get fresh data
+            return self._get_dashboard_data(request)
+        else:
+            # Use cached data
+            return self._get_dashboard_data_cached(request)
+    
+    @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
+    def _get_dashboard_data_cached(self, request):
+        """Cached version of dashboard data"""
+        return self._get_dashboard_data(request)
+    
+    def _get_dashboard_data(self, request):
+        """Get fresh dashboard data without cache"""
         try:
             user = request.user
             today = timezone.now().date()

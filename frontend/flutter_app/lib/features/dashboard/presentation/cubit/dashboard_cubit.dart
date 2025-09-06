@@ -15,7 +15,7 @@ class DashboardCubit extends Cubit<DashboardState> {
   DashboardCubit(this._dashboardService) : super(DashboardInitial());
 
   Future<void> loadDashboardData({bool forceRefresh = false}) async {
-    // Check if we should skip the fetch (smart refresh)
+    // Always fetch fresh data when forceRefresh is true, otherwise use smart refresh
     if (!forceRefresh && _shouldSkipFetch()) {
       return;
     }
@@ -23,7 +23,8 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(DashboardLoading());
     
     try {
-      final dashboardData = await _dashboardService.getDashboardData();
+      // Always use forceRefresh=true to bypass backend cache when explicitly requested
+      final dashboardData = await _dashboardService.getDashboardData(forceRefresh: forceRefresh);
       _lastFetchTime = DateTime.now();
       emit(DashboardLoaded(dashboardData));
     } catch (e) {
