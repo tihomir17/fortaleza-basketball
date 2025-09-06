@@ -24,7 +24,8 @@ RUN flutter doctor
 WORKDIR /app
 
 # Copy pubspec files
-COPY flutter_app/pubspec.yaml flutter_app/pubspec.lock ./
+COPY flutter_app/pubspec.yaml ./
+#flutter_app/pubspec.lock ./
 
 # Get dependencies
 RUN flutter pub get

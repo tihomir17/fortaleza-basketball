@@ -1,6 +1,5 @@
 // lib/features/games/presentation/screens/match_stats_screen.dart
 
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
