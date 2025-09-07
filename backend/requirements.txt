@@ -33,3 +33,5 @@ pytest-cov
 
 # Code quality
 coverage
+
+whitenoise[brotli]

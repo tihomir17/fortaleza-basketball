@@ -5,7 +5,7 @@ import os
 from .settings import *
 
 # Override DEBUG for production
-DEBUG = False
+DEBUG = True
 
 # Production database configuration
 DATABASES = {
@@ -18,13 +18,36 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5432"),
         "OPTIONS": {
             "connect_timeout": 10,
-            "options": "-c default_transaction_isolation=read_committed"
+            # "options": "-c default_transaction_isolation=read_committed"
         },
         "CONN_MAX_AGE": 60,  # Connection pooling
     }
 }
 
-# Security settings for production
+
+# === SECURITY CONFIGURATION FOR REVERSE PROXY (CADDY) ===
+# ==============================================================================
+
+# 1. CSRF Trusted Origins (This is the primary fix for your error)
+#    Tell Django to trust your domain for "unsafe" methods like POST.
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.inatdrive.com",
+    "https://inatdrive.com",
+]
+
+# 2. Proxy Header Configuration
+#    Since Caddy handles HTTPS, Django needs to trust the proxy's header
+#    to know the connection is secure. Caddy automatically sets this header.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 3. Enable HTTPS-only settings
+#    Now that Django knows it's behind a secure proxy, enable these
+#    for enhanced security.
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# 4. Standard Security Headers (Your existing settings are good)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -32,14 +55,13 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# HTTPS settings (uncomment when using HTTPS)
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
+# ==============================================================================
+# === END SECURITY CONFIGURATION ===
+# ==============================================================================
 
 # Static files configuration for production
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files configuration
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
