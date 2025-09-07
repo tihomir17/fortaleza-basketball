@@ -20,7 +20,9 @@ class CoachScaffold extends StatelessWidget {
           builder: (context, constraints) {
             logger.d('CoachScaffold: Layout rebuilt. Max width: ${constraints.maxWidth}');
             // --- WIDE SCREEN (Web/Tablet) ---
+            // Match JavaScript logic: treat anything under 768px as mobile
             if (constraints.maxWidth > 768) {
+              logger.d('CoachScaffold: Using desktop sidebar layout (width: ${constraints.maxWidth})');
               return Scaffold(
                 body: Stack(
                   // Use a Stack to overlay the button
@@ -42,50 +44,21 @@ class CoachScaffold extends StatelessWidget {
                       ],
                     ),
 
-                    // --- THE NEW FLOATING TOGGLE BUTTON ---
-                    Positioned(
-                      left: sidebarVisible
-                          ? 240
-                          : 10, // Adjust position based on sidebar state
-                      top: 20,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        child: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(30),
-                          child: InkWell(
-                            onTap: () {
-                              isSidebarVisible.value = !isSidebarVisible.value;
-                              logger.i('CoachScaffold: Toggled sidebar visibility to ${isSidebarVisible.value}');
-                            },
-                            borderRadius: BorderRadius.circular(30),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Icon(
-                                sidebarVisible
-                                    ? Icons.arrow_back_ios_new
-                                    : Icons.arrow_forward_ios,
-                                size: 16,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Floating toggle button removed - now handled by UserProfileAppBar
                   ],
                 ),
               );
             }
 
             // --- NARROW SCREEN (Mobile) ---
-            // The mobile drawer experience remains the same.
-            return Scaffold(drawer: const CoachSidebar(), body: child);
+            // The mobile drawer experience with proper configuration
+            logger.d('CoachScaffold: Using mobile drawer layout (width: ${constraints.maxWidth})');
+            return Scaffold(
+              drawer: const CoachSidebar(),
+              drawerEnableOpenDragGesture: true, // Enable swipe to open
+              drawerEdgeDragWidth: 20, // Wider drag area for easier opening
+              body: child,
+            );
           },
         );
       },

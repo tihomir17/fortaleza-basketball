@@ -48,25 +48,40 @@
       max-height: 1080px;
     }
     
-    /* Mobile-first responsive design */
+    /* Mobile-first responsive design - conservative autoscaling */
     @media (max-width: 768px) {
       html, body {
-        min-width: 320px;
-        min-height: 480px;
-        overflow-x: auto; /* Allow horizontal scroll on mobile if needed */
+        min-width: 400px;
+        min-height: 300px; /* Reasonable minimums */
+        overflow: auto; /* Allow scrolling on mobile */
       }
       
       #flutter_target {
-        min-width: 320px;
-        min-height: 480px;
+        min-width: 400px;
+        min-height: 300px; /* Reasonable minimums */
+        transform-origin: top left;
       }
     }
     
-    /* Tablet and desktop */
+    /* Mobile landscape mode */
+    @media (max-width: 768px) and (orientation: landscape) {
+      html, body {
+        min-width: 400px;
+        min-height: 300px; /* Reasonable minimums */
+      }
+      
+      #flutter_target {
+        min-width: 400px;
+        min-height: 300px; /* Reasonable minimums */
+      }
+    }
+    
+    /* Desktop only - strict requirements */
     @media (min-width: 769px) {
       html, body {
         min-width: 1024px;
         min-height: 600px;
+        overflow: hidden; /* No scrolling on desktop */
       }
       
       #flutter_target {
@@ -176,9 +191,13 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth >= 768 && window.innerWidth <= 1024;
     
-    // Dynamic minimum dimensions based on device
-    const MIN_WIDTH = isMobile ? 320 : (isTablet ? 768 : 1024);
-    const MIN_HEIGHT = isMobile ? 480 : (isTablet ? 600 : 600);
+    // Conservative mobile detection - only treat small screens as mobile
+    const isMobileBySize = window.innerWidth <= 768 || window.innerHeight <= 600;
+    const isActuallyMobile = isMobile || isMobileBySize;
+    
+    // Reasonable minimum dimensions
+    const MIN_WIDTH = isActuallyMobile ? 400 : (isTablet ? 768 : 1024);
+    const MIN_HEIGHT = isActuallyMobile ? 300 : (isTablet ? 600 : 600);
     const MAX_WIDTH = 1920;
     const MAX_HEIGHT = 1080;
     
@@ -187,9 +206,33 @@
       const currentWidth = window.innerWidth;
       const currentHeight = window.innerHeight;
       
+      // Re-evaluate mobile detection on each resize - conservative
+      const isMobileBySize = currentWidth <= 768 || currentHeight <= 600;
+      const isActuallyMobile = isMobile || isMobileBySize;
+      
+      // Debug logging
+      console.log('Window size check:', {
+        currentWidth,
+        currentHeight,
+        isMobile,
+        isMobileBySize,
+        isActuallyMobile,
+        isTablet,
+        MIN_WIDTH,
+        MIN_HEIGHT
+      });
+      
+      // Apply autoscaling for mobile devices
+      if (isActuallyMobile) {
+        console.log('Mobile device detected - applying autoscaling');
+        applyMobileAutoscaling();
+        hideSizeWarning();
+        return;
+      }
+      
       // Only show warning for desktop browsers that are too small
-      // Mobile devices should work without warnings
-      if (!isMobile && !isTablet && (currentWidth < MIN_WIDTH || currentHeight < MIN_HEIGHT)) {
+      if (!isActuallyMobile && !isTablet && (currentWidth < MIN_WIDTH || currentHeight < MIN_HEIGHT)) {
+        console.log('Showing size warning for desktop');
         showSizeWarning();
         return;
       }
@@ -202,6 +245,58 @@
       
       // Hide warning if it exists
       hideSizeWarning();
+    }
+    
+    // Apply autoscaling for mobile devices
+    function applyMobileAutoscaling() {
+      const currentWidth = window.innerWidth;
+      const currentHeight = window.innerHeight;
+      
+      // More conservative scaling - only scale if really necessary
+      const minWidth = 400; // Minimum usable width
+      const minHeight = 300; // Minimum usable height
+      
+      let scale = 1.0;
+      
+      // Only scale down if screen is smaller than minimum usable size
+      if (currentWidth < minWidth || currentHeight < minHeight) {
+        const scaleX = currentWidth / minWidth;
+        const scaleY = currentHeight / minHeight;
+        scale = Math.min(scaleX, scaleY, 0.8); // Maximum 80% scale, minimum 30%
+        scale = Math.max(scale, 0.3);
+      }
+      
+      console.log('Autoscaling:', {
+        currentWidth,
+        currentHeight,
+        minWidth,
+        minHeight,
+        finalScale: scale
+      });
+      
+      // Apply scaling to the Flutter target
+      const flutterTarget = document.getElementById('flutter_target');
+      if (flutterTarget) {
+        if (scale < 1.0) {
+          flutterTarget.style.transform = `scale(${scale})`;
+          flutterTarget.style.transformOrigin = 'top left';
+          flutterTarget.style.width = `${minWidth / scale}px`;
+          flutterTarget.style.height = `${minHeight / scale}px`;
+          
+          // Adjust body to accommodate scaled content
+          document.body.style.overflow = 'auto';
+          document.body.style.width = `${minWidth / scale}px`;
+          document.body.style.height = `${minHeight / scale}px`;
+        } else {
+          // Reset to normal if no scaling needed
+          flutterTarget.style.transform = '';
+          flutterTarget.style.width = '100%';
+          flutterTarget.style.height = '100%';
+          document.body.style.overflow = 'hidden';
+          document.body.style.width = '100%';
+          document.body.style.height = '100%';
+        }
+      }
     }
     
     // Show size warning

@@ -32,7 +32,10 @@ class TeamReadSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
 
         # Manually fetch all coaches, staff, and players from the database for this team instance
-        coaches_queryset = instance.coaches.all()
+        # Order coaches so HEAD_COACH appears first, then ASSISTANT_COACH
+        coaches_queryset = instance.coaches.all().order_by(
+            'coach_type'  # This will put HEAD_COACH first, then ASSISTANT_COACH
+        )
         staff_queryset = instance.staff.all()
         players_queryset = instance.players.all()
 

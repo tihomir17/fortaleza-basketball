@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: basketball_analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: us-central1-docker.pkg.dev/inat-drive/inatdrive/backend:latest
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-your_secure_password}@db:5432/basketball_analytics
+      - REDIS_URL=redis://redis:6379/0
+      - ALLOWED_HOSTS=admin.inatdrive.com,localhost,127.0.0.1,0.0.0.0
+      - CORS_ALLOWED_ORIGINS=https://admin.inatdrive.com,http://localhost:3000,http://127.0.0.1:3000
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+    ports:
+      - "8080:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check", "--deploy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: us-central1-docker.pkg.dev/inat-drive/inatdrive/frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:

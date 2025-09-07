@@ -4,6 +4,9 @@ This directory contains all shell scripts for the Flutter frontend application.
 
 ## Scripts
 
+### 🚀 Main Script (Recommended)
+- **`build-and-push.sh`** - **Complete build and push script** - Handles authentication, multi-architecture building, and pushing
+
 ### Deployment Scripts
 - **`deploy.sh`** - Basic deployment script
 - **`deploy-mobile-fix.sh`** - Deploy mobile-compatible frontend
@@ -13,6 +16,17 @@ This directory contains all shell scripts for the Flutter frontend application.
 - **`build.sh`** - Build Flutter web application
 
 ## Usage
+
+### 🚀 Complete Build and Push (Recommended)
+```bash
+./scripts/build-and-push.sh
+```
+This script handles everything:
+- Google Cloud authentication
+- Docker configuration
+- Multi-architecture building (AMD64 + ARM64)
+- Pushing to Artifact Registry
+- Verification and deployment instructions
 
 ### Deploy Mobile-Friendly Frontend
 ```bash
