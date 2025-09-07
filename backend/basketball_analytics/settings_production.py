@@ -18,7 +18,6 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5432"),
         "OPTIONS": {
             "connect_timeout": 10,
-            # "options": "-c default_transaction_isolation=read_committed"
         },
         "CONN_MAX_AGE": 60,  # Connection pooling
     }
