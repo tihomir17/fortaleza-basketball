@@ -11,37 +11,47 @@ RUN apt-get update && apt-get install -y \
     libglu1-mesa \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Flutter
-ENV FLUTTER_VERSION=3.24.5
+# Use a newer version of Flutter
+ENV FLUTTER_VERSION=3.35.3
 ENV FLUTTER_HOME=/opt/flutter
 ENV PATH=$PATH:$FLUTTER_HOME/bin
 
+# Clone the specified Flutter version
 RUN git clone --branch $FLUTTER_VERSION https://github.com/flutter/flutter.git $FLUTTER_HOME
-RUN flutter config --no-analytics
+
+# 1. Create the user first.
+RUN useradd -ms /bin/bash flutteruser
+
+# 2. Now, change the ownership of the Flutter SDK directory to the user you just created.
+RUN chown -R flutteruser:flutteruser /opt/flutter
+
+# 3. Switch to the non-root user
+USER flutteruser
+WORKDIR /home/flutteruser/app
+
+# Pre-run flutter doctor to populate the cache as the correct user.
 RUN flutter doctor
 
-# Set working directory
-WORKDIR /app
-
-# Copy pubspec.yaml (lock file not needed - will be generated fresh)
-COPY flutter_app/pubspec.yaml ./
-
-# Get dependencies
+# Copy pubspec.yaml and get dependencies as the non-root user
+COPY --chown=flutteruser:flutteruser flutter_app/pubspec.yaml ./
 RUN flutter pub get
 
-# Copy source code
-COPY flutter_app/ ./
+# Copy the rest of the source code
+COPY --chown=flutteruser:flutteruser flutter_app/ ./
 
-# Build for web
-RUN flutter build web --release --web-renderer html
+# === FIX: Use the modern build command ===
+# Build for web as the non-root user, removing the obsolete flag.
+RUN flutter build web --release
 
+# ==========================================================
 # Production stage with nginx
 FROM nginx:alpine
 
-# Copy built web app
-COPY --from=flutter-builder /app/build/web /usr/share/nginx/html
+# Copy built web app from the specific user's home directory
+COPY --from=flutter-builder /home/flutteruser/app/build/web /usr/share/nginx/html
 
 # Simple nginx configuration for serving static files
+# (Your nginx config is good)
 RUN echo 'server { \
     listen 80; \
     server_name _; \
