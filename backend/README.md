@@ -44,27 +44,22 @@ This is the backend API for the Basketball Analytics platform, built with Python
     ```bash
     pip install -r requirements.txt
     ```
-    *(Note: If you don't have a `requirements.txt` file yet, you can create one with `pip freeze > requirements.txt`)*
 
 4.  **Run database migrations:**
-    This will create the `db.sqlite3` file and set up all the necessary database tables.
     ```bash
     python manage.py makemigrations
     python manage.py migrate
     ```
 
 5.  **Create a superuser account:**
-    This account will have full access to the Django Admin interface.
     ```bash
     python manage.py createsuperuser
     ```
-    Follow the prompts to set a username, email, and password.
 
 6.  **Run the development server:**
     ```bash
     python manage.py runserver
     ```
-    The API will now be running at `http://127.0.0.1:8000/`.
 
 ---
 
@@ -78,6 +73,8 @@ This is the backend API for the Basketball Analytics platform, built with Python
     -   `games`: Manages individual game data.
     -   `plays`: Manages the hierarchical playbook definitions.
     -   `possessions`: Manages the logged possession data.
+-   `docs/`: All documentation files
+-   `scripts/`: All shell scripts for deployment and maintenance
 -   `manage.py`: The command-line utility for interacting with the Django project.
 
 ## API Endpoints
@@ -93,6 +90,20 @@ The API is browsable via Django REST Framework. The main endpoints are available
 -   `/api/users/`
 -   `/api/plays/`
 -   `/api/possessions/`
+
+## Documentation
+
+For detailed documentation, see the `docs/` folder:
+- **[docs/README.md](docs/README.md)** - Documentation index
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment guide
+- **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** - Building guide
+
+## Scripts
+
+For deployment and maintenance scripts, see the `scripts/` folder:
+- **[scripts/README.md](scripts/README.md)** - Scripts index
+- **[scripts/deploy-production.sh](scripts/deploy-production.sh)** - Production deployment
+- **[scripts/build-all.sh](scripts/build-all.sh)** - Build all images
 
 ## Running Linters
 
