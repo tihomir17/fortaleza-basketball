@@ -18,7 +18,8 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Fortaleza Basketball Analytics - Advanced basketball game tracking and analytics platform.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -40,32 +41,37 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      min-width: 1024px;
-      min-height: 600px;
+      /* Remove hard minimums for mobile compatibility */
+      min-width: 320px;
+      min-height: 480px;
       max-width: 1920px;
       max-height: 1080px;
     }
     
-    /* Prevent window from being too small */
-    @media (max-width: 1023px) {
-      body::before {
-        content: "This application requires a minimum window size of 1024x600 pixels. Please resize your browser window.";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #f0f0f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        font-family: Arial, sans-serif;
-        font-size: 18px;
-        color: #333;
-        text-align: center;
-        padding: 20px;
-        box-sizing: border-box;
+    /* Mobile-first responsive design */
+    @media (max-width: 768px) {
+      html, body {
+        min-width: 320px;
+        min-height: 480px;
+        overflow-x: auto; /* Allow horizontal scroll on mobile if needed */
+      }
+      
+      #flutter_target {
+        min-width: 320px;
+        min-height: 480px;
+      }
+    }
+    
+    /* Tablet and desktop */
+    @media (min-width: 769px) {
+      html, body {
+        min-width: 1024px;
+        min-height: 600px;
+      }
+      
+      #flutter_target {
+        min-width: 1024px;
+        min-height: 600px;
       }
     }
     
@@ -83,8 +89,6 @@
     #flutter_target {
       width: 100%;
       height: 100%;
-      min-width: 1024px;
-      min-height: 600px;
       max-width: 1920px;
       max-height: 1080px;
     }
@@ -168,9 +172,13 @@
   
   <!-- Window resize constraints -->
   <script>
-    // Set minimum and maximum window dimensions
-    const MIN_WIDTH = 1024;
-    const MIN_HEIGHT = 600;
+    // Set minimum and maximum window dimensions based on device type
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    
+    // Dynamic minimum dimensions based on device
+    const MIN_WIDTH = isMobile ? 320 : (isTablet ? 768 : 1024);
+    const MIN_HEIGHT = isMobile ? 480 : (isTablet ? 600 : 600);
     const MAX_WIDTH = 1920;
     const MAX_HEIGHT = 1080;
     
@@ -179,9 +187,9 @@
       const currentWidth = window.innerWidth;
       const currentHeight = window.innerHeight;
       
-      // Check if window is too small
-      if (currentWidth < MIN_WIDTH || currentHeight < MIN_HEIGHT) {
-        // Show warning message
+      // Only show warning for desktop browsers that are too small
+      // Mobile devices should work without warnings
+      if (!isMobile && !isTablet && (currentWidth < MIN_WIDTH || currentHeight < MIN_HEIGHT)) {
         showSizeWarning();
         return;
       }
@@ -220,12 +228,23 @@
           padding: 20px;
           box-sizing: border-box;
         `;
+        const deviceType = isMobile ? 'mobile' : (isTablet ? 'tablet' : 'desktop');
         warning.innerHTML = `
           <div>
             <h2>Window Size Too Small</h2>
-            <p>This application requires a minimum window size of ${MIN_WIDTH}x${MIN_HEIGHT} pixels.</p>
-            <p>Current size: ${window.innerWidth}x${window.innerHeight} pixels</p>
-            <p>Please resize your browser window to continue.</p>
+            <p>This application requires a minimum window size of <strong>${MIN_WIDTH}x${MIN_HEIGHT} pixels</strong> for ${deviceType} devices.</p>
+            <p>Current size: <strong>${window.innerWidth}x${window.innerHeight} pixels</strong></p>
+            <div class="size-indicator">
+              <p>Width: ${window.innerWidth}/${MIN_WIDTH}px</p>
+              <div class="size-bar">
+                <div class="size-fill" style="width: ${Math.min((window.innerWidth / MIN_WIDTH) * 100, 100)}%"></div>
+              </div>
+              <p>Height: ${window.innerHeight}/${MIN_HEIGHT}px</p>
+              <div class="size-bar">
+                <div class="size-fill" style="width: ${Math.min((window.innerHeight / MIN_HEIGHT) * 100, 100)}%"></div>
+              </div>
+            </div>
+            <p class="instruction">Please resize your browser window to continue.</p>
           </div>
         `;
         document.body.appendChild(warning);

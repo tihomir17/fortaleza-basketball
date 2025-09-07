@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
 import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
+import 'package:fortaleza_basketball_analytics/core/widgets/sidebar_toggle_button.dart';
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -113,22 +114,8 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
     allActions.addAll(defaultActions);
 
     return AppBar(
-      // THIS IS THE NEW PART: The leading icon button
-      // leading: IconButton(
-      //   icon: const Icon(Icons.menu),
-      //   tooltip: 'Toggle Menu',
-      //   onPressed: () {
-      //     // Check screen size to decide what to do
-      //     final isWideScreen = MediaQuery.of(context).size.width > 768;
-      //     if (isWideScreen) {
-      //       // On wide screens, toggle our global notifier's value
-      //       isSidebarVisible.value = !isSidebarVisible.value;
-      //     } else {
-      //       // On narrow screens, open the standard drawer
-      //       Scaffold.of(context).openDrawer();
-      //     }
-      //   },
-      // ),
+      // Sidebar toggle button as leading widget
+      leading: const SidebarToggleAppBarButton(),
       automaticallyImplyLeading:
           true, // This is the default, ensures back button works
       title: Text(title.toUpperCase()),

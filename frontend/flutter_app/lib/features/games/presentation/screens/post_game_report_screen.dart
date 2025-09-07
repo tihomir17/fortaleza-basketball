@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/sidebar_toggle_button.dart';
 import '../../data/models/post_game_report_model.dart';
 import '../../data/repositories/game_repository.dart';
 import '../cubit/post_game_report_cubit.dart';
@@ -60,9 +61,15 @@ class PostGameReportScreen extends StatelessWidget {
               ),
             ],
           ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SidebarToggleAppBarButton(),
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => context.pop(),
+              ),
+            ],
           ),
         ),
         body: BlocBuilder<PostGameReportCubit, PostGameReportState>(
