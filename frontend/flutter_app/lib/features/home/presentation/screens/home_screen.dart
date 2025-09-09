@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart'; // Import the AppBar
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
-import 'package:fortaleza_basketball_analytics/features/teams/presentation/screens/create_team_screen.dart';
 import '../../../teams/presentation/cubit/team_cubit.dart';
 import '../../../teams/presentation/cubit/team_state.dart';
 

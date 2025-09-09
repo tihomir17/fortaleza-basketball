@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
 import 'package:fortaleza_basketball_analytics/core/widgets/screen_with_sidebar_toggle.dart';
 import 'package:fortaleza_basketball_analytics/main.dart';
@@ -137,6 +138,18 @@ class _EditUserScreenState extends State<EditUserScreen> {
               child: _isLoading
                   ? const CircularProgressIndicator()
                   : const Text('Save Changes'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.push('/change-password');
+              },
+              icon: const Icon(Icons.lock),
+              label: const Text('Change Password'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[900],
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),

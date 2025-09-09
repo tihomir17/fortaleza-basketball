@@ -44,6 +44,7 @@ import '../../features/staff/presentation/screens/player_health_screen.dart';
 import '../../features/staff/presentation/screens/injury_reports_screen.dart';
 import '../../features/staff/presentation/screens/training_programs_screen.dart';
 import '../../features/staff/presentation/screens/performance_metrics_screen.dart';
+import '../../features/authentication/presentation/screens/change_password_screen.dart';
 
 class AppRouter {
   final AuthCubit authCubit;
@@ -279,6 +280,10 @@ class AppRouter {
           GoRoute(
             path: '/individual-post-game',
             builder: (context, state) => const IndividualPostGameScreen(),
+          ),
+          GoRoute(
+            path: '/change-password',
+            builder: (context, state) => const ChangePasswordScreen(),
           ),
         ],
       ),

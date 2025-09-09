@@ -208,7 +208,6 @@ class _CompactScoreDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final winStyle = TextStyle(
       fontWeight: FontWeight.bold,
       fontSize: 16,
@@ -371,78 +370,3 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-// Keep the old classes for backward compatibility
-class _TeamDisplay extends StatelessWidget {
-  final Team? team;
-  const _TeamDisplay(this.team);
-
-  @override
-  Widget build(BuildContext context) {
-    if (team == null) return const SizedBox(width: 80);
-    return SizedBox(
-      width: 100,
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Theme.of(context).cardColor,
-            backgroundImage: team!.logoUrl != null
-                ? NetworkImage(team!.logoUrl!)
-                : null,
-            child: team!.logoUrl == null
-                ? Text(
-                    team!.name.isNotEmpty ? team!.name[0] : 'T',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            team!.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScoreDisplay extends StatelessWidget {
-  final int homeScore;
-  final int awayScore;
-  final bool homeWon;
-  const _ScoreDisplay({
-    required this.homeScore,
-    required this.awayScore,
-    required this.homeWon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final winStyle = theme.textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: theme.colorScheme.primary,
-    );
-    final lossStyle = theme.textTheme.headlineMedium?.copyWith(
-      color: Colors.grey,
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text('$homeScore', style: homeWon ? winStyle : lossStyle),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text('-', style: theme.textTheme.headlineSmall),
-        ),
-        Text('$awayScore', style: !homeWon ? winStyle : lossStyle),
-      ],
-    );
-  }
-}

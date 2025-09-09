@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 
 class WebDownloadService {
   /// Downloads a file directly in the browser without showing a dialog
@@ -51,13 +51,13 @@ void _openFileInNewTabWeb(Uint8List bytes, String filename) {
 void _triggerDownload(String dataUrl, String filename) {
   // This will be implemented using dart:js_interop for Wasm compatibility
   // For now, we'll use a simple approach
-  print('Download triggered for: $filename');
-  print('Data URL length: ${dataUrl.length}');
+  logger.d('Download triggered for: $filename');
+  logger.d('Data URL length: ${dataUrl.length}');
 }
 
 void _openInNewTab(String dataUrl) {
   // This will be implemented using dart:js_interop for Wasm compatibility
   // For now, we'll use a simple approach
-  print('Opening file in new tab');
-  print('Data URL length: ${dataUrl.length}');
+  logger.d('Opening file in new tab');
+  logger.d('Data URL length: ${dataUrl.length}');
 }

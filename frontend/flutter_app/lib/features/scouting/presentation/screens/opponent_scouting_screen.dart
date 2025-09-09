@@ -3,9 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:fortaleza_basketball_analytics/features/games/data/repositories/game_repository.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:fortaleza_basketball_analytics/main.dart';
 
 class OpponentScoutingScreen extends StatefulWidget {
   const OpponentScoutingScreen({super.key});
@@ -266,7 +264,6 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final reportType = report['report_type'] as String;
     final isPdf = reportType == 'UPLOADED_PDF';
-    final isYoutube = reportType == 'YOUTUBE_LINK';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

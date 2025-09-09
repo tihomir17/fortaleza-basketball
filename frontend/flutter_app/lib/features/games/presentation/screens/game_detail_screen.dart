@@ -199,12 +199,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         game.possessions.addAll(allPossessions); // Add all loaded possessions
         
         // Update the cubit state
-        context.read<GameDetailCubit>().emit(
-          context.read<GameDetailCubit>().state.copyWith(
-            game: game,
-            filteredPossessions: game.possessions,
-          ),
-        );
+        context.read<GameDetailCubit>().updateGame(game);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -260,12 +255,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         game.possessions.addAll(newPossessions);
         
         // Update the cubit state
-        context.read<GameDetailCubit>().emit(
-          context.read<GameDetailCubit>().state.copyWith(
-            game: game,
-            filteredPossessions: game.possessions,
-          ),
-        );
+        context.read<GameDetailCubit>().updateGame(game);
       }
     } catch (e) {
       // Handle error silently or show a snackbar
@@ -295,7 +285,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Widget _buildGameSetupSection(Game game) {
-    final hasRosters = _hasRosters(game);
     final hasHomeRoster = _hasHomeRoster(game);
     final hasAwayRoster = _hasAwayRoster(game);
     final hasStartingFives = _hasStartingFives(game);
@@ -422,7 +411,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   Widget _buildRosterStatusDisplay(Game game) {
     final hasHomeRoster = _hasHomeRoster(game);
     final hasAwayRoster = _hasAwayRoster(game);
-    final hasStartingFives = _hasStartingFives(game);
     
     if (game.homeTeamRoster != null) {
     }
@@ -912,7 +900,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 return const SizedBox.shrink();
               }
               
-              return Container(
+              return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
@@ -951,7 +939,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               final game = state.game;
               final hasPossessions = game?.possessions.isNotEmpty ?? false;
               
-              return Container(
+              return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isLoadingMorePossessions ? null : _loadPossessionsFromDatabase,

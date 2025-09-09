@@ -1,13 +1,11 @@
 // lib/features/games/presentation/screens/upload_scouting_report_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:fortaleza_basketball_analytics/features/teams/presentation/cubit/team_cubit.dart';
-import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/data/models/user_model.dart';
 import '../../data/repositories/game_repository.dart';
 import 'package:fortaleza_basketball_analytics/main.dart';
@@ -59,9 +57,9 @@ class _UploadScoutingReportScreenState extends State<UploadScoutingReportScreen>
         
         // Since we're using allowedExtensions: ['pdf'], the file should already be a PDF
         // But let's add some debugging and validation
-        print('Selected file: ${file.name}');
-        print('File path: ${file.path}');
-        print('File extension: ${file.extension}');
+        logger.d('Selected file: ${file.name}');
+        logger.d('File path: ${file.path}');
+        logger.d('File extension: ${file.extension}');
         
         // Check if it's a PDF file by name or extension
         final fileName = file.name.toLowerCase();
@@ -479,7 +477,7 @@ class _UserSelectionDialog extends StatefulWidget {
 }
 
 class _UserSelectionDialogState extends State<_UserSelectionDialog> {
-  List<User> _selectedUsers = [];
+  final List<User> _selectedUsers = [];
 
   @override
   Widget build(BuildContext context) {

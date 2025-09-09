@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
-import 'package:fortaleza_basketball_analytics/main.dart';
 
 class IndividualPostGameScreen extends StatefulWidget {
   const IndividualPostGameScreen({super.key});
@@ -269,7 +268,6 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final reportType = report['report_type'] as String;
     final isPdf = reportType == 'UPLOADED_PDF';
-    final isYoutube = reportType == 'YOUTUBE_LINK';
     final gameResult = report['game_result'] as String;
     final isWin = gameResult.startsWith('W');
 

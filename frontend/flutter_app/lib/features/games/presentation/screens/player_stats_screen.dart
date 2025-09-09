@@ -314,8 +314,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen>
         
         // Validate total team time
         final overtimePeriods = _getOvertimePeriods();
-        final isValid = tracker.validateTeamTime(overtimePeriods);
-        final totalTime = tracker.getTotalTeamTimeFormatted();
+        tracker.validateTeamTime(overtimePeriods);
       }
     }
   }

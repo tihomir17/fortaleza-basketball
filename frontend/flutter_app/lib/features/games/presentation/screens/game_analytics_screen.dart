@@ -71,6 +71,7 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
     try {
       GameRepository.clearAnalyticsCache();
     } catch (e) {
+      // Ignore cache clearing errors
     }
     _loadAnalytics();
   }
@@ -1046,7 +1047,6 @@ class _GameAnalyticsScreenState extends State<GameAnalyticsScreen> {
   }
 
   Widget _buildEnhancedAnalysisSubsection(String title, Map<String, dynamic> data, Color color) {
-    final theme = Theme.of(context);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1247,8 +1247,6 @@ class _EnhancedSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -1309,8 +1307,6 @@ class _EnhancedAnalysisChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     String displayValue = '';
     if (value.containsKey('ppp')) {
       displayValue = '${value['ppp']} PPP';

@@ -70,7 +70,7 @@ class ExceptionHandler {
     } catch (e) {
       // If parsing fails, return generic server exception
       return ServerException(
-        message: 'Server error (${statusCode})',
+        message: 'Server error ($statusCode)',
         code: 'server_error',
         details: {'status_code': statusCode, 'body': body},
       );

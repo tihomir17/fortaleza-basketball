@@ -150,7 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDashboardContent(dashboardData, bool isPlayer, bool isStaff, String? staffType) {
+  Widget _buildDashboardContent(dynamic dashboardData, bool isPlayer, bool isStaff, String? staffType) {
     return RefreshIndicator(
       onRefresh: () async {
         context.read<DashboardCubit>().loadDashboardData(forceRefresh: true);
@@ -212,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentReportsCard(recentReports) {
+  Widget _buildRecentReportsCard(dynamic recentReports) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -600,7 +600,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _ReportCard extends StatelessWidget {
-  final report;
+  final dynamic report;
 
   const _ReportCard({required this.report});
 
