@@ -48,36 +48,36 @@
       max-height: 1080px;
     }
     
-    /* Mobile-first responsive design - conservative autoscaling */
-    @media (max-width: 768px) {
+    /* Mobile-first responsive design - AGGRESSIVE autoscaling */
+    @media (max-width: 1024px) {
       html, body {
-        min-width: 400px;
-        min-height: 300px; /* Reasonable minimums */
+        min-width: 320px;
+        min-height: 240px; /* Ultra-lenient minimums */
         overflow: auto; /* Allow scrolling on mobile */
       }
       
       #flutter_target {
-        min-width: 400px;
-        min-height: 300px; /* Reasonable minimums */
+        min-width: 320px;
+        min-height: 240px; /* Ultra-lenient minimums */
         transform-origin: top left;
       }
     }
     
     /* Mobile landscape mode */
-    @media (max-width: 768px) and (orientation: landscape) {
+    @media (max-width: 1024px) and (orientation: landscape) {
       html, body {
-        min-width: 400px;
-        min-height: 300px; /* Reasonable minimums */
+        min-width: 320px;
+        min-height: 240px; /* Ultra-lenient minimums */
       }
       
       #flutter_target {
-        min-width: 400px;
-        min-height: 300px; /* Reasonable minimums */
+        min-width: 320px;
+        min-height: 240px; /* Ultra-lenient minimums */
       }
     }
     
     /* Desktop only - strict requirements */
-    @media (min-width: 769px) {
+    @media (min-width: 1025px) {
       html, body {
         min-width: 1024px;
         min-height: 600px;
@@ -191,13 +191,13 @@
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth >= 768 && window.innerWidth <= 1024;
     
-    // Conservative mobile detection - only treat small screens as mobile
-    const isMobileBySize = window.innerWidth <= 768 || window.innerHeight <= 600;
+    // AGGRESSIVE mobile detection - treat anything under 1024px as mobile
+    const isMobileBySize = window.innerWidth <= 1024 || window.innerHeight <= 700;
     const isActuallyMobile = isMobile || isMobileBySize;
     
-    // Reasonable minimum dimensions
-    const MIN_WIDTH = isActuallyMobile ? 400 : (isTablet ? 768 : 1024);
-    const MIN_HEIGHT = isActuallyMobile ? 300 : (isTablet ? 600 : 600);
+    // Ultra-lenient minimum dimensions for mobile
+    const MIN_WIDTH = isActuallyMobile ? 320 : (isTablet ? 768 : 1024);
+    const MIN_HEIGHT = isActuallyMobile ? 240 : (isTablet ? 600 : 600);
     const MAX_WIDTH = 1920;
     const MAX_HEIGHT = 1080;
     
@@ -206,8 +206,8 @@
       const currentWidth = window.innerWidth;
       const currentHeight = window.innerHeight;
       
-      // Re-evaluate mobile detection on each resize - conservative
-      const isMobileBySize = currentWidth <= 768 || currentHeight <= 600;
+      // Re-evaluate mobile detection on each resize - AGGRESSIVE
+      const isMobileBySize = currentWidth <= 1024 || currentHeight <= 700;
       const isActuallyMobile = isMobile || isMobileBySize;
       
       // Debug logging
@@ -222,9 +222,9 @@
         MIN_HEIGHT
       });
       
-      // Apply autoscaling for mobile devices
+      // Apply autoscaling for mobile devices and NEVER show warnings
       if (isActuallyMobile) {
-        console.log('Mobile device detected - applying autoscaling');
+        console.log('Mobile device detected - applying autoscaling, NO warnings');
         applyMobileAutoscaling();
         hideSizeWarning();
         return;
@@ -236,6 +236,9 @@
         showSizeWarning();
         return;
       }
+      
+      // Hide warning for all other cases (including mobile)
+      hideSizeWarning();
       
       // Check if window is too large (for desktop apps)
       if (currentWidth > MAX_WIDTH || currentHeight > MAX_HEIGHT) {
@@ -252,18 +255,18 @@
       const currentWidth = window.innerWidth;
       const currentHeight = window.innerHeight;
       
-      // More conservative scaling - only scale if really necessary
-      const minWidth = 400; // Minimum usable width
-      const minHeight = 300; // Minimum usable height
+      // Very conservative scaling - only scale for very small screens
+      const minWidth = 320; // Minimum usable width
+      const minHeight = 240; // Minimum usable height
       
       let scale = 1.0;
       
-      // Only scale down if screen is smaller than minimum usable size
+      // Only scale down if screen is significantly smaller than minimum usable size
       if (currentWidth < minWidth || currentHeight < minHeight) {
         const scaleX = currentWidth / minWidth;
         const scaleY = currentHeight / minHeight;
-        scale = Math.min(scaleX, scaleY, 0.8); // Maximum 80% scale, minimum 30%
-        scale = Math.max(scale, 0.3);
+        scale = Math.min(scaleX, scaleY, 0.9); // Maximum 90% scale, minimum 50%
+        scale = Math.max(scale, 0.5);
       }
       
       console.log('Autoscaling:', {
@@ -292,7 +295,7 @@
           flutterTarget.style.transform = '';
           flutterTarget.style.width = '100%';
           flutterTarget.style.height = '100%';
-          document.body.style.overflow = 'hidden';
+          document.body.style.overflow = 'auto'; // Allow scrolling on mobile
           document.body.style.width = '100%';
           document.body.style.height = '100%';
         }
@@ -357,11 +360,60 @@
     // Listen for window resize events
     window.addEventListener('resize', enforceWindowConstraints);
     
+    // Listen for orientation change events (mobile devices)
+    window.addEventListener('orientationchange', function() {
+      console.log('Orientation changed, re-evaluating mobile detection');
+      // Small delay to allow orientation change to complete
+      setTimeout(enforceWindowConstraints, 100);
+    });
+    
+    // Listen for screen orientation change (modern browsers)
+    if (screen && screen.orientation) {
+      screen.orientation.addEventListener('change', function() {
+        console.log('Screen orientation changed, re-evaluating mobile detection');
+        setTimeout(enforceWindowConstraints, 100);
+      });
+    }
+    
+    // Listen for viewport changes (covers orientation changes and other viewport changes)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function() {
+        console.log('Visual viewport changed, re-evaluating mobile detection');
+        setTimeout(enforceWindowConstraints, 100);
+      });
+    }
+    
+    // Fallback: Listen for media query changes
+    if (window.matchMedia) {
+      const mediaQuery = window.matchMedia('(orientation: portrait)');
+      mediaQuery.addListener(function() {
+        console.log('Media query orientation changed, re-evaluating mobile detection');
+        setTimeout(enforceWindowConstraints, 100);
+      });
+    }
+    
     // Check constraints on page load
     window.addEventListener('load', enforceWindowConstraints);
     
     // Check constraints when DOM is ready
     document.addEventListener('DOMContentLoaded', enforceWindowConstraints);
+    
+    // Additional check after a short delay to catch any missed orientation changes
+    setTimeout(enforceWindowConstraints, 500);
+    
+    // Periodic check every 2 seconds to ensure mobile detection stays current
+    setInterval(function() {
+      const currentWidth = window.innerWidth;
+      const currentHeight = window.innerHeight;
+      const isMobileBySize = currentWidth <= 1024 || currentHeight <= 700;
+      const isActuallyMobile = isMobile || isMobileBySize;
+      
+      // Only re-evaluate if mobile status might have changed
+      if (isActuallyMobile) {
+        console.log('Periodic check: Mobile device detected, ensuring autoscaling is applied');
+        enforceWindowConstraints();
+      }
+    }, 2000);
     
     // Prevent context menu on right click (optional)
     document.addEventListener('contextmenu', function(e) {

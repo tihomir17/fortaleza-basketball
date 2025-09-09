@@ -34,7 +34,7 @@ class SidebarToggleButton extends StatelessWidget {
         // Determine the appropriate tooltip message based on device type - match JavaScript logic
         final screenWidth = MediaQuery.of(context).size.width;
         final screenHeight = MediaQuery.of(context).size.height;
-        final isMobile = screenWidth <= 768 || screenHeight <= 600; // Conservative mobile detection to match JS
+        final isMobile = screenWidth <= 1024 || screenHeight <= 700; // AGGRESSIVE mobile detection to match JS
         final tooltipMessage = isMobile 
             ? 'Open menu' 
             : (sidebarVisible ? 'Hide sidebar' : 'Show sidebar');

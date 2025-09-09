@@ -6,6 +6,7 @@ import 'package:fortaleza_basketball_analytics/features/authentication/presentat
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
 import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 import 'package:fortaleza_basketball_analytics/core/widgets/sidebar_toggle_button.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/mobile_menu_button.dart';
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -114,10 +115,19 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
     allActions.addAll(defaultActions);
 
     return AppBar(
-      // Sidebar toggle button as leading widget
-      leading: const SidebarToggleAppBarButton(),
+      // Only show sidebar toggle for desktop, no button for mobile (positioned button handles mobile)
+      leading: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth <= 1024;
+          if (isMobile) {
+            return const SizedBox.shrink(); // No button on mobile - positioned button handles it
+          } else {
+            return const SidebarToggleAppBarButton();
+          }
+        },
+      ),
       automaticallyImplyLeading:
-          true, // This is the default, ensures back button works
+          false, // We handle the leading widget manually
       title: Text(title.toUpperCase()),
       actions: allActions,
     );

@@ -40,8 +40,8 @@ RUN flutter pub get
 COPY --chown=flutteruser:flutteruser flutter_app/ ./
 
 # === FIX: Use the modern build command ===
-# Build for web as the non-root user, removing the obsolete flag.
-RUN flutter build web --release
+# Build for web as the non-root user, disabling Wasm dry run to avoid warnings
+RUN flutter build web --release --no-wasm-dry-run
 
 # ==========================================================
 # Production stage with nginx

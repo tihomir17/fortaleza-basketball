@@ -1,6 +1,7 @@
 // lib/core/navigation/coach_scaffold.dart
 import 'package:flutter/material.dart';
 import 'package:fortaleza_basketball_analytics/core/widgets/coach_sidebar.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/mobile_menu_button.dart';
 import 'package:fortaleza_basketball_analytics/main.dart';
 
 class CoachScaffold extends StatelessWidget {
@@ -20,8 +21,8 @@ class CoachScaffold extends StatelessWidget {
           builder: (context, constraints) {
             logger.d('CoachScaffold: Layout rebuilt. Max width: ${constraints.maxWidth}');
             // --- WIDE SCREEN (Web/Tablet) ---
-            // Match JavaScript logic: treat anything under 768px as mobile
-            if (constraints.maxWidth > 768) {
+            // Match JavaScript logic: treat anything under 1024px as mobile
+            if (constraints.maxWidth > 1024) {
               logger.d('CoachScaffold: Using desktop sidebar layout (width: ${constraints.maxWidth})');
               return Scaffold(
                 body: Stack(
@@ -57,7 +58,19 @@ class CoachScaffold extends StatelessWidget {
               drawer: const CoachSidebar(),
               drawerEnableOpenDragGesture: true, // Enable swipe to open
               drawerEdgeDragWidth: 20, // Wider drag area for easier opening
-              body: child,
+              body: Stack(
+                children: [
+                  child,
+                  // Working mobile menu button positioned in top-left corner
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: const MobileMenuLargeButton(
+                      tooltip: 'Open Menu',
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
