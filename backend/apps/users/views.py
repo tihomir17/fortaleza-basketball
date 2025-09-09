@@ -13,14 +13,17 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import (  # pyright: ignore[reportMissingImports]
     DjangoFilterBackend,
 )  # pyright: ignore[reportMissingImports]
-from .serializers import RegisterSerializer, UserSerializer, UserListSerializer, CoachUpdateSerializer
+from .serializers import RegisterSerializer, UserSerializer, UserListSerializer, CoachUpdateSerializer, ChangePasswordSerializer, ResetPasswordSerializer
 from .filters import UserFilter
 from django.db.models import Q  # pyright: ignore[reportMissingImports]
 from apps.teams.models import Team
 from rest_framework import (  # pyright: ignore[reportMissingImports]
     viewsets,
     permissions,
+    status,
 )  # <-- Add viewsets  # pyright: ignore[reportMissingImports]
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from apps.users.permissions import IsTeamScopedObject  # New import
 
 User = get_user_model()
@@ -92,6 +95,7 @@ class UserSearchView(generics.ListAPIView):
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated, IsTeamScopedObject]
     filter_backends = [DjangoFilterBackend]
@@ -160,3 +164,49 @@ class UserViewSet(viewsets.ModelViewSet):
         # Optional: Add extra validation here if needed, e.g., a coach can't change a user's role.
         # For now, we allow updating the fields in the serializer.
         serializer.save()
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def change_password(self, request):
+        """
+        Change password for the current user
+        """
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            
+            return Response({
+                'message': 'Password changed successfully'
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def reset_password(self, request, pk=None):
+        """
+        Reset password for a specific user (admin/coach only)
+        """
+        user = self.get_object()
+        
+        # Check if current user has permission to reset this user's password
+        if not (request.user.is_superuser or 
+                (request.user.role == User.Role.COACH and 
+                 user.role in [User.Role.PLAYER, User.Role.STAFF])):
+            return Response({
+                'error': 'You do not have permission to reset this user\'s password'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = ResetPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            new_password = serializer.validated_data['new_password']
+            user.set_password(new_password)
+            user.save()
+            
+            return Response({
+                'message': f'Password reset successfully for {user.username}',
+                'new_password': new_password
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -4,6 +4,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:flutter/services.dart';
 import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
 import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
@@ -19,7 +20,6 @@ import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit
 import 'package:fortaleza_basketball_analytics/features/plays/presentation/cubit/playbook_state.dart';
 import 'package:fortaleza_basketball_analytics/features/possessions/data/repositories/possession_repository.dart';
 import 'package:fortaleza_basketball_analytics/features/teams/data/models/team_model.dart';
-import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum PossessionLoggingPhase {
@@ -330,8 +330,8 @@ class __LiveTrackingStatefulWrapperState
     final token = context.read<AuthCubit>().state.token;
     if (token == null) return;
 
-    print('DEBUG: savePossessionToDatabase - teamRoster: ${teamRoster.team.name} (GameRoster ID: ${teamRoster.id}), opponentRoster: ${opponentRoster.team.name} (GameRoster ID: ${opponentRoster.id})');
-    print('DEBUG: savePossessionToDatabase - gameId: ${widget.game.id}');
+    logger.d('DEBUG: savePossessionToDatabase - teamRoster: ${teamRoster.team.name} (GameRoster ID: ${teamRoster.id}), opponentRoster: ${opponentRoster.team.name} (GameRoster ID: ${opponentRoster.id})');
+    logger.d('DEBUG: savePossessionToDatabase - gameId: ${widget.game.id}');
 
     try {
       // Get current players on court for both teams

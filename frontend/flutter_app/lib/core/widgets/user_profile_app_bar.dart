@@ -2,11 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_state.dart';
 import 'package:fortaleza_basketball_analytics/main.dart'; // Import for global logger
 import 'package:fortaleza_basketball_analytics/core/widgets/sidebar_toggle_button.dart';
-import 'package:fortaleza_basketball_analytics/core/widgets/mobile_menu_button.dart';
 
 class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -40,6 +40,14 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
                 if (value == 'logout') {
                   context.read<AuthCubit>().logout();
                   logger.i('UserProfileAppBar: Initiating logout.');
+                } else if (value == 'change_password') {
+                  // Add a small delay to ensure popup menu is closed before navigation
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (context.mounted) {
+                      context.push('/change-password');
+                      logger.i('UserProfileAppBar: Navigating to change password screen.');
+                    }
+                  });
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -64,6 +72,13 @@ class UserProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'change_password',
+                  child: ListTile(
+                    leading: Icon(Icons.lock),
+                    title: Text('Change Password'),
+                  ),
+                ),
                 const PopupMenuItem<String>(
                   value: 'logout',
                   child: ListTile(

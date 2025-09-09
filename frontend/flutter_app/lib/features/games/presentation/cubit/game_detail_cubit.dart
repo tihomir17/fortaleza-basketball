@@ -114,4 +114,19 @@ class GameDetailCubit extends Cubit<GameDetailState> {
     _cacheTimestamps.remove(gameId);
     logger.d('GameDetailCubit: Cache cleared for game $gameId');
   }
+
+  void updateGame(Game game) {
+    // Update the cache
+    _gameCache[game.id] = game;
+    _cacheTimestamps[game.id] = DateTime.now();
+    
+    // Update the state
+    emit(
+      state.copyWith(
+        game: game,
+        filteredPossessions: game.possessions,
+      ),
+    );
+    logger.d('GameDetailCubit: Game ${game.id} updated');
+  }
 }

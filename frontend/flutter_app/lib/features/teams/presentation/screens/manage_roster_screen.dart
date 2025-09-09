@@ -8,6 +8,7 @@ import 'package:fortaleza_basketball_analytics/features/teams/presentation/scree
 import 'package:fortaleza_basketball_analytics/main.dart';
 import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/presentation/cubit/auth_cubit.dart';
+import '../../../authentication/presentation/widgets/reset_password_dialog.dart';
 import '../../data/models/team_model.dart';
 import '../../data/repositories/team_repository.dart';
 import 'add_coach_screen.dart';
@@ -161,6 +162,32 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
     }
   }
 
+  bool _canResetPassword(User user) {
+    final currentUser = context.read<AuthCubit>().state.user;
+    if (currentUser == null) return false;
+    
+    // Superuser can reset anyone's password
+    if (currentUser.role == 'ADMIN') return true;
+    
+    // Coach can reset player and staff passwords
+    if (currentUser.role == 'COACH' && 
+        (user.role == 'PLAYER' || user.role == 'STAFF')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  void _showResetPasswordDialog(User user) {
+    showDialog(
+      context: context,
+      builder: (context) => ResetPasswordDialog(
+        userId: user.id,
+        username: user.username,
+      ),
+    );
+  }
+
   // New method to refresh just this screen's data
   Future<void> _refreshLocalRoster() async {
     _setLoading(true);
@@ -298,12 +325,26 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
               for (final coach in _coaches)
                 ListTile(
                   title: Text(coach.displayName),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: Colors.red,
-                    ),
-                    onPressed: () => _removeMember(coach, 'coach'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_canResetPassword(coach))
+                        IconButton(
+                          icon: const Icon(
+                            Icons.lock_reset,
+                            color: Colors.orange,
+                          ),
+                          onPressed: () => _showResetPasswordDialog(coach),
+                          tooltip: 'Reset Password',
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _removeMember(coach, 'coach'),
+                      ),
+                    ],
                   ),
                 ),
               const SizedBox(height: 24),
@@ -313,12 +354,26 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
                 ListTile(
                   title: Text(staff.displayName),
                   subtitle: Text(_getStaffTypeLabel(staff.staffType)),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: Colors.red,
-                    ),
-                    onPressed: () => _removeMember(staff, 'staff'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_canResetPassword(staff))
+                        IconButton(
+                          icon: const Icon(
+                            Icons.lock_reset,
+                            color: Colors.orange,
+                          ),
+                          onPressed: () => _showResetPasswordDialog(staff),
+                          tooltip: 'Reset Password',
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _removeMember(staff, 'staff'),
+                      ),
+                    ],
                   ),
                 ),
               const SizedBox(height: 24),
@@ -327,12 +382,26 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
               for (final player in _players)
                 ListTile(
                   title: Text(player.displayName),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: Colors.red,
-                    ),
-                    onPressed: () => _removeMember(player, 'player'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_canResetPassword(player))
+                        IconButton(
+                          icon: const Icon(
+                            Icons.lock_reset,
+                            color: Colors.orange,
+                          ),
+                          onPressed: () => _showResetPasswordDialog(player),
+                          tooltip: 'Reset Password',
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _removeMember(player, 'player'),
+                      ),
+                    ],
                   ),
                 ),
             ],

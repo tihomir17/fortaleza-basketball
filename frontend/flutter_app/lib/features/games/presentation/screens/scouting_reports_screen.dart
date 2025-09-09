@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fortaleza_basketball_analytics/main.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
@@ -7,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:fortaleza_basketball_analytics/features/authentication/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/game_repository.dart';
-import 'package:fortaleza_basketball_analytics/main.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:fortaleza_basketball_analytics/core/services/web_download_service.dart';
@@ -651,7 +651,7 @@ class _ReportCard extends StatelessWidget {
     // TODO: Implement YouTube link opening
     // For now, just show a snackbar
     // In a real implementation, you might want to use url_launcher package
-    print('Opening YouTube link: $url');
+    logger.d('Opening YouTube link: $url');
   }
 
   @override

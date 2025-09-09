@@ -28,7 +28,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
   int _awayTotal = 0;
   int _totalPossessions = 0;
   double _offPpp = 0.0;
-  double _defPpp = 0.0;
   int _fgMakes = 0;
   int _fgAttempts = 0;
   // Shot-type breakdown per team
@@ -148,7 +147,6 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     _awayTotal = 0;
     _totalPossessions = possessions.length;
     _offPpp = 0.0;
-    _defPpp = 0.0;
     _fgMakes = 0;
     _fgAttempts = 0;
     // Reset shot-type breakdowns to avoid accumulation on refresh
@@ -288,7 +286,7 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     // Calculate PPP
     final totalPoints = _homeTotal + _awayTotal;
     _offPpp = _totalPossessions > 0 ? totalPoints / _totalPossessions : 0.0;
-    _defPpp = _offPpp; // combined view
+    // _defPpp = _offPpp; // combined view - removed unused field
 
     // Derive defensive rebounds as opponent missed FGs minus opponent offensive rebounds
     _hDefReb = (aMissFG - _aOffReb).clamp(0, 1000000);
@@ -474,33 +472,8 @@ class _MatchStatsScreenState extends State<MatchStatsScreen> with SingleTickerPr
     );
   }
 
-  Widget _keyValueList(Map<String, dynamic> data) {
-    if (data.isEmpty) {
-      return const Text('No data');
-    }
-    final entries = data.entries.take(12).toList();
-    return Column(
-      children: entries
-          .map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(e.key.toString().replaceAll('_', ' '))),
-                    Text(e.value.toString()),
-                  ],
-                ),
-              ))
-          .toList(),
-    );
-  }
 
   Widget _perQuarterBars(Game game) {
-    final maxQPoints = [
-      _homePointsByQ[1]! + _awayPointsByQ[1]!,
-      _homePointsByQ[2]! + _awayPointsByQ[2]!,
-      _homePointsByQ[3]! + _awayPointsByQ[3]!,
-      _homePointsByQ[4]! + _awayPointsByQ[4]!,
-    ].fold<int>(1, (m, v) => v > m ? v : m);
 
     Widget rowForQ(int q) {
       final homePts = _homePointsByQ[q] ?? 0;
