@@ -15,6 +15,10 @@ psycopg2-binary
 # PDF generation
 reportlab
 
+# Data processing
+pandas
+openpyxl
+
 # Development and linting tools
 black
 flake8

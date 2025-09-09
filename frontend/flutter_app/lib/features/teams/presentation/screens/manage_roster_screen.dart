@@ -33,7 +33,16 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
   @override
   void initState() {
     super.initState();
-    _coaches = widget.team.coaches.where((user) => user.role == 'COACH').toList();
+    // Sort coaches so HEAD_COACH appears first, then ASSISTANT_COACH
+    _coaches = widget.team.coaches
+        .where((user) => user.role == 'COACH')
+        .toList()
+      ..sort((a, b) {
+        // HEAD_COACH comes first, then ASSISTANT_COACH
+        if (a.coachType == 'HEAD_COACH' && b.coachType != 'HEAD_COACH') return -1;
+        if (a.coachType != 'HEAD_COACH' && b.coachType == 'HEAD_COACH') return 1;
+        return 0; // Keep original order for same coach types
+      });
     _players = List.from(widget.team.players);
     _staff = List.from(widget.team.staff);
     _refreshSubscription = _refreshSignal.stream.listen((_) => _refreshLocalRoster());
@@ -168,7 +177,16 @@ class _ManageRosterScreenState extends State<ManageRosterScreen> {
       );
       if (mounted) {
         setState(() {
-          _coaches = updatedTeam.coaches.where((user) => user.role == 'COACH').toList();
+          // Sort coaches so HEAD_COACH appears first, then ASSISTANT_COACH
+          _coaches = updatedTeam.coaches
+              .where((user) => user.role == 'COACH')
+              .toList()
+            ..sort((a, b) {
+              // HEAD_COACH comes first, then ASSISTANT_COACH
+              if (a.coachType == 'HEAD_COACH' && b.coachType != 'HEAD_COACH') return -1;
+              if (a.coachType != 'HEAD_COACH' && b.coachType == 'HEAD_COACH') return 1;
+              return 0; // Keep original order for same coach types
+            });
           _players = updatedTeam.players;
           _staff = updatedTeam.staff;
         });

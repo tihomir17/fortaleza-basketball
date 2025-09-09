@@ -19,10 +19,10 @@ abstract class AppException implements Exception {
 /// Network-related exceptions
 class NetworkException extends AppException {
   const NetworkException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'NetworkException: $message';
@@ -31,10 +31,10 @@ class NetworkException extends AppException {
 /// Server-related exceptions
 class ServerException extends AppException {
   const ServerException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'ServerException: $message';
@@ -43,10 +43,10 @@ class ServerException extends AppException {
 /// Authentication-related exceptions
 class AuthenticationException extends AppException {
   const AuthenticationException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'AuthenticationException: $message';
@@ -55,10 +55,10 @@ class AuthenticationException extends AppException {
 /// Authorization-related exceptions
 class AuthorizationException extends AppException {
   const AuthorizationException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'AuthorizationException: $message';
@@ -67,10 +67,10 @@ class AuthorizationException extends AppException {
 /// Validation-related exceptions
 class ValidationException extends AppException {
   const ValidationException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'ValidationException: $message';
@@ -79,10 +79,10 @@ class ValidationException extends AppException {
 /// File-related exceptions
 class FileException extends AppException {
   const FileException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'FileException: $message';
@@ -91,10 +91,10 @@ class FileException extends AppException {
 /// Cache-related exceptions
 class CacheException extends AppException {
   const CacheException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'CacheException: $message';
@@ -103,10 +103,10 @@ class CacheException extends AppException {
 /// Unknown exceptions
 class UnknownException extends AppException {
   const UnknownException({
-    required String message,
-    String? code,
-    Map<String, dynamic>? details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    super.code,
+    super.details,
+  });
 
   @override
   String toString() => 'UnknownException: $message';

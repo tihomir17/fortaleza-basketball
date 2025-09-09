@@ -350,6 +350,22 @@
                 "name": "Free Throw",
                 "subcategory": "Result",
                 "action_type": "OPENS_FT_MENU"
+            },
+            {
+                "name": "Catch and Shoot",
+                "subcategory": "Shot Type"
+            },
+            {
+                "name": "Pull Up",
+                "subcategory": "Shot Type"
+            },
+            {
+                "name": "Spot Up",
+                "subcategory": "Shot Type"
+            },            
+            {
+                "name": "Rhytm Shot",
+                "subcategory": "Shot Type"
             }
         ]
     },

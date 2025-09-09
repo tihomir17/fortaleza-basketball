@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/core/widgets/screen_with_sidebar_toggle.dart';
 import 'package:fortaleza_basketball_analytics/main.dart';
 import '../cubit/auth_cubit.dart';
 import '../../data/models/user_model.dart';
@@ -87,7 +88,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ScaffoldWithSidebarToggle(
       appBar: AppBar(title: Text('Edit ${widget.user.displayName}')),
       body: Form(
         key: _formKey,

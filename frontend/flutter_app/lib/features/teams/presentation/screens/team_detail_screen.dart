@@ -166,7 +166,15 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                           child: Center(child: Text('No coaches assigned.')),
                         )
                       else
-                        ...team.coaches.map(
+                        ...(() {
+                          final sortedCoaches = team.coaches.toList()
+                            ..sort((a, b) {
+                              // HEAD_COACH comes first, then ASSISTANT_COACH
+                              if (a.coachType == 'HEAD_COACH' && b.coachType != 'HEAD_COACH') return -1;
+                              if (a.coachType != 'HEAD_COACH' && b.coachType == 'HEAD_COACH') return 1;
+                              return 0; // Keep original order for same coach types
+                            });
+                          return sortedCoaches.map(
                           (coach) => ListTile(
                             leading: CircleAvatar(
                               backgroundColor: theme.colorScheme.primary
@@ -189,7 +197,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                               ),
                             ),
                           ),
-                        ),
+                        );
+                        })()
                     ],
                   ),
                 ),
