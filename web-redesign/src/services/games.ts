@@ -1,109 +1,107 @@
 import api from './api'
-import { mockGames } from './mockData'
+
+export interface Team {
+  id: number
+  name: string
+  logo_url?: string
+}
 
 export interface Game {
   id: number
-  home_team: number
-  away_team: number
-  home_team_name: string
-  away_team_name: string
-  date: string
-  time: string
-  venue: string
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-  home_score?: number
-  away_score?: number
-  season: number
   competition: number
+  home_team: Team
+  away_team: Team
+  game_date: string
+  home_team_score: number
+  away_team_score: number
+  quarter: number
+  lead_changes: number
+  is_close_game: boolean
+  is_blowout: boolean
+  clutch_situations: number
+  created_by?: number
+  created_at: string
+  updated_at: string
+  total_possessions?: number
+  offensive_possessions?: number
+  defensive_possessions?: number
+  avg_offensive_possession_time?: number
 }
 
 export interface GameCreate {
   home_team: number
   away_team: number
-  date: string
-  time: string
-  venue: string
-  season: number
   competition: number
+  game_date: string
 }
 
 export const gamesService = {
   async getGames(): Promise<Game[]> {
     try {
-      const response = await api.get('/games/')
-      return (response as any).data
-    } catch {
-      console.log('Using mock data for games')
-      return mockGames
+      const response = await api.get<{ results: Game[] }>('/games/')
+      return response.results
+    } catch (error) {
+      console.error('Failed to fetch games:', error)
+      throw error
     }
   },
 
   async getGame(id: number): Promise<Game> {
     try {
-      const response = await api.get(`/games/${id}/`)
-      return (response as any).data
-    } catch {
-      console.log('Using mock data for game')
-      const game = mockGames.find(g => g.id === id)
-      if (!game) throw new Error('Game not found')
-      return game
+      const response = await api.get<Game>(`/games/${id}/`)
+      return response
+    } catch (error) {
+      console.error('Failed to fetch game:', error)
+      throw error
     }
   },
 
   async createGame(game: GameCreate): Promise<Game> {
     try {
-      const response = await api.post('/games/', game)
-      return (response as any).data
-    } catch {
-      console.log('Mock: Game created')
-      const newGame: Game = {
-        id: Date.now(),
-        ...game,
-        home_team_name: 'Home Team',
-        away_team_name: 'Away Team',
-        status: 'SCHEDULED'
-      }
-      return newGame
+      const response = await api.post<Game>('/games/', game)
+      return response
+    } catch (error) {
+      console.error('Failed to create game:', error)
+      throw error
     }
   },
 
   async updateGame(id: number, game: Partial<GameCreate>): Promise<Game> {
     try {
-      const response = await api.patch(`/games/${id}/`, game)
-      return (response as any).data
-    } catch {
-      console.log('Mock: Game updated')
-      const existingGame = mockGames.find(g => g.id === id)
-      if (!existingGame) throw new Error('Game not found')
-      return { ...existingGame, ...game }
+      const response = await api.patch<Game>(`/games/${id}/`, game)
+      return response
+    } catch (error) {
+      console.error('Failed to update game:', error)
+      throw error
     }
   },
 
   async deleteGame(id: number): Promise<void> {
     try {
       await api.delete(`/games/${id}/`)
-    } catch {
-      console.log('Mock: Game deleted')
+    } catch (error) {
+      console.error('Failed to delete game:', error)
+      throw error
     }
   },
 
   async getUpcomingGames(): Promise<Game[]> {
     try {
-      const response = await api.get('/games/upcoming/')
-      return (response as any).data
-    } catch {
-      console.log('Using mock data for upcoming games')
-      return mockGames.filter(g => g.status === 'SCHEDULED')
+      const response = await api.get<{ results: Game[] }>('/games/upcoming/')
+      return response.results
+    } catch (error) {
+      console.error('Failed to fetch upcoming games:', error)
+      throw error
     }
   },
 
   async getRecentGames(): Promise<Game[]> {
     try {
-      const response = await api.get('/games/recent/')
-      return (response as any).data
-    } catch {
-      console.log('Using mock data for recent games')
-      return mockGames.filter(g => g.status === 'COMPLETED')
+      const response = await api.get<{ results: Game[] }>('/games/recent/')
+      return response.results
+    } catch (error) {
+      console.error('Failed to fetch recent games:', error)
+      throw error
     }
   }
 }

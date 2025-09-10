@@ -89,27 +89,38 @@ export function Games() {
       if (searchValue) {
         const searchLower = searchValue.toLowerCase()
         const matchesSearch = 
-          game.home_team_name.toLowerCase().includes(searchLower) ||
-          game.away_team_name.toLowerCase().includes(searchLower) ||
-          game.venue?.toLowerCase().includes(searchLower)
+          game.home_team.name.toLowerCase().includes(searchLower) ||
+          game.away_team.name.toLowerCase().includes(searchLower)
         
         if (!matchesSearch) return false
       }
 
-      // Status filter
-      if (statusFilter && game.status !== statusFilter) {
-        return false
+      // Status filter - determine status based on game date and scores
+      if (statusFilter) {
+        const gameDate = new Date(game.game_date)
+        const now = new Date()
+        let gameStatus = 'SCHEDULED'
+        
+        if (gameDate < now) {
+          gameStatus = 'COMPLETED'
+        } else if (gameDate.toDateString() === now.toDateString()) {
+          gameStatus = 'IN_PROGRESS'
+        }
+        
+        if (gameStatus !== statusFilter) {
+          return false
+        }
       }
 
       // Team filter
       if (teamFilter) {
-        const matchesTeam = game.home_team_name === teamFilter || game.away_team_name === teamFilter
+        const matchesTeam = game.home_team.name === teamFilter || game.away_team.name === teamFilter
         if (!matchesTeam) return false
       }
 
       // Date filter
       if (dateFilter) {
-        const gameDate = new Date(game.date)
+        const gameDate = new Date(game.game_date)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
@@ -272,28 +283,41 @@ export function Games() {
                     </div>
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900">
-                        {game.home_team_name} vs {game.away_team_name}
+                        {game.home_team.name} vs {game.away_team.name}
                       </h4>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <div className="flex items-center">
                           <ClockIcon className="w-4 h-4 mr-1" />
-                          {new Date(game.date).toLocaleDateString()} at {game.time}
+                          {new Date(game.game_date).toLocaleDateString()} at {new Date(game.game_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </div>
                         <div className="flex items-center">
                           <MapPinIcon className="w-4 h-4 mr-1" />
-                          {game.venue}
+                          Home Court
                         </div>
-                        {game.home_score !== undefined && game.away_score !== undefined && (
+                        {(game.home_team_score > 0 || game.away_team_score > 0) && (
                           <div className="font-semibold text-gray-900">
-                            {game.home_score} - {game.away_score}
+                            {game.home_team_score} - {game.away_team_score}
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`px-3 py-1 text-sm rounded-full ${getStatusColor(game.status)}`}>
-                      {game.status.replace('_', ' ')}
+                    <span className={`px-3 py-1 text-sm rounded-full ${(() => {
+                      const gameDate = new Date(game.game_date)
+                      const now = new Date()
+                      let status = 'SCHEDULED'
+                      if (gameDate < now) status = 'COMPLETED'
+                      else if (gameDate.toDateString() === now.toDateString()) status = 'IN_PROGRESS'
+                      return getStatusColor(status)
+                    })()}`}>
+                      {(() => {
+                        const gameDate = new Date(game.game_date)
+                        const now = new Date()
+                        if (gameDate < now) return 'COMPLETED'
+                        if (gameDate.toDateString() === now.toDateString()) return 'IN_PROGRESS'
+                        return 'SCHEDULED'
+                      })().replace('_', ' ')}
                     </span>
                     <div className="flex items-center space-x-1">
                       <button 
@@ -375,11 +399,14 @@ export function Games() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Game Details</h3>
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold text-gray-900">{selectedGame.home_team_name} vs {selectedGame.away_team_name}</h4>
-                <p className="text-gray-600">Date: {new Date(selectedGame.date).toLocaleDateString()}</p>
-                <p className="text-gray-600">Time: {selectedGame.time}</p>
-                <p className="text-gray-600">Venue: {selectedGame.venue}</p>
-                <p className="text-gray-600">Status: {selectedGame.status}</p>
+                <h4 className="font-semibold text-gray-900">{selectedGame.home_team.name} vs {selectedGame.away_team.name}</h4>
+                <p className="text-gray-600">Date: {new Date(selectedGame.game_date).toLocaleDateString()}</p>
+                <p className="text-gray-600">Time: {new Date(selectedGame.game_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <p className="text-gray-600">Venue: Home Court</p>
+                <p className="text-gray-600">Score: {selectedGame.home_team_score} - {selectedGame.away_team_score}</p>
+                <p className="text-gray-600">Quarter: {selectedGame.quarter}</p>
+                <p className="text-gray-600">Lead Changes: {selectedGame.lead_changes}</p>
+                <p className="text-gray-600">Clutch Situations: {selectedGame.clutch_situations}</p>
               </div>
             </div>
             <div className="flex justify-end mt-6">

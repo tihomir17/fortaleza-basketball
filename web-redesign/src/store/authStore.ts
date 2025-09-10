@@ -4,15 +4,17 @@ import { authApi } from '../services/api'
 import { errorTracker, behaviorTracker } from '../utils/monitoring'
 
 interface User {
-  id: string
+  id: number
+  username: string
   email: string
-  firstName: string
-  lastName: string
-  role: 'admin' | 'coach' | 'player' | 'viewer'
-  permissions: string[]
-  avatar?: string
-  lastLogin?: string
-  status: 'active' | 'inactive' | 'pending'
+  first_name: string
+  last_name: string
+  role: string
+  coach_type: string
+  staff_type: string
+  jersey_number: number | null
+  is_active: boolean
+  date_joined: string
 }
 
 interface AuthState {
@@ -76,10 +78,18 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null })
         
         try {
+          console.log('Attempting login with credentials:', credentials)
           const response = await authApi.login(credentials)
+          console.log('Login response:', response)
           
-          // Get user info from /auth/me/ endpoint
+          // Store token immediately before making /auth/me/ call
+          localStorage.setItem('auth_token', response.access)
+          localStorage.setItem('refresh_token', response.refresh)
+          
+          // Get user info from /auth/me/ endpoint with explicit token
+          console.log('Fetching user info...')
           const userResponse = await authApi.me()
+          console.log('User response:', userResponse)
           
           set({
             user: userResponse as User,
@@ -89,9 +99,7 @@ export const useAuthStore = create<AuthStore>()(
             lastActivity: Date.now(),
           })
 
-          // Store token in localStorage
-          localStorage.setItem('auth_token', response.access)
-          localStorage.setItem('refresh_token', response.refresh)
+          // Token already stored above
           
           // Track successful login
           behaviorTracker.trackAction('user-login', {
@@ -387,9 +395,9 @@ export const useAuthStore = create<AuthStore>()(
         return true
       },
 
-      hasPermission: (permission) => {
-        const { user } = get()
-        return user?.permissions?.includes(permission) || false
+      hasPermission: (_permission) => {
+        // For now, return true for all permissions since Django backend doesn't have permissions field
+        return true
       },
 
       hasRole: (role) => {

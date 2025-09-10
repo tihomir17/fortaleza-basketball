@@ -113,9 +113,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (user) {
       errorTracker.setUser({
-        id: user.id,
+        id: user.id.toString(),
         email: user.email,
-        username: user.firstName + ' ' + user.lastName,
+        username: user.first_name + ' ' + user.last_name,
       })
     }
   }, [user])

@@ -59,7 +59,7 @@ export function ProtectedRoute({
       behaviorTracker.trackAction('route-access-denied', {
         reason: 'insufficient-permissions',
         path: location.pathname,
-        userPermissions: user.permissions,
+        userRole: user.role,
         requiredPermissions,
       })
       

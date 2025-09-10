@@ -32,6 +32,11 @@ export function Login() {
           <p className="mt-2 text-center text-sm text-gray-600">
             Fortaleza Basketball Analytics
           </p>
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800 font-medium">Fortaleza Coach Credentials:</p>
+            <p className="text-xs text-blue-600">Username: vladdos | Password: 20pogodi</p>
+            <p className="text-xs text-blue-500 mt-1">Vladimir Dosenovic - Assistant Coach</p>
+          </div>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

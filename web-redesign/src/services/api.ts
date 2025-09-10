@@ -94,46 +94,110 @@ export const api = {
     ),
 }
 
-// Authentication API with special retry logic
+// Authentication API for Django backend
 export const authApi = {
-  login: (credentials: { username: string; password: string }) =>
-    retryAuthOperation(() =>
-      api.post<{ access: string; refresh: string }>('/auth/login/', credentials)
-    ),
-    
-  logout: () =>
-    api.post('/auth/logout'),
-    
-  me: () =>
-    retryAuthOperation(() =>
-      api.get<unknown>('/auth/me/')
-    ),
-    
-  refreshToken: () =>
-    retryAuthOperation(() => 
+  login: (credentials: { username: string; password: string }) => {
+    console.log('Using real backend authentication')
+    console.log('API Base URL:', API_BASE_URL)
+    console.log('Login endpoint:', `${API_BASE_URL}/auth/login/`)
+    return api.post<{ access: string; refresh: string }>('/auth/login/', credentials)
+  },
+  
+  logout: () => {
+    // Django doesn't have a logout endpoint, just clear tokens
+    return Promise.resolve({})
+  },
+  
+  me: () => {
+    console.log('Fetching user info from /auth/me/')
+    const token = localStorage.getItem('auth_token')
+    console.log('Token for /auth/me/ call:', token ? 'Present' : 'Missing')
+    return api.get<{
+      id: number
+      username: string
+      email: string
+      first_name: string
+      last_name: string
+      role: string
+      coach_type: string
+      staff_type: string
+      jersey_number: number | null
+      is_active: boolean
+      date_joined: string
+    }>('/auth/me/', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+  },
+  
+  refreshToken: () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ access: 'mock-access-token' })
+    }
+    return retryAuthOperation(() => 
       api.post<{ access: string }>('/auth/login/refresh/')
-    ),
-    
-  forgotPassword: (email: string) =>
-    api.post('/auth/forgot-password', { email }),
-    
-  resetPassword: (token: string, password: string) =>
-    api.post('/auth/reset-password', { token, password }),
-    
-  register: (userData: unknown) =>
-    api.post<{ access: string; refresh: string }>('/auth/register/', userData),
-    
-  updateProfile: (userData: unknown) =>
-    api.put<{ user: unknown }>('/auth/profile', userData),
-    
-  changePassword: (passwords: unknown) =>
-    api.post('/auth/change-password', passwords),
-    
-  verifyEmail: (token: string) =>
-    api.post('/auth/verify-email', { token }),
-    
-  resendVerification: () =>
-    api.post('/auth/resend-verification'),
+    )
+  },
+  
+  forgotPassword: (email: string) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ message: 'Password reset email sent' })
+    }
+    return api.post('/auth/forgot-password', { email })
+  },
+  
+  resetPassword: (token: string, password: string) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ message: 'Password reset successful' })
+    }
+    return api.post('/auth/reset-password', { token, password })
+  },
+  
+  register: (userData: {
+    username: string
+    email: string
+    password: string
+    first_name: string
+    last_name: string
+    role?: string
+  }) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({
+        access: 'mock-access-token',
+        refresh: 'mock-refresh-token'
+      })
+    }
+    return api.post<{ access: string; refresh: string }>('/auth/register/', userData)
+  },
+  
+  updateProfile: (userData: unknown) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ user: userData })
+    }
+    return api.put<{ user: unknown }>('/auth/profile', userData)
+  },
+  
+  changePassword: (passwords: unknown) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ message: 'Password changed successfully' })
+    }
+    return api.post('/auth/change-password', passwords)
+  },
+  
+  verifyEmail: (token: string) => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ message: 'Email verified successfully' })
+    }
+    return api.post('/auth/verify-email', { token })
+  },
+  
+  resendVerification: () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      return Promise.resolve({ message: 'Verification email sent' })
+    }
+    return api.post('/auth/resend-verification')
+  },
 }
 
 // Games API

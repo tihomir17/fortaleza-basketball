@@ -60,12 +60,12 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const getUserInitials = () => {
     if (!user) return 'U'
-    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U'
+    return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || 'U'
   }
 
   const getUserName = () => {
     if (!user) return 'User'
-    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
   }
 
   return (
