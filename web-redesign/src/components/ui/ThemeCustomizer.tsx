@@ -133,6 +133,31 @@ export function ThemeCustomizer({ isOpen, onClose, currentTheme = 'fortaleza', o
     onThemeChange(customTheme)
   }
 
+  const resolveTheme = (id: string): ThemeOption => {
+    if (id === 'custom') {
+      return {
+        id: 'custom',
+        name: 'Custom',
+        description: 'Your custom theme',
+        colors: {
+          primary: customColors.primary,
+          secondary: customColors.secondary,
+          accent: customColors.accent,
+          background: '#ffffff',
+          surface: '#f8fafc',
+          text: '#1f2937'
+        }
+      }
+    }
+    return predefinedThemes.find(t => t.id === id) || predefinedThemes[0]
+  }
+
+  const handleApplyClick = () => {
+    const themeToApply = resolveTheme(selectedTheme)
+    onThemeChange(themeToApply)
+    onClose()
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Customize Theme" size="lg">
       <div className="space-y-6">
@@ -294,7 +319,7 @@ export function ThemeCustomizer({ isOpen, onClose, currentTheme = 'fortaleza', o
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onClose}>
+          <Button onClick={handleApplyClick}>
             Apply Theme
           </Button>
         </div>

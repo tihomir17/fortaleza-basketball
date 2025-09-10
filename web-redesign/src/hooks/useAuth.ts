@@ -21,7 +21,7 @@ export function useAuth() {
     { immediate: false }
   )
 
-  const login = useCallback(async (credentials: { email: string; password: string }) => {
+  const login = useCallback(async (credentials: { username: string; password: string }) => {
     try {
       setLoading(true)
       setError(null)
@@ -29,7 +29,7 @@ export function useAuth() {
       const response = await authApi.login(credentials)
       
       // Store token
-      localStorage.setItem('auth_token', response.token)
+      localStorage.setItem('auth_token', response.access)
       
       // Update store
       storeLogin(response as any)
@@ -88,8 +88,8 @@ export function useAuth() {
   const refreshToken = useCallback(async () => {
     try {
       const response = await authApi.refreshToken()
-      localStorage.setItem('auth_token', response.token)
-      return response.token
+      localStorage.setItem('auth_token', response.access)
+      return response.access
     } catch {
       // Refresh failed, logout user
       await logout()

@@ -26,7 +26,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (credentials: { email: string; password: string }) => Promise<void>
+  login: (credentials: { username: string; password: string }) => Promise<void>
   logout: () => void
   register: (userData: RegisterData) => Promise<void>
   refreshToken: () => Promise<void>
@@ -46,10 +46,11 @@ interface AuthActions {
 }
 
 interface RegisterData {
+  username: string
   email: string
   password: string
-  firstName: string
-  lastName: string
+  first_name: string
+  last_name: string
   role?: string
 }
 
@@ -77,21 +78,25 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authApi.login(credentials)
           
+          // Get user info from /auth/me/ endpoint
+          const userResponse = await authApi.me()
+          
           set({
-            user: (response as any).user as User,
-            token: response.token,
+            user: userResponse as User,
+            token: response.access,
             isAuthenticated: true,
             isLoading: false,
             lastActivity: Date.now(),
           })
 
           // Store token in localStorage
-          localStorage.setItem('auth_token', response.token)
+          localStorage.setItem('auth_token', response.access)
+          localStorage.setItem('refresh_token', response.refresh)
           
           // Track successful login
           behaviorTracker.trackAction('user-login', {
-            userId: (response as any).user?.id,
-            role: (response as any).user?.role,
+            userId: (userResponse as any)?.id,
+            role: (userResponse as any)?.role,
           })
           
           // Set up session monitoring
@@ -107,7 +112,7 @@ export const useAuthStore = create<AuthStore>()(
 
           // Track failed login
           behaviorTracker.trackAction('user-login-failed', {
-            email: credentials.email,
+            username: credentials.username,
             error: errorMessage,
           })
 
@@ -126,8 +131,9 @@ export const useAuthStore = create<AuthStore>()(
           })
         }
 
-        // Clear token from localStorage
+        // Clear tokens from localStorage
         localStorage.removeItem('auth_token')
+        localStorage.removeItem('refresh_token')
         
         // Reset state
         set({
@@ -150,21 +156,25 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authApi.register(userData)
           
+          // Get user info from /auth/me/ endpoint
+          const userResponse = await authApi.me()
+          
           set({
-            user: (response as any).user as User,
-            token: response.token,
+            user: userResponse as User,
+            token: response.access,
             isAuthenticated: true,
             isLoading: false,
             lastActivity: Date.now(),
           })
 
-          // Store token in localStorage
-          localStorage.setItem('auth_token', response.token)
+          // Store tokens in localStorage
+          localStorage.setItem('auth_token', response.access)
+          localStorage.setItem('refresh_token', response.refresh)
           
           // Track successful registration
           behaviorTracker.trackAction('user-register', {
-            userId: (response as any).user?.id,
-            role: (response as any).user?.role,
+            userId: (userResponse as any)?.id,
+            role: (userResponse as any)?.role,
           })
           
         } catch (error: unknown) {
@@ -185,12 +195,12 @@ export const useAuthStore = create<AuthStore>()(
           const response = await authApi.refreshToken()
           
           set({
-            token: response.token,
+            token: response.access,
             lastActivity: Date.now(),
           })
 
           // Update token in localStorage
-          localStorage.setItem('auth_token', response.token)
+          localStorage.setItem('auth_token', response.access)
           
         } catch (error: unknown) {
           // If refresh fails, logout user

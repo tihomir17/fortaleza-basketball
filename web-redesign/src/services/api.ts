@@ -46,8 +46,13 @@ apiClient.interceptors.response.use(
       // Clear stored token
       localStorage.removeItem('auth_token')
       
-      // Redirect to login page
-      window.location.href = '/login'
+      // In development, don't hard-redirect; allow pages to render with mocks/bypass
+      if (import.meta.env.PROD) {
+        // Redirect to login page in production
+        window.location.href = '/login'
+      } else {
+        console.warn('401 Unauthorized in development - bypassing redirect to /login')
+      }
       
       return Promise.reject(error)
     }
@@ -91,9 +96,9 @@ export const api = {
 
 // Authentication API with special retry logic
 export const authApi = {
-  login: (credentials: { email: string; password: string }) =>
+  login: (credentials: { username: string; password: string }) =>
     retryAuthOperation(() =>
-      api.post<{ user: unknown; token: string }>('/auth/login', credentials)
+      api.post<{ access: string; refresh: string }>('/auth/login/', credentials)
     ),
     
   logout: () =>
@@ -101,12 +106,12 @@ export const authApi = {
     
   me: () =>
     retryAuthOperation(() =>
-      api.get<unknown>('/auth/me')
+      api.get<unknown>('/auth/me/')
     ),
     
   refreshToken: () =>
     retryAuthOperation(() => 
-      api.post<{ token: string }>('/auth/refresh')
+      api.post<{ access: string }>('/auth/login/refresh/')
     ),
     
   forgotPassword: (email: string) =>
@@ -116,7 +121,7 @@ export const authApi = {
     api.post('/auth/reset-password', { token, password }),
     
   register: (userData: unknown) =>
-    api.post<{ user: unknown; token: string }>('/auth/register', userData),
+    api.post<{ access: string; refresh: string }>('/auth/register/', userData),
     
   updateProfile: (userData: unknown) =>
     api.put<{ user: unknown }>('/auth/profile', userData),

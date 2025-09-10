@@ -15,7 +15,7 @@ export function Card({
   className,
   padding = 'md',
   shadow = 'sm',
-  border = true,
+  border: _border = true,
   hover = false
 }: CardProps) {
   const paddingClasses = {
@@ -35,15 +35,19 @@ export function Card({
   return (
     <div
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-xl',
+        'bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-gray-700/50',
         paddingClasses[padding],
         shadowClasses[shadow],
-        border && 'border border-gray-100 dark:border-gray-700',
-        hover && 'hover:shadow-md transition-shadow duration-200',
+        hover && 'hover:shadow-xl hover:shadow-black/10 hover:scale-[1.02] transition-all duration-300',
+        'relative overflow-hidden',
         className
       )}
     >
-      {children}
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   )
 }

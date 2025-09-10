@@ -33,12 +33,14 @@ export const useTeamsStore = create<TeamsState>((set) => ({
   fetchTeams: async () => {
     set({ isLoading: true, error: null })
     try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
+      console.info('[teamsStore] fetchTeams VITE_USE_MOCKS=', import.meta.env.VITE_USE_MOCKS, 'API_BASE=', import.meta.env.VITE_API_BASE_URL)
+      if (import.meta.env.VITE_USE_MOCKS === 'true') {
         set({ teams: mockTeams, isLoading: false })
+        console.info('[teamsStore] using mockTeams count=', mockTeams.length)
         return
       }
       const teams = await teamsService.getTeams()
+      console.info('[teamsStore] fetched teams from API count=', (teams as any)?.length ?? 'unknown')
       set({ teams, isLoading: false })
     } catch (error: unknown) {
       set({ 
@@ -64,13 +66,15 @@ export const useTeamsStore = create<TeamsState>((set) => ({
   fetchPlayers: async (teamId: number) => {
     set({ isLoading: true, error: null })
     try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
+      console.info('[teamsStore] fetchPlayers VITE_USE_MOCKS=', import.meta.env.VITE_USE_MOCKS)
+      if (import.meta.env.VITE_USE_MOCKS === 'true') {
         const players = mockPlayers.filter(player => player.team === teamId)
         set({ players, isLoading: false })
+        console.info('[teamsStore] using mock players count=', players.length)
         return
       }
       const players = await teamsService.getPlayers(teamId)
+      console.info('[teamsStore] fetched players from API count=', (players as any)?.length ?? 'unknown')
       set({ players, isLoading: false })
     } catch (error: unknown) {
       set({ 

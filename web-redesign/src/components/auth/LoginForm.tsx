@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore'
 import { behaviorTracker } from '../../utils/monitoring'
 
 interface LoginFormData {
-  email: string
+  username: string
   password: string
   rememberMe: boolean
 }
@@ -24,7 +24,7 @@ export function LoginForm() {
   } = useForm<LoginFormData>({
     mode: 'onChange',
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       rememberMe: false,
     },
@@ -34,7 +34,7 @@ export function LoginForm() {
     try {
       clearError()
       await login({
-        email: data.email,
+        username: data.username,
         password: data.password,
       })
     } catch {
@@ -63,21 +63,21 @@ export function LoginForm() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              Username
             </label>
             <Input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              {...register('email', {
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address',
+              id="username"
+              type="text"
+              placeholder="Enter your username"
+              {...register('username', {
+                required: 'Username is required',
+                minLength: {
+                  value: 3,
+                  message: 'Username must be at least 3 characters',
                 },
               })}
-              error={errors.email?.message}
+              error={errors.username?.message}
               disabled={isLoading}
             />
           </div>

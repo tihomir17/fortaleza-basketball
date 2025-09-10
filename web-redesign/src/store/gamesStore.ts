@@ -33,12 +33,15 @@ export const useGamesStore = create<GamesState>((set) => ({
   fetchGames: async () => {
     set({ isLoading: true, error: null })
     try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
+      // Use mocks only if explicitly enabled
+      console.info('[gamesStore] fetchGames VITE_USE_MOCKS=', import.meta.env.VITE_USE_MOCKS, 'API_BASE=', import.meta.env.VITE_API_BASE_URL)
+      if (import.meta.env.VITE_USE_MOCKS === 'true') {
         set({ games: mockGames, isLoading: false })
+        console.info('[gamesStore] using mockGames count=', mockGames.length)
         return
       }
       const games = await gamesService.getGames()
+      console.info('[gamesStore] fetched games from API count=', (games as any)?.length ?? 'unknown', games)
       set({ games, isLoading: false })
     } catch (error: any) {
       set({ 
@@ -51,13 +54,15 @@ export const useGamesStore = create<GamesState>((set) => ({
   fetchUpcomingGames: async () => {
     set({ isLoading: true, error: null })
     try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
+      console.info('[gamesStore] fetchUpcomingGames VITE_USE_MOCKS=', import.meta.env.VITE_USE_MOCKS)
+      if (import.meta.env.VITE_USE_MOCKS === 'true') {
         const upcomingGames = mockGames.filter(game => game.status === 'SCHEDULED')
         set({ upcomingGames, isLoading: false })
+        console.info('[gamesStore] using mock upcomingGames count=', upcomingGames.length)
         return
       }
       const upcomingGames = await gamesService.getUpcomingGames()
+      console.info('[gamesStore] fetched upcomingGames from API count=', (upcomingGames as any)?.length ?? 'unknown')
       set({ upcomingGames, isLoading: false })
     } catch (error: any) {
       set({ 
@@ -70,13 +75,15 @@ export const useGamesStore = create<GamesState>((set) => ({
   fetchRecentGames: async () => {
     set({ isLoading: true, error: null })
     try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
+      console.info('[gamesStore] fetchRecentGames VITE_USE_MOCKS=', import.meta.env.VITE_USE_MOCKS)
+      if (import.meta.env.VITE_USE_MOCKS === 'true') {
         const recentGames = mockGames.filter(game => game.status === 'COMPLETED')
         set({ recentGames, isLoading: false })
+        console.info('[gamesStore] using mock recentGames count=', recentGames.length)
         return
       }
       const recentGames = await gamesService.getRecentGames()
+      console.info('[gamesStore] fetched recentGames from API count=', (recentGames as any)?.length ?? 'unknown')
       set({ recentGames, isLoading: false })
     } catch (error: any) {
       set({ 

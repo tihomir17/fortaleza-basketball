@@ -19,6 +19,9 @@ interface SidebarProps {
     { name: 'Dashboard', href: '/', icon: HomeIcon },
     { name: 'Games', href: '/games', icon: CalendarDaysIcon },
     { name: 'Teams', href: '/teams', icon: UserGroupIcon },
+    { name: 'Roster', href: '/teams/roster', icon: UsersIcon },
+    { name: 'Calendar', href: '/calendar', icon: CalendarDaysIcon },
+    { name: 'Events', href: '/events', icon: CalendarDaysIcon },
     { name: 'Live Tracking', href: '/live', icon: PlayIcon },
     { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
     { name: 'Scouting', href: '/scouting', icon: EyeIcon },
@@ -40,7 +43,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 shadow-lg lg:shadow-none border-r border-gray-200 dark:border-gray-700
+        fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-2xl lg:shadow-none border-r border-white/20 dark:border-gray-700/50
         transform transition-all duration-300 ease-in-out lg:transform-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         pt-16 lg:pt-0
@@ -49,14 +52,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Close button for mobile */}
         <div className="flex items-center justify-between p-4 lg:hidden">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-fortaleza-blue rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">F</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <span className="text-white font-bold text-lg">F</span>
             </div>
-            <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">Fortaleza</span>
+            <span className="ml-3 text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">Fortaleza</span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50 backdrop-blur-sm transition-all duration-200 hover:scale-105"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -77,15 +80,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       }
                     }}
                     className={`
-                      flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200
+                      group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 relative overflow-hidden
                       ${isActive 
-                        ? 'text-fortaleza-blue bg-blue-50 dark:bg-blue-900/50 border-r-2 border-fortaleza-blue' 
-                        : 'text-gray-700 dark:text-gray-300 hover:text-fortaleza-blue hover:bg-gray-50 dark:hover:bg-gray-700 hover:translate-x-1'
+                        ? 'text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25' 
+                        : 'text-gray-700 dark:text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/25 hover:scale-105'
                       }
                     `}
                   >
-                    <item.icon className="w-5 h-5 mr-3" />
-                    {item.name}
+                    <item.icon className={`w-5 h-5 mr-3 transition-all duration-200 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                    <span className="relative z-10">{item.name}</span>
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl opacity-90"></div>
+                    )}
                   </Link>
                 </li>
               )

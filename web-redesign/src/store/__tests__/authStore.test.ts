@@ -27,7 +27,7 @@ describe('AuthStore', () => {
     }
 
     await act(async () => {
-      await result.current.login({ email: 'test@example.com', password: 'password' })
+      await result.current.login({ username: 'testuser', password: 'password' })
     })
 
     expect(result.current.isAuthenticated).toBe(true)
@@ -49,7 +49,7 @@ describe('AuthStore', () => {
     const { result } = renderHook(() => useAuthStore())
     
     await act(async () => {
-      await result.current.login({ email: 'invalid@example.com', password: 'wrongpassword' })
+      await result.current.login({ username: 'invaliduser', password: 'wrongpassword' })
     })
 
     expect(result.current.isAuthenticated).toBe(false)
