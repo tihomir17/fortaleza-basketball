@@ -1,4 +1,5 @@
 import api from './api'
+import { apiWithFallback } from './apiWithFallback'
 
 export interface Team {
   id: number
@@ -38,10 +39,17 @@ export interface GameCreate {
 export const gamesService = {
   async getGames(): Promise<Game[]> {
     try {
-      console.log('Fetching all games from /games/')
-      const response = await api.get<{ results: Game[] }>('/games/')
+      console.log('Fetching all games with fallback support...')
+      const response = await apiWithFallback.getGames()
       console.log('Games response:', response)
-      return response.results
+      
+      // If response is already an array (from mock data), return it
+      if (Array.isArray(response)) {
+        return response as Game[]
+      }
+      
+      // Transform backend response format
+      return (response as any).results || []
     } catch (error) {
       console.error('Failed to fetch games:', error)
       throw error
@@ -89,11 +97,18 @@ export const gamesService = {
 
   async getUpcomingGames(): Promise<Game[]> {
     try {
-      console.log('Fetching upcoming games...')
-      const response = await api.get<{ results: Game[] }>('/games/')
-      const now = new Date()
+      console.log('Fetching upcoming games with fallback support...')
+      const response = await apiWithFallback.getUpcomingGames()
+      console.log('Upcoming games response:', response)
+      
+      // If response is already an array (from mock data), return it
+      if (Array.isArray(response)) {
+        return response as Game[]
+      }
+      
       // Filter for upcoming games (game_date > now)
-      const upcomingGames = response.results.filter(game => new Date(game.game_date) > now)
+      const now = new Date()
+      const upcomingGames = (response as any).results?.filter((game: Game) => new Date(game.game_date) > now) || []
       console.log('Upcoming games found:', upcomingGames.length)
       return upcomingGames
     } catch (error) {
@@ -104,14 +119,21 @@ export const gamesService = {
 
   async getRecentGames(): Promise<Game[]> {
     try {
-      console.log('Fetching recent games...')
-      const response = await api.get<{ results: Game[] }>('/games/')
-      const now = new Date()
+      console.log('Fetching recent games with fallback support...')
+      const response = await apiWithFallback.getRecentGames()
+      console.log('Recent games response:', response)
+      
+      // If response is already an array (from mock data), return it
+      if (Array.isArray(response)) {
+        return response as Game[]
+      }
+      
       // Filter for recent games (game_date < now and has scores)
-      const recentGames = response.results.filter(game => {
+      const now = new Date()
+      const recentGames = (response as any).results?.filter((game: Game) => {
         const gameDate = new Date(game.game_date)
         return gameDate < now && (game.home_team_score > 0 || game.away_team_score > 0)
-      })
+      }) || []
       console.log('Recent games found:', recentGames.length)
       return recentGames
     } catch (error) {

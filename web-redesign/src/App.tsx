@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect } from 'react'
 import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PageLoader } from './components/ui/PageLoader'
+import { BackendStatus } from './components/BackendStatus'
 import { registerServiceWorker, setupOfflineDetection, showInstallPrompt } from './utils/serviceWorker'
 import { Login } from './pages/Login'
 
@@ -11,7 +12,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ defau
 const Games = lazy(() => import('./pages/Games').then(module => ({ default: module.Games })))
 const Teams = lazy(() => import('./pages/Teams'))
 const LiveTracking = lazy(() => import('./pages/LiveTracking').then(module => ({ default: module.LiveTracking })))
-const Analytics = lazy(() => import('./pages/Analytics').then(module => ({ default: module.Analytics })))
+const Analytics = lazy(() => import('./pages/Analytics'))
 const Scouting = lazy(() => import('./pages/Scouting').then(module => ({ default: module.Scouting })))
 const UserManagement = lazy(() => import('./pages/UserManagement').then(module => ({ default: module.UserManagement })))
 
@@ -65,6 +66,7 @@ function App() {
 
   return (
     <Router>
+      <BackendStatus />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public routes */}

@@ -1,4 +1,5 @@
 import api from './api'
+import { apiWithFallback } from './apiWithFallback'
 
 export interface DashboardData {
   quickStats: {
@@ -45,9 +46,14 @@ export interface DashboardData {
 export const dashboardService = {
   async getDashboardData(): Promise<DashboardData> {
     try {
-      console.log('Fetching dashboard data from /games/dashboard_data/')
-      const response = await api.get('/games/dashboard_data/')
+      console.log('Fetching dashboard data with fallback support...')
+      const response = await apiWithFallback.getDashboardData()
       console.log('Dashboard response:', response)
+      
+      // If response is already in the correct format (from mock data), return it
+      if ((response as any).quickStats && (response as any).upcomingGames && (response as any).recentGames) {
+        return response as DashboardData
+      }
       
       // Transform backend data to match frontend interface
       const backendData = response as any

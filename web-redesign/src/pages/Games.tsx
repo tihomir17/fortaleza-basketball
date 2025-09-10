@@ -7,7 +7,10 @@ import {
   PencilIcon,
   TrashIcon,
   EyeIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline'
 import { useGamesStore } from '../store/gamesStore'
 import type { Game } from '../services/games'
@@ -33,6 +36,10 @@ export function Games() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'recent' | 'all'>('upcoming')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [showFilters, setShowFilters] = useState(false)
+  const [sortBy, setSortBy] = useState<'date' | 'team' | 'status'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
   // Search and filter states
   const [searchValue, setSearchValue] = useState('')
@@ -48,9 +55,22 @@ export function Games() {
 
   const handleDeleteGame = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this game?')) {
-      await deleteGame(id)
+      try {
+        await deleteGame(id)
+        // Refresh the appropriate list
+        if (activeTab === 'upcoming') {
+          fetchUpcomingGames()
+        } else if (activeTab === 'recent') {
+          fetchRecentGames()
+        } else {
+          fetchGames()
+        }
+      } catch (error) {
+        console.error('Failed to delete game:', error)
+      }
     }
   }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -152,6 +172,30 @@ export function Games() {
       }
 
       return true
+    }).sort((a, b) => {
+      let comparison = 0
+      
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.game_date).getTime() - new Date(b.game_date).getTime()
+          break
+        case 'team':
+          comparison = a.home_team.name.localeCompare(b.home_team.name)
+          break
+        case 'status': {
+          const getGameStatus = (game: Game) => {
+            const gameDate = new Date(game.game_date)
+            const now = new Date()
+            if (gameDate < now) return 'COMPLETED'
+            if (gameDate.toDateString() === now.toDateString()) return 'IN_PROGRESS'
+            return 'SCHEDULED'
+          }
+          comparison = getGameStatus(a).localeCompare(getGameStatus(b))
+          break
+        }
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison
     })
   }
 
@@ -186,27 +230,188 @@ export function Games() {
       </div>
 
       {/* Page Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Games</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your team's games and schedule.</p>
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Games</h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your team's games and schedule.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Showing {getCurrentGames().length} games
+            </p>
+          </div>
+          <div className="flex items-center space-x-3 mt-4 sm:mt-0">
+            <ExportButton
+              data={getCurrentGames()}
+              dataType="games"
+              title="Games Export"
+              size="md"
+              variant="outline"
+            />
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            >
+              <PlusIcon className="w-5 h-5 mr-2" />
+              Add Game
+            </button>
+          </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <ExportButton
-            data={getCurrentGames()}
-            dataType="games"
-            title="Games Export"
-            size="md"
-            variant="outline"
-          />
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-          >
-            <PlusIcon className="w-5 h-5 mr-2" />
-            Add Game
-          </button>
+
+        {/* Enhanced Controls */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search games..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+                showFilters 
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/50 dark:border-blue-700 dark:text-blue-300'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              <FunnelIcon className="w-4 h-4" />
+              <span>Filters</span>
+            </button>
+          </div>
+
+          {/* View and Sort Controls */}
+          <div className="flex items-center space-x-4">
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'grid' 
+                    ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-white dark:bg-gray-600 shadow-sm' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex items-center space-x-2">
+              <AdjustmentsHorizontalIcon className="w-4 h-4 text-gray-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'date' | 'team' | 'status')}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="date">Date</option>
+                <option value="team">Team</option>
+                <option value="status">Status</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+                title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+              >
+                {sortOrder === 'asc' ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Advanced Filters Panel */}
+        {showFilters && (
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                >
+                  <option value="">All Status</option>
+                  <option value="SCHEDULED">Scheduled</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Team</label>
+                <select
+                  value={teamFilter}
+                  onChange={(e) => setTeamFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                >
+                  <option value="">All Teams</option>
+                  <option value="Fortaleza">Fortaleza</option>
+                  <option value="Lakers">Lakers</option>
+                  <option value="Warriors">Warriors</option>
+                  <option value="Celtics">Celtics</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Range</label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                >
+                  <option value="">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="tomorrow">Tomorrow</option>
+                  <option value="this_week">This Week</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="past">Past</option>
+                </select>
+              </div>
+              
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setSearchValue('')
+                    setStatusFilter('')
+                    setTeamFilter('')
+                    setDateFilter('')
+                  }}
+                  className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search and Filters */}
