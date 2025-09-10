@@ -30,7 +30,7 @@ services:
       retries: 5
 
   web:
-    build: .
+    image: fortaleza-basketball-backend:local-20250909-220804
     command: >
       sh -c "python setup_database.py &&
              python manage.py migrate &&
@@ -62,9 +62,7 @@ services:
       retries: 3
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: fortaleza-basketball-frontend:local-20250909-220804
     environment:
       - NODE_ENV=production
     restart: unless-stopped

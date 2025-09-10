@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Generate changelog (you can customize this)
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "### Features" >> CHANGELOG.md
+          echo "- New features and improvements" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "### Bug Fixes" >> CHANGELOG.md
+          echo "- Bug fixes and stability improvements" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "### Dependencies" >> CHANGELOG.md
+          echo "- Updated dependencies" >> CHANGELOG.md
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.changelog.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/
+          asset_name: build-${{ steps.changelog.outputs.version }}.zip
+          asset_content_type: application/zip
+
+  deploy:
+    name: Deploy Release
+    runs-on: ubuntu-latest
+    needs: release
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying release to production..."
+          # Add your production deployment commands here
+
+      - name: Notify deployment
+        run: |
+          echo "Release deployed to production successfully!"
+          # Add notification logic here

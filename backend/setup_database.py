@@ -94,13 +94,9 @@ def load_initial_data():
     print("Loading initial data...")
     
     try:
-        # Load play definitions
-        if os.path.exists('data/initial_play_definitions.json'):
-            subprocess.run([
-                sys.executable, 'manage.py', 'loaddata', 
-                'data/initial_play_definitions.json'
-            ], check=True)
-            print("Initial play definitions loaded.")
+        # Skip loading play definitions for now due to format issues
+        # TODO: Fix the initial_play_definitions.json format to be Django fixture compatible
+        print("Skipping initial data loading (format needs to be fixed)")
         
         return True
         
