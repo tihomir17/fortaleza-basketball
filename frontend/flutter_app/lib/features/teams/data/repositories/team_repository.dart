@@ -138,6 +138,61 @@ class TeamRepository {
     }
   }
 
+  Future<void> updatePlayerInTeam({
+    required String token,
+    required int teamId,
+    required int userId,
+    String? firstName,
+    String? lastName,
+    int? jerseyNumber,
+  }) async {
+    final candidatePaths = <String>[
+      '/teams/$teamId/players/$userId/',
+      '/teams/$teamId/update_player/$userId/',
+      '/teams/$teamId/members/$userId/',
+      '/teams/$teamId/update_member/$userId/',
+      '/teams/$teamId/players/$userId/update/',
+    ];
+    logger.d('TeamRepository: Updating player $userId in team $teamId. Will try ${candidatePaths.length} candidate endpoints.');
+
+    try {
+      final Map<String, dynamic> body = {
+        if (firstName != null) 'first_name': firstName,
+        if (lastName != null) 'last_name': lastName,
+        if (jerseyNumber != null) 'jersey_number': jerseyNumber,
+      };
+
+      Exception? lastError;
+      for (final path in candidatePaths) {
+        final url = Uri.parse('${ApiClient.baseUrl}$path');
+        logger.d('TeamRepository: Trying PATCH ${url.toString()}');
+        final response = await _client.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: json.encode(body),
+        );
+        if (response.statusCode == 200) {
+          logger.i('TeamRepository: Player $userId updated in team $teamId via $path');
+          return;
+        }
+        logger.w('TeamRepository: Endpoint $path responded ${response.statusCode}. Body: ${response.body}');
+        lastError = Exception('Failed at $path: ${response.statusCode}');
+        // If it's not 404, don't keep trying blindly; break on clear failures like 400/403/500
+        if (response.statusCode != 404) {
+          break;
+        }
+      }
+
+      throw Exception('Failed to update player in team. All candidate endpoints failed. ${lastError != null ? lastError.toString() : ''}');
+    } catch (e) {
+      logger.e('TeamRepository: Error updating player $userId in team $teamId: $e');
+      throw Exception('An error occurred while updating player in team: $e');
+    }
+  }
+
   Future<Team> createTeam({required String token, required String name}) async {
     final url = Uri.parse('${ApiClient.baseUrl}/teams/');
     logger.d('TeamRepository: Creating team "$name" at $url');

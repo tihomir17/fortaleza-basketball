@@ -10,6 +10,7 @@ import 'package:fortaleza_basketball_analytics/main.dart';
 import '../cubit/auth_cubit.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
+import 'package:fortaleza_basketball_analytics/features/teams/data/repositories/team_repository.dart';
 
 class EditUserScreen extends StatefulWidget {
   final User user;
@@ -63,13 +64,35 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
     try {
       logger.i('EditUserScreen: Attempting to update user ${widget.user.id}.');
-      await sl<UserRepository>().updateUser(
-        token: token,
-        userId: widget.user.id,
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        jerseyNumber: widget.user.role == 'PLAYER' ? int.tryParse(_numberController.text) : null,
-      );
+      if (widget.user.role == 'PLAYER') {
+        final Object? args = ModalRoute.of(context)?.settings.arguments;
+        final int? teamId = (args is Map) ? (args['teamId'] as int?) : null;
+        if (teamId != null) {
+          await sl<TeamRepository>().updatePlayerInTeam(
+            token: token,
+            teamId: teamId,
+            userId: widget.user.id,
+            firstName: _firstNameController.text,
+            lastName: _lastNameController.text,
+            jerseyNumber: int.tryParse(_numberController.text),
+          );
+        } else {
+          await sl<UserRepository>().updateUser(
+            token: token,
+            userId: widget.user.id,
+            firstName: _firstNameController.text,
+            lastName: _lastNameController.text,
+            jerseyNumber: int.tryParse(_numberController.text),
+          );
+        }
+      } else {
+        await sl<UserRepository>().updateUser(
+          token: token,
+          userId: widget.user.id,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+        );
+      }
       if (mounted) {
         sl<RefreshSignal>().notify(); // Fire global refresh
         Navigator.of(context).pop(); // Pop this screen

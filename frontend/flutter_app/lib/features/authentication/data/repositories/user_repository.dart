@@ -77,22 +77,32 @@ class UserRepository {
     required String lastName,
     int? jerseyNumber,
   }) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/users/$userId/');
-    logger.d('UserRepository: Updating user $userId at $url');
+    final primaryUrl = Uri.parse('${ApiClient.baseUrl}/users/$userId/');
+    final fallbackUrl = Uri.parse('${ApiClient.baseUrl}/auth/users/$userId/');
+    logger.d('UserRepository: Updating user $userId at $primaryUrl');
     try {
-      final response = await _client.patch(
-        // Use PATCH for partial updates
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'first_name': firstName,
-          'last_name': lastName,
-          'jersey_number': jerseyNumber,
-        }),
-      );
+      final Map<String, dynamic> body = {
+        'first_name': firstName,
+        'last_name': lastName,
+        if (jerseyNumber != null) 'jersey_number': jerseyNumber,
+      };
+
+      Future<http.Response> send(Uri url) {
+        return _client.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: json.encode(body),
+        );
+      }
+
+      http.Response response = await send(primaryUrl);
+      if (response.statusCode == 404) {
+        logger.w('UserRepository: /users/ returned 404 for $userId, retrying /auth/users/.');
+        response = await send(fallbackUrl);
+      }
       if (response.statusCode == 200) {
         logger.i('UserRepository: User $userId updated successfully.');
         return User.fromJson(json.decode(response.body));
@@ -116,21 +126,32 @@ class UserRepository {
     required String lastName,
     required String coachType,
   }) async {
-    final url = Uri.parse('${ApiClient.baseUrl}/users/$userId/');
-    logger.d('UserRepository: Updating coach $userId at $url with type $coachType');
+    final primaryUrl = Uri.parse('${ApiClient.baseUrl}/users/$userId/');
+    final fallbackUrl = Uri.parse('${ApiClient.baseUrl}/auth/users/$userId/');
+    logger.d('UserRepository: Updating coach $userId at $primaryUrl with type $coachType');
     try {
-      final response = await _client.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'first_name': firstName,
-          'last_name': lastName,
-          'coach_type': coachType,
-        }),
-      );
+      final Map<String, dynamic> body = {
+        'first_name': firstName,
+        'last_name': lastName,
+        'coach_type': coachType,
+      };
+
+      Future<http.Response> send(Uri url) {
+        return _client.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: json.encode(body),
+        );
+      }
+
+      http.Response response = await send(primaryUrl);
+      if (response.statusCode == 404) {
+        logger.w('UserRepository: /users/ returned 404 for $userId, retrying /auth/users/.');
+        response = await send(fallbackUrl);
+      }
       if (response.statusCode != 200) {
         logger.e('UserRepository: Failed to update coach $userId. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(

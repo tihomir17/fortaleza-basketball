@@ -304,6 +304,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => EditUserScreen(user: player),
+                                settings: RouteSettings(arguments: {'teamId': team.id}),
                               ),
                             ),
                           ),
