@@ -1,78 +1,167 @@
 import { useEffect, useState } from 'react'
-import { 
-  UserGroupIcon, 
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  EyeIcon,
-  ExclamationTriangleIcon,
-  UserIcon,
-  MapPinIcon,
-  CalendarIcon
-} from '@heroicons/react/24/outline'
 import { useTeamsStore } from '../store/teamsStore'
-import type { Team, Player } from '../services/teams'
-import { TeamsLoading } from '../components/ui/LoadingStates'
-import { ExportButton } from '../components/ui/ExportButton'
+import { PlusIcon, UserGroupIcon, UserIcon, CogIcon, FunnelIcon } from '@heroicons/react/24/outline'
+import { TeamMemberForm } from '../components/teams/TeamMemberForm'
+import { TeamMemberCard } from '../components/teams/TeamMemberCard'
+import type { Team, TeamMember, TeamMemberCreate, TeamMemberUpdate, ExistingUser } from '../services/teams'
+import { teamsService } from '../services/teams'
 
-export function Teams() {
+export default function Teams() {
   const { 
     teams, 
-    players, 
+    teamMembers,
+    availableJerseyNumbers,
     isLoading, 
     error, 
     fetchTeams, 
-    fetchPlayers,
-    deleteTeam,
-    deletePlayer,
-    clearError 
+    fetchTeam, 
+    fetchTeamMembers,
+    fetchAvailableJerseyNumbers,
+    createTeamMember,
+    updateTeamMember,
+    deleteTeamMember,
+    toggleMemberStatus,
+    setCurrentTeam,
+    clearError,
+    setTeamMembers
   } = useTeamsStore()
-
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showPlayerModal, setShowPlayerModal] = useState(false)
+  
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
-  const [activeView, setActiveView] = useState<'teams' | 'players'>('teams')
+  const [activeTab, setActiveTab] = useState<'all' | 'players' | 'coaches' | 'staff'>('all')
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'PLAYER' | 'COACH' | 'STAFF'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
+  const [existingUsers, setExistingUsers] = useState<ExistingUser[]>([])
 
   useEffect(() => {
     fetchTeams()
   }, [fetchTeams])
 
-  const handleDeleteTeam = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this team?')) {
-      await deleteTeam(id)
+  // Fetch existing users when form opens
+  useEffect(() => {
+    if (isFormOpen && existingUsers.length === 0) {
+      const loadExistingUsers = async () => {
+        try {
+          const users = await teamsService.getAllUsers()
+          setExistingUsers(users)
+        } catch (error) {
+          console.error('Failed to load existing users:', error)
+        }
+      }
+      loadExistingUsers()
     }
-  }
+  }, [isFormOpen, existingUsers.length])
 
-  const handleDeletePlayer = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this player?')) {
-      await deletePlayer(id)
+  useEffect(() => {
+    if (selectedTeam && selectedTeam.id) {
+      console.log('Fetching data for selected team:', selectedTeam.id)
+      fetchTeam(selectedTeam.id)
+      fetchTeamMembers(selectedTeam.id)
+      fetchAvailableJerseyNumbers(selectedTeam.id)
+    } else {
+      console.log('No team selected, clearing team members')
+      // Clear team members when no team is selected
+      setTeamMembers([])
     }
-  }
+  }, [selectedTeam, fetchTeam, fetchTeamMembers, fetchAvailableJerseyNumbers, setTeamMembers])
 
-  const handleViewTeam = async (team: Team) => {
+  const handleTeamSelect = (team: Team) => {
     setSelectedTeam(team)
-    setActiveView('players')
-    await fetchPlayers(team.id)
+    setCurrentTeam(team)
+    setRoleFilter('ALL')
+    setStatusFilter('ALL')
+    setActiveTab('all')
   }
+
+  const handleAddMember = () => {
+    setEditingMember(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEditMember = (member: TeamMember) => {
+    setEditingMember(member)
+    setIsFormOpen(true)
+  }
+
+  const handleFormSubmit = async (data: TeamMemberCreate | TeamMemberUpdate) => {
+    if (!selectedTeam) return
+
+    try {
+      if (editingMember) {
+        await updateTeamMember(editingMember.id, data as TeamMemberUpdate)
+      } else {
+        await createTeamMember(selectedTeam.id, data as TeamMemberCreate)
+      }
+      // Close form on success
+      setIsFormOpen(false)
+      setEditingMember(null)
+    } catch (error: any) {
+      console.error('Form submission error:', error)
+      // Re-throw the error so the form can handle it
+      throw error
+    }
+  }
+
+  const handleExistingUserSubmit = async (userId: number, role: string) => {
+    if (!selectedTeam) return
+
+    try {
+      // Use the add_member endpoint to add existing user to team
+      await teamsService.addExistingMemberToTeam(selectedTeam.id, userId, role)
+      // Close form on success
+      setIsFormOpen(false)
+      setEditingMember(null)
+    } catch (error: any) {
+      console.error('Add existing user error:', error)
+      // Re-throw the error so the form can handle it
+      throw error
+    }
+  }
+
+  const handleDeleteMember = async (memberId: number) => {
+    if (window.confirm('Are you sure you want to delete this team member?')) {
+      await deleteTeamMember(memberId)
+    }
+  }
+
+  const handleToggleStatus = async (memberId: number, isActive: boolean) => {
+    await toggleMemberStatus(memberId, isActive)
+  }
+
+  const filteredMembers = teamMembers.filter(member => {
+    const roleMatch = roleFilter === 'ALL' || member.role === roleFilter
+    const statusMatch = statusFilter === 'ALL' || 
+      (statusFilter === 'ACTIVE' && member.is_active) ||
+      (statusFilter === 'INACTIVE' && !member.is_active)
+    return roleMatch && statusMatch
+  })
+
+  const getMembersByRole = (role: 'PLAYER' | 'COACH' | 'STAFF') => {
+    return teamMembers.filter(member => member.role === role)
+  }
+
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex items-center">
-          <ExclamationTriangleIcon className="w-6 h-6 text-red-600 mr-3" />
-          <div>
-            <h3 className="text-lg font-medium text-red-800">Error loading teams</h3>
-            <p className="text-red-600 mt-1">{error}</p>
-            <button
-              onClick={() => {
-                clearError()
-                fetchTeams()
-              }}
-              className="mt-3 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Try Again
-            </button>
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error loading teams</h3>
+              <div className="mt-2 text-sm text-red-700">{error}</div>
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    clearError()
+                    fetchTeams()
+                  }}
+                  className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -80,318 +169,245 @@ export function Teams() {
   }
 
   return (
-    <div>
-      {/* Page Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
-          <p className="mt-2 text-gray-600">Manage your teams and players.</p>
-        </div>
-        <div className="flex space-x-3">
-          <ExportButton
-            data={activeView === 'teams' ? teams : players}
-            dataType={activeView === 'teams' ? 'teams' : 'players'}
-            title={`${activeView === 'teams' ? 'Teams' : 'Players'} Export`}
-            size="md"
-            variant="outline"
-          />
-          {activeView === 'teams' && (
-            <button 
-              onClick={() => setShowCreateModal(true)}
-              className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <PlusIcon className="w-5 h-5 mr-2" />
-              Add Team
-            </button>
-          )}
-          {activeView === 'players' && selectedTeam && (
-            <button 
-              onClick={() => setShowPlayerModal(true)}
-              className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <PlusIcon className="w-5 h-5 mr-2" />
-              Add Player
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Navigation */}
+    <div className="p-6">
       <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveView('teams')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeView === 'teams'
-                  ? 'border-fortaleza-blue text-fortaleza-blue'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Teams ({teams.length})
-            </button>
-            {selectedTeam && (
-              <button
-                onClick={() => setActiveView('players')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeView === 'players'
-                    ? 'border-fortaleza-blue text-fortaleza-blue'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {selectedTeam.name} Players ({players.length})
-              </button>
-            )}
-          </nav>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Teams & Roster Management</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Manage team rosters, players, coaches, and staff
+        </p>
       </div>
 
-      {/* Loading State */}
-      {isLoading && <TeamsLoading />}
-
-      {/* Teams View */}
-      {activeView === 'teams' && !isLoading && (
-        <>
-          {teams.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {teams.map((team) => (
-                <div key={team.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <UserGroupIcon className="w-6 h-6 text-blue-600" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Teams List */}
+        <div className="lg:col-span-1">
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Teams</h2>
+                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                  <PlusIcon className="h-4 w-4 mr-1" />
+                  Add Team
+                </button>
+              </div>
+              
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-16 bg-gray-200 rounded-md"></div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <button 
-                        onClick={() => handleViewTeam(team)}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="View Players"
-                      >
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      <button 
-                        className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                        title="Edit Team"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteTeam(team.id)}
-                        className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Team"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{team.name}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{team.short_name}</p>
-                  
-                  <div className="space-y-2 text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <MapPinIcon className="w-4 h-4 mr-2" />
-                      {team.city}, {team.state}
-                    </div>
-                    {team.founded_year && (
-                      <div className="flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
-                        Founded {team.founded_year}
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {teams.map((team) => (
+                    <div
+                      key={team.id}
+                      onClick={() => handleTeamSelect(team)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        selectedTeam?.id === team.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">{team.name}</h3>
+                          <p className="text-xs text-gray-500">
+                            {team.players?.length || 0} players • {team.coaches?.length || 0} coaches • {team.staff?.length || 0} staff
+                          </p>
+                        </div>
+                        <UserGroupIcon className="h-5 w-5 text-gray-400" />
                       </div>
-                    )}
-                    <div className="flex items-center">
-                      <UserIcon className="w-4 h-4 mr-2" />
-                      {team.players?.length || 0} players
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Team Details */}
+        <div className="lg:col-span-2">
+          {selectedTeam ? (
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-medium text-gray-900">{selectedTeam.name}</h2>
+                    <p className="text-sm text-gray-500">
+                      Created by {selectedTeam.created_by.first_name} {selectedTeam.created_by.last_name}
+                    </p>
                   </div>
-                  
                   <button 
-                    onClick={() => handleViewTeam(team)}
-                    className="w-full mt-4 bg-fortaleza-blue text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={handleAddMember}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
-                    View Players
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    Add Member
                   </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <UserGroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No teams found</h3>
-              <p className="text-gray-500 mb-6">Create your first team to get started.</p>
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Create Your First Team
-              </button>
-            </div>
-          )}
-        </>
-      )}
 
-      {/* Players View */}
-      {activeView === 'players' && selectedTeam && !isLoading && (
-        <>
-          <div className="mb-6">
-            <button 
-              onClick={() => setActiveView('teams')}
-              className="text-fortaleza-blue hover:text-blue-700 flex items-center"
-            >
-              ← Back to Teams
-            </button>
-            <h2 className="text-2xl font-bold text-gray-900 mt-2">{selectedTeam.name} Players</h2>
-          </div>
+                {/* Tabs */}
+                <div className="border-b border-gray-200 mb-6">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      onClick={() => setActiveTab('all')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'all'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <UserGroupIcon className="h-4 w-4 inline mr-1" />
+                      All Members ({teamMembers.length})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('players')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'players'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <UserIcon className="h-4 w-4 inline mr-1" />
+                      Players ({getMembersByRole('PLAYER').length})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('coaches')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'coaches'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <CogIcon className="h-4 w-4 inline mr-1" />
+                      Coaches ({getMembersByRole('COACH').length})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('staff')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'staff'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <UserGroupIcon className="h-4 w-4 inline mr-1" />
+                      Staff ({getMembersByRole('STAFF').length})
+                    </button>
+                  </nav>
+                </div>
 
-          {players.length > 0 ? (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Roster</h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {players.map((player) => (
-                  <div key={player.id} className="p-6 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <span className="text-lg font-semibold text-blue-600">
-                            {player.jersey_number}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="text-lg font-semibold text-gray-900">
-                            {player.first_name} {player.last_name}
-                          </h4>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Position: {player.position}</span>
-                            <span>Height: {player.height}</span>
-                            <span>Weight: {player.weight} lbs</span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              player.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {player.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <button 
-                          onClick={() => setSelectedPlayer(player)}
-                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                          title="Edit Player"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDeletePlayer(player.id)}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Player"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                {/* Filters */}
+                <div className="mb-6 flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <FunnelIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-500">Filter:</span>
                   </div>
-                ))}
+                  
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value as any)}
+                    className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="ALL">All Roles</option>
+                    <option value="PLAYER">Players</option>
+                    <option value="COACH">Coaches</option>
+                    <option value="STAFF">Staff</option>
+                  </select>
+                  
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Tab Content */}
+                <div className="space-y-4">
+                  {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-24 bg-gray-200 rounded-lg"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(() => {
+                        let membersToShow = filteredMembers
+                        
+                        if (activeTab === 'players') {
+                          membersToShow = filteredMembers.filter(member => member.role === 'PLAYER')
+                        } else if (activeTab === 'coaches') {
+                          membersToShow = filteredMembers.filter(member => member.role === 'COACH')
+                        } else if (activeTab === 'staff') {
+                          membersToShow = filteredMembers.filter(member => member.role === 'STAFF')
+                        }
+                        
+                        return membersToShow.map((member) => (
+                          <TeamMemberCard
+                            key={member.id}
+                            member={member}
+                            onEdit={handleEditMember}
+                            onDelete={handleDeleteMember}
+                            onToggleStatus={handleToggleStatus}
+                            isLoading={isLoading}
+                          />
+                        ))
+                      })()}
+                    </div>
+                  )}
+                  
+                  {filteredMembers.length === 0 && !isLoading && (
+                    <div className="text-center py-8">
+                      <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No members found</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {roleFilter !== 'ALL' || statusFilter !== 'ALL' 
+                          ? 'Try adjusting your filters or add a new team member.'
+                          : 'Get started by adding a new team member.'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <UserIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No players found</h3>
-              <p className="text-gray-500 mb-6">Add players to {selectedTeam.name} to build your roster.</p>
-              <button 
-                onClick={() => setShowPlayerModal(true)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Add Your First Player
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Create Team Modal - Placeholder */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Team</h3>
-            <p className="text-gray-600 mb-4">Team creation form will be implemented here.</p>
-            <div className="flex justify-end space-x-3">
-              <button 
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => setShowCreateModal(false)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Create Team
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Player Modal - Placeholder */}
-      {showPlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Player</h3>
-            <p className="text-gray-600 mb-4">Player creation form will be implemented here.</p>
-            <div className="flex justify-end space-x-3">
-              <button 
-                onClick={() => setShowPlayerModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => setShowPlayerModal(false)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Add Player
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Player Details Modal - Placeholder */}
-      {selectedPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Player Details</h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-gray-900">
-                  #{selectedPlayer.jersey_number} {selectedPlayer.first_name} {selectedPlayer.last_name}
-                </h4>
-                <p className="text-gray-600">Position: {selectedPlayer.position}</p>
-                <p className="text-gray-600">Height: {selectedPlayer.height}</p>
-                <p className="text-gray-600">Weight: {selectedPlayer.weight} lbs</p>
-                <p className="text-gray-600">Date of Birth: {new Date(selectedPlayer.date_of_birth).toLocaleDateString()}</p>
-                <p className="text-gray-600">Status: {selectedPlayer.is_active ? 'Active' : 'Inactive'}</p>
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6 text-center">
+                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No team selected</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Select a team from the list to view its roster and details.
+                </p>
               </div>
             </div>
-            <div className="flex justify-end mt-6">
-              <button 
-                onClick={() => setSelectedPlayer(null)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Team Member Form Modal */}
+      <TeamMemberForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false)
+          setEditingMember(null)
+        }}
+        onSubmit={handleFormSubmit}
+        onSubmitExisting={handleExistingUserSubmit}
+        member={editingMember}
+        teamId={selectedTeam?.id || 0}
+        availableJerseyNumbers={availableJerseyNumbers}
+        existingUsers={existingUsers}
+        isLoading={isLoading}
+      />
     </div>
   )
 }

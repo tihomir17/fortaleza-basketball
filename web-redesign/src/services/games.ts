@@ -38,7 +38,9 @@ export interface GameCreate {
 export const gamesService = {
   async getGames(): Promise<Game[]> {
     try {
+      console.log('Fetching all games from /games/')
       const response = await api.get<{ results: Game[] }>('/games/')
+      console.log('Games response:', response)
       return response.results
     } catch (error) {
       console.error('Failed to fetch games:', error)
@@ -87,8 +89,13 @@ export const gamesService = {
 
   async getUpcomingGames(): Promise<Game[]> {
     try {
-      const response = await api.get<{ results: Game[] }>('/games/upcoming/')
-      return response.results
+      console.log('Fetching upcoming games...')
+      const response = await api.get<{ results: Game[] }>('/games/')
+      const now = new Date()
+      // Filter for upcoming games (game_date > now)
+      const upcomingGames = response.results.filter(game => new Date(game.game_date) > now)
+      console.log('Upcoming games found:', upcomingGames.length)
+      return upcomingGames
     } catch (error) {
       console.error('Failed to fetch upcoming games:', error)
       throw error
@@ -97,8 +104,16 @@ export const gamesService = {
 
   async getRecentGames(): Promise<Game[]> {
     try {
-      const response = await api.get<{ results: Game[] }>('/games/recent/')
-      return response.results
+      console.log('Fetching recent games...')
+      const response = await api.get<{ results: Game[] }>('/games/')
+      const now = new Date()
+      // Filter for recent games (game_date < now and has scores)
+      const recentGames = response.results.filter(game => {
+        const gameDate = new Date(game.game_date)
+        return gameDate < now && (game.home_team_score > 0 || game.away_team_score > 0)
+      })
+      console.log('Recent games found:', recentGames.length)
+      return recentGames
     } catch (error) {
       console.error('Failed to fetch recent games:', error)
       throw error

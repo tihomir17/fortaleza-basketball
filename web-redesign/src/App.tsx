@@ -9,7 +9,7 @@ import { Login } from './pages/Login'
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
 const Games = lazy(() => import('./pages/Games').then(module => ({ default: module.Games })))
-const Teams = lazy(() => import('./pages/Teams').then(module => ({ default: module.Teams })))
+const Teams = lazy(() => import('./pages/Teams'))
 const LiveTracking = lazy(() => import('./pages/LiveTracking').then(module => ({ default: module.LiveTracking })))
 const Analytics = lazy(() => import('./pages/Analytics').then(module => ({ default: module.Analytics })))
 const Scouting = lazy(() => import('./pages/Scouting').then(module => ({ default: module.Scouting })))
