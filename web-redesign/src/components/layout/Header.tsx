@@ -1,60 +1,25 @@
-import { Bars3Icon, ArrowRightOnRectangleIcon, PaintBrushIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../store/authStore'
+import { useThemeStore } from '../../store/themeStore'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { NotificationBell, NotificationPanel } from '../ui/NotificationSystem'
-import { ThemeCustomizer } from '../ui/ThemeCustomizer'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DensityToggle } from '../ui/DensityToggle'
 
 interface HeaderProps {
   onMenuClick: () => void
 }
 
-type ThemeColors = {
-  primary: string
-  secondary: string
-  accent: string
-  background: string
-  surface: string
-  text: string
-}
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuthStore()
-  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false)
+  const { initialize } = useThemeStore()
   const [showNotifications, setShowNotifications] = useState(false)
   
-  const applyThemeToDocument = (colors: ThemeColors, isDark?: boolean) => {
-    const root = document.documentElement
-    root.style.setProperty('--color-primary', colors.primary)
-    root.style.setProperty('--color-secondary', colors.secondary)
-    root.style.setProperty('--color-accent', colors.accent)
-    root.style.setProperty('--color-background', colors.background)
-    root.style.setProperty('--color-surface', colors.surface)
-    root.style.setProperty('--color-text', colors.text)
-
-    if (isDark !== undefined) {
-      root.classList.toggle('dark', isDark)
-    }
-  }
-
-  const handleThemeChange = (theme: { id: string; colors: ThemeColors }) => {
-    // Persist
-    localStorage.setItem('app_theme', JSON.stringify(theme))
-    // Apply
-    applyThemeToDocument(theme.colors, theme.id === 'dark')
-  }
-
-  // Load saved theme once
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('app_theme')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as { id: string; colors: ThemeColors }
-        applyThemeToDocument(parsed.colors, parsed.id === 'dark')
-      } catch {}
-    }
-  }
+  // Initialize theme store on component mount
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
   const handleLogout = async () => {
     await logout()
@@ -107,13 +72,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           {/* Right side - Notifications, Theme toggle and User profile */}
           <div className="flex items-center space-x-3">
             <NotificationBell onClick={() => setShowNotifications(true)} />
-            <button
-              onClick={() => setShowThemeCustomizer(true)}
-              className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 backdrop-blur-sm transition-all duration-200 hover:scale-105"
-              title="Customize Theme"
-            >
-              <PaintBrushIcon className="w-5 h-5" />
-            </button>
             <ThemeToggle size="sm" />
             <DensityToggle />
             
@@ -139,13 +97,6 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
       </div>
 
-      {/* Theme Customizer Modal */}
-      <ThemeCustomizer
-        isOpen={showThemeCustomizer}
-        onClose={() => setShowThemeCustomizer(false)}
-        currentTheme="fortaleza"
-        onThemeChange={handleThemeChange}
-      />
 
       {/* Notification Panel */}
       <NotificationPanel
