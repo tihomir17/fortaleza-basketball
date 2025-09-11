@@ -162,10 +162,13 @@ class CompetitionAdmin(admin.ModelAdmin):
 
                     # Create the game
                     from datetime import datetime
+                    from django.utils import timezone
 
                     game_datetime = datetime.strptime(
                         f"{game_date} {game_time}", "%Y-%m-%d %H:%M"
                     )
+                    # Make timezone-aware
+                    game_datetime = timezone.make_aware(game_datetime)
 
                     game = Game.objects.create(
                         competition=competition,

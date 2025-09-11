@@ -67,8 +67,35 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       
-      // Clear stored token
+      // Try to refresh token first
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (refreshToken) {
+        try {
+          console.log('Attempting to refresh token...')
+          const refreshResponse = await fetch(`${API_BASE_URL}/auth/login/refresh/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refresh: refreshToken }),
+          })
+          
+          if (refreshResponse.ok) {
+            const tokenData = await refreshResponse.json()
+            localStorage.setItem('auth_token', tokenData.access)
+            
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${tokenData.access}`
+            return apiClient(originalRequest)
+          }
+        } catch (refreshError) {
+          console.warn('Token refresh failed:', refreshError)
+        }
+      }
+      
+      // If refresh fails or no refresh token, clear tokens and redirect
       localStorage.removeItem('auth_token')
+      localStorage.removeItem('refresh_token')
       
       // In development, don't hard-redirect; allow pages to render with mocks/bypass
       if (import.meta.env.PROD) {
@@ -102,8 +129,35 @@ adminApiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       
-      // Clear stored token
+      // Try to refresh token first
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (refreshToken) {
+        try {
+          console.log('Attempting to refresh token for admin API...')
+          const refreshResponse = await fetch(`${ADMIN_API_BASE_URL}/api/auth/login/refresh/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refresh: refreshToken }),
+          })
+          
+          if (refreshResponse.ok) {
+            const tokenData = await refreshResponse.json()
+            localStorage.setItem('auth_token', tokenData.access)
+            
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${tokenData.access}`
+            return adminApiClient(originalRequest)
+          }
+        } catch (refreshError) {
+          console.warn('Token refresh failed for admin API:', refreshError)
+        }
+      }
+      
+      // If refresh fails or no refresh token, clear tokens and redirect
       localStorage.removeItem('auth_token')
+      localStorage.removeItem('refresh_token')
       
       // In development, don't hard-redirect; allow pages to render with mocks/bypass
       if (import.meta.env.PROD) {

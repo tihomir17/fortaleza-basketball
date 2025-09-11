@@ -67,7 +67,7 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
         if user.role == User.Role.COACH and default_team:
             allowed_plays_query |= Q(team=default_team)
 
-        return self.queryset.filter(allowed_plays_query).distinct()
+        return self.queryset.filter(allowed_plays_query).select_related('team', 'category', 'created_by').prefetch_related('steps').distinct().order_by('name')
 
     @action(detail=False, methods=["get"])
     def templates(self, request):

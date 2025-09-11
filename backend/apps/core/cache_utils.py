@@ -48,7 +48,7 @@ class CacheManager:
         """Get from cache or set using callable function"""
         try:
             # Try to get from cache first
-            cached_value = cache.get(key, using=cache_alias)
+            cached_value = cache.get(key)
             if cached_value is not None:
                 logger.debug(f"Cache hit for key: {key}")
                 return cached_value
@@ -59,7 +59,7 @@ class CacheManager:
             
             # Set cache with timeout
             cache_timeout = timeout or CacheManager.CACHE_TIMEOUTS.get('analytics', 3600)
-            cache.set(key, result, timeout=cache_timeout, using=cache_alias)
+            cache.set(key, result, timeout=cache_timeout)
             
             return result
             
@@ -90,7 +90,7 @@ class CacheManager:
                 deleted_count = 0
                 for key in common_keys:
                     if pattern in key or key in pattern:
-                        if cache.delete(key, using=cache_alias):
+                        if cache.delete(key):
                             deleted_count += 1
                 
                 logger.info(f"Cache invalidation: deleted {deleted_count} keys for pattern: {pattern}")
