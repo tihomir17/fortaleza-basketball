@@ -37,6 +37,7 @@
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
+    "framer-motion": "^12.23.12",
     "gtag": "^1.0.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.2",

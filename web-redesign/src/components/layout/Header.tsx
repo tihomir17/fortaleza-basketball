@@ -1,7 +1,7 @@
 import { Bars3Icon, ArrowRightOnRectangleIcon, PaintBrushIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../store/authStore'
 import { ThemeToggle } from '../ui/ThemeToggle'
-import { NotificationPanel } from '../ui/Notification'
+import { NotificationBell, NotificationPanel } from '../ui/NotificationSystem'
 import { ThemeCustomizer } from '../ui/ThemeCustomizer'
 import { useState } from 'react'
 
@@ -21,6 +21,7 @@ type ThemeColors = {
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuthStore()
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   
   const applyThemeToDocument = (colors: ThemeColors, isDark?: boolean) => {
     const root = document.documentElement
@@ -104,7 +105,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* Right side - Notifications, Theme toggle and User profile */}
           <div className="flex items-center space-x-3">
-            <NotificationPanel />
+            <NotificationBell onClick={() => setShowNotifications(true)} />
             <button
               onClick={() => setShowThemeCustomizer(true)}
               className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 backdrop-blur-sm transition-all duration-200 hover:scale-105"
@@ -142,6 +143,12 @@ export function Header({ onMenuClick }: HeaderProps) {
         onClose={() => setShowThemeCustomizer(false)}
         currentTheme="fortaleza"
         onThemeChange={handleThemeChange}
+      />
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
       />
     </header>
   )

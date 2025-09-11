@@ -93,19 +93,8 @@ function NotificationItem({ notification, onRemove, onMarkAsRead }: Notification
           }`}>
             {notification.message}
           </p>
-          {notification.action && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                notification.action?.onClick()
-              }}
-              className="mt-2 text-sm font-medium text-fortaleza-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              {notification.action.label}
-            </button>
-          )}
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {notification.timestamp.toLocaleTimeString()}
+            {new Date(notification.timestamp).toLocaleTimeString()}
           </p>
         </div>
       </div>

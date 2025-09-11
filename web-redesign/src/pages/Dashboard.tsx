@@ -30,10 +30,7 @@ export function Dashboard() {
     }, 1000)
     
     const timer2 = setTimeout(() => {
-      notify.info('New Game', 'Upcoming game against Lakers tomorrow at 7 PM', {
-        label: 'View Details',
-        onClick: () => console.log('View game details')
-      })
+      notify.info('New Game', 'Upcoming game against Lakers tomorrow at 7 PM')
     }, 3000)
     
     const timer3 = setTimeout(() => {

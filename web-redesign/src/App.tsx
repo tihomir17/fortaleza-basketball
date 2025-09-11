@@ -4,6 +4,7 @@ import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PageLoader } from './components/ui/PageLoader'
 import { BackendStatus } from './components/BackendStatus'
+import { ToastContainer } from './components/ui/NotificationSystem'
 import { registerServiceWorker, setupOfflineDetection, showInstallPrompt } from './utils/serviceWorker'
 import { Login } from './pages/Login'
 
@@ -67,6 +68,7 @@ function App() {
   return (
     <Router>
       <BackendStatus />
+      <ToastContainer />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public routes */}

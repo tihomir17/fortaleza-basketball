@@ -5,23 +5,20 @@ export interface Notification {
   type: 'success' | 'error' | 'warning' | 'info'
   title: string
   message: string
-  timestamp: Date
+  duration?: number
+  timestamp: number
   read: boolean
-  action?: {
-    label: string
-    onClick: () => void
-  }
 }
 
 interface NotificationsState {
   notifications: Notification[]
   unreadCount: number
-
+  
   // Actions
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
+  removeNotification: (id: string) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
-  removeNotification: (id: string) => void
   clearAll: () => void
 }
 
@@ -32,100 +29,72 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   addNotification: (notification) => {
     const newNotification: Notification = {
       ...notification,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-      read: false,
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      read: false
     }
-
+    
     set((state) => ({
       notifications: [newNotification, ...state.notifications],
-      unreadCount: state.unreadCount + 1,
+      unreadCount: state.unreadCount + 1
     }))
 
-    // Auto-remove after 5 seconds for success/info notifications
-    if (notification.type === 'success' || notification.type === 'info') {
+    // Auto-remove after duration
+    if (notification.duration) {
       setTimeout(() => {
         get().removeNotification(newNotification.id)
-      }, 5000)
+      }, notification.duration)
     }
+  },
+
+  removeNotification: (id) => {
+    set((state) => {
+      const notification = state.notifications.find(n => n.id === id)
+      const wasUnread = notification && !notification.read
+      
+      return {
+        notifications: state.notifications.filter(n => n.id !== id),
+        unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount
+      }
+    })
   },
 
   markAsRead: (id) => {
     set((state) => ({
-      notifications: state.notifications.map((notification) =>
-        notification.id === id
-          ? { ...notification, read: true }
-          : notification
+      notifications: state.notifications.map(n => 
+        n.id === id ? { ...n, read: true } : n
       ),
-      unreadCount: Math.max(0, state.unreadCount - 1),
+      unreadCount: Math.max(0, state.unreadCount - 1)
     }))
   },
 
   markAllAsRead: () => {
     set((state) => ({
-      notifications: state.notifications.map((notification) => ({
-        ...notification,
-        read: true,
-      })),
-      unreadCount: 0,
+      notifications: state.notifications.map(n => ({ ...n, read: true })),
+      unreadCount: 0
     }))
-  },
-
-  removeNotification: (id) => {
-    set((state) => {
-      const notification = state.notifications.find((n) => n.id === id)
-      return {
-        notifications: state.notifications.filter((n) => n.id !== id),
-        unreadCount: notification && !notification.read 
-          ? Math.max(0, state.unreadCount - 1) 
-          : state.unreadCount,
-      }
-    })
   },
 
   clearAll: () => {
     set({
       notifications: [],
-      unreadCount: 0,
+      unreadCount: 0
     })
-  },
+  }
 }))
 
-// Notification helper functions
+// Export a convenience function for notifications
 export const notify = {
-  success: (title: string, message: string, action?: Notification['action']) => {
-    useNotificationsStore.getState().addNotification({
-      type: 'success',
-      title,
-      message,
-      action,
-    })
+  success: (title: string, message: string, duration = 5000) => {
+    useNotificationsStore.getState().addNotification({ type: 'success', title, message, duration })
   },
-
-  error: (title: string, message: string, action?: Notification['action']) => {
-    useNotificationsStore.getState().addNotification({
-      type: 'error',
-      title,
-      message,
-      action,
-    })
+  error: (title: string, message: string, duration = 7000) => {
+    useNotificationsStore.getState().addNotification({ type: 'error', title, message, duration })
   },
-
-  warning: (title: string, message: string, action?: Notification['action']) => {
-    useNotificationsStore.getState().addNotification({
-      type: 'warning',
-      title,
-      message,
-      action,
-    })
+  warning: (title: string, message: string, duration = 6000) => {
+    useNotificationsStore.getState().addNotification({ type: 'warning', title, message, duration })
   },
-
-  info: (title: string, message: string, action?: Notification['action']) => {
-    useNotificationsStore.getState().addNotification({
-      type: 'info',
-      title,
-      message,
-      action,
-    })
-  },
+  info: (title: string, message: string, duration = 5000) => {
+    useNotificationsStore.getState().addNotification({ type: 'info', title, message, duration })
+  }
 }
