@@ -1,14 +1,22 @@
 import '@testing-library/jest-dom'
 
-// Mock environment variables
-Object.defineProperty(import.meta, 'env', {
+// Polyfill for TextEncoder/TextDecoder (needed for React Router)
+import { TextEncoder, TextDecoder } from 'util'
+global.TextEncoder = TextEncoder
+global.TextDecoder = TextDecoder
+
+// Mock environment variables for Vite
+Object.defineProperty(global, 'import', {
   value: {
-    VITE_API_BASE_URL: 'http://localhost:8000/api',
-    VITE_ADMIN_API_BASE_URL: 'http://localhost:8000',
-    VITE_USE_MOCKS: 'false',
-    VITE_NODE_ENV: 'test',
-  },
-  writable: true,
+    meta: {
+      env: {
+        VITE_API_BASE_URL: 'http://localhost:8000/api',
+        VITE_ADMIN_API_BASE_URL: 'http://localhost:8000',
+        VITE_USE_MOCKS: 'false',
+        VITE_NODE_ENV: 'test',
+      }
+    }
+  }
 })
 
 // Mock localStorage
@@ -39,10 +47,17 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
+  constructor(
+    public callback: IntersectionObserverCallback,
+    public options?: IntersectionObserverInit
+  ) {}
   disconnect() {}
   observe() {}
   unobserve() {}
+  takeRecords() { return [] }
+  readonly root: Element | null = null
+  readonly rootMargin: string = '0px'
+  readonly thresholds: ReadonlyArray<number> = []
 }
 
 // Mock ResizeObserver

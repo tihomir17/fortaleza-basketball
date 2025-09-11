@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { Teams } from '../Teams'
+import Teams from '../Teams'
 import { useTeamsStore } from '../../store/teamsStore'
 
 // Mock the teams store

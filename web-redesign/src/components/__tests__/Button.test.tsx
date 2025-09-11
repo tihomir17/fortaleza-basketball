@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { Button } from '../ui/Button'
 
 describe('Button Component', () => {
@@ -6,18 +7,18 @@ describe('Button Component', () => {
     render(<Button>Click me</Button>)
     const button = screen.getByRole('button', { name: /click me/i })
     expect(button).toBeInTheDocument()
-    expect(button).toHaveClass('bg-blue-600')
+    expect(button).toHaveClass('from-blue-600', 'to-indigo-600')
   })
 
   it('renders with different variants', () => {
     const { rerender } = render(<Button variant="secondary">Secondary</Button>)
-    expect(screen.getByRole('button')).toHaveClass('bg-gray-600')
+    expect(screen.getByRole('button')).toHaveClass('bg-white/80', 'dark:bg-gray-700/80')
 
     rerender(<Button variant="danger">Danger</Button>)
-    expect(screen.getByRole('button')).toHaveClass('bg-red-600')
+    expect(screen.getByRole('button')).toHaveClass('from-red-500', 'to-red-600')
 
     rerender(<Button variant="success">Success</Button>)
-    expect(screen.getByRole('button')).toHaveClass('bg-green-600')
+    expect(screen.getByRole('button')).toHaveClass('from-green-500', 'to-green-600')
   })
 
   it('renders with different sizes', () => {
@@ -42,7 +43,7 @@ describe('Button Component', () => {
     
     const button = screen.getByRole('button')
     expect(button).toBeDisabled()
-    expect(button).toHaveClass('opacity-50', 'cursor-not-allowed')
+    expect(button).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed')
     
     fireEvent.click(button)
     expect(handleClick).not.toHaveBeenCalled()
@@ -52,7 +53,7 @@ describe('Button Component', () => {
     render(<Button loading>Loading</Button>)
     const button = screen.getByRole('button')
     expect(button).toBeDisabled()
-    expect(button).toHaveClass('opacity-50', 'cursor-not-allowed')
+    expect(button).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed')
   })
 
   it('renders with custom className', () => {

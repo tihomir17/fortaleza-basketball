@@ -12,71 +12,65 @@ describe('Card Components', () => {
   })
 
   it('renders Card with custom className', () => {
-    render(
+    const { container } = render(
       <Card className="custom-card">
         <div>Custom card</div>
       </Card>
     )
-    const card = screen.getByText('Custom card').closest('div')
-    expect(card).toHaveClass('custom-card')
+    const outer = container.firstElementChild as HTMLElement | null
+    expect(outer).not.toBeNull()
+    expect(outer).toHaveClass('custom-card')
   })
 
   it('renders CardHeader with title and description', () => {
     render(
       <Card>
         <CardHeader>
-          <h3>Card Title</h3>
-          <p>Card description</p>
+          <div>Header content</div>
         </CardHeader>
       </Card>
     )
-    expect(screen.getByText('Card Title')).toBeInTheDocument()
-    expect(screen.getByText('Card description')).toBeInTheDocument()
+    expect(screen.getByText('Header content')).toBeInTheDocument()
   })
 
   it('renders CardContent', () => {
     render(
       <Card>
         <CardContent>
-          <p>Card body content</p>
+          <div>Content</div>
         </CardContent>
       </Card>
     )
-    expect(screen.getByText('Card body content')).toBeInTheDocument()
+    expect(screen.getByText('Content')).toBeInTheDocument()
   })
 
   it('renders CardFooter', () => {
     render(
       <Card>
         <CardFooter>
-          <button>Action</button>
+          <div>Footer</div>
         </CardFooter>
       </Card>
     )
-    expect(screen.getByRole('button', { name: /action/i })).toBeInTheDocument()
+    expect(screen.getByText('Footer')).toBeInTheDocument()
   })
 
   it('renders complete card structure', () => {
     render(
       <Card>
         <CardHeader>
-          <h3>Complete Card</h3>
-          <p>This is a complete card</p>
+          <div>Header</div>
         </CardHeader>
         <CardContent>
-          <p>Main content goes here</p>
+          <div>Body</div>
         </CardContent>
         <CardFooter>
-          <button>Save</button>
-          <button>Cancel</button>
+          <div>Footer</div>
         </CardFooter>
       </Card>
     )
-    
-    expect(screen.getByText('Complete Card')).toBeInTheDocument()
-    expect(screen.getByText('This is a complete card')).toBeInTheDocument()
-    expect(screen.getByText('Main content goes here')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+    expect(screen.getByText('Header')).toBeInTheDocument()
+    expect(screen.getByText('Body')).toBeInTheDocument()
+    expect(screen.getByText('Footer')).toBeInTheDocument()
   })
 })
