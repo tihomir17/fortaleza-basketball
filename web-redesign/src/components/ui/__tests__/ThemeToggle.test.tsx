@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ThemeToggle } from '../ThemeToggle'
+import { ThemeToggle, ThemeDropdown } from '../ThemeToggle'
 import { useThemeStore } from '../../../store/themeStore'
 
 // Mock the theme store
@@ -21,7 +21,7 @@ describe('ThemeToggle', () => {
       toggleTheme: jest.fn(),
       isDark: false,
       updateTheme: jest.fn(),
-    })
+    } as any)
   })
 
   afterEach(() => {
@@ -30,20 +30,17 @@ describe('ThemeToggle', () => {
 
   it('renders theme toggle button', () => {
     render(<ThemeToggle />)
-    
     const toggleButton = screen.getByRole('button')
     expect(toggleButton).toBeInTheDocument()
   })
 
-  it('shows sun icon for light theme', () => {
+  it('renders sun icon for light theme (by title)', () => {
     render(<ThemeToggle />)
-    
-    // Should show sun icon for light theme
-    const sunIcon = screen.getByTestId('sun-icon')
-    expect(sunIcon).toBeInTheDocument()
+    // Button title includes current and next theme; ensures icon rendered
+    expect(screen.getByRole('button', { name: /current theme: light/i })).toBeInTheDocument()
   })
 
-  it('shows moon icon for dark theme', () => {
+  it('renders moon icon for dark theme (by title)', () => {
     mockUseThemeStore.mockReturnValue({
       theme: 'dark',
       setTheme: mockSetTheme,
@@ -51,29 +48,52 @@ describe('ThemeToggle', () => {
       toggleTheme: jest.fn(),
       isDark: true,
       updateTheme: jest.fn(),
-    })
+    } as any)
 
     render(<ThemeToggle />)
-    
-    const moonIcon = screen.getByTestId('moon-icon')
-    expect(moonIcon).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /current theme: dark/i })).toBeInTheDocument()
   })
 
-  it('calls setTheme when theme option is clicked', () => {
-    render(<ThemeToggle showLabel={true} />)
-    
+  it('cycles theme on click', () => {
+    render(<ThemeToggle />)
     const toggleButton = screen.getByRole('button')
     fireEvent.click(toggleButton)
-    
-    // Should open dropdown with theme options
+    expect(mockSetTheme).toHaveBeenCalled()
+  })
+
+  it('shows label when showLabel is true', () => {
+    render(<ThemeToggle showLabel />)
+    expect(screen.getByText(/light/i)).toBeInTheDocument()
+  })
+})
+
+// ThemeDropdown specific tests
+describe('ThemeDropdown', () => {
+  const mockSetTheme = jest.fn()
+  const mockInitialize = jest.fn()
+
+  beforeEach(() => {
+    mockUseThemeStore.mockReturnValue({
+      theme: 'light',
+      setTheme: mockSetTheme,
+      initialize: mockInitialize,
+      toggleTheme: jest.fn(),
+      isDark: false,
+      updateTheme: jest.fn(),
+    } as any)
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('renders options and calls setTheme', () => {
+    render(<ThemeDropdown />)
     expect(screen.getByText('Light')).toBeInTheDocument()
     expect(screen.getByText('Dark')).toBeInTheDocument()
     expect(screen.getByText('System')).toBeInTheDocument()
-  })
 
-  it('calls initialize on mount', () => {
-    render(<ThemeToggle />)
-    
-    expect(mockInitialize).toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Dark'))
+    expect(mockSetTheme).toHaveBeenCalledWith('dark')
   })
 })

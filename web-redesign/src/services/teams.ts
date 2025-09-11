@@ -54,6 +54,11 @@ export interface Team {
   coaches: Coach[]
   staff: Staff[]
   competition: number
+  player_count: number
+  coach_count: number
+  staff_count: number
+  total_members: number
+  logo_url?: string
 }
 
 export interface TeamCreate {
@@ -456,22 +461,177 @@ export const teamsService = {
     }
   },
 
-  async getAvailableJerseyNumbers(teamId: number): Promise<number[]> {
+  async getAvailableJerseyNumbers(teamId: number): Promise<{ available_numbers: number[], used_numbers: number[] }> {
     try {
       console.log(`Getting available jersey numbers for team ${teamId}`)
-      const team = await this.getTeam(teamId)
-      const usedNumbers = team.players.map(player => player.jersey_number).filter(num => num !== null) as number[]
-      const availableNumbers = []
-      for (let i = 1; i <= 99; i++) {
-        if (!usedNumbers.includes(i)) {
-          availableNumbers.push(i)
-        }
-      }
-      console.log(`Found ${availableNumbers.length} available jersey numbers`)
-      return availableNumbers
+      const response = await api.get<{ available_numbers: number[], used_numbers: number[] }>(`/teams/${teamId}/available_jersey_numbers/`)
+      console.log(`Found ${response.available_numbers.length} available jersey numbers`)
+      return response
     } catch (error) {
       console.error(`Failed to get available jersey numbers for team ${teamId}:`, error)
       throw error
+    }
+  },
+
+  // Member management methods matching Flutter repository
+  async addMemberToTeam(teamId: number, userId: number, role: string, staffType?: string): Promise<void> {
+    try {
+      console.log(`Adding user ${userId} as ${role} to team ${teamId}`)
+      
+      const addMemberData: any = {
+        user_id: userId,
+        role: role.toLowerCase()
+      }
+      
+      if (role.toLowerCase() === 'staff' && staffType) {
+        addMemberData.staff_type = staffType
+      }
+      
+      await api.post(`/teams/${teamId}/add_member/`, addMemberData)
+      console.log('Member added to team successfully')
+    } catch (error: any) {
+      console.error(`Failed to add member to team ${teamId}:`, error)
+      throw error
+    }
+  },
+
+  async removeMemberFromTeam(teamId: number, userId: number, role: string): Promise<void> {
+    try {
+      console.log(`Removing user ${userId} as ${role} from team ${teamId}`)
+      
+      const removeMemberData = {
+        user_id: userId,
+        role: role.toLowerCase()
+      }
+      
+      await api.post(`/teams/${teamId}/remove_member/`, removeMemberData)
+      console.log('Member removed from team successfully')
+    } catch (error: any) {
+      console.error(`Failed to remove member from team ${teamId}:`, error)
+      throw error
+    }
+  },
+
+  async createAndAddPlayer(teamId: number, playerData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    jersey_number?: number
+  }): Promise<TeamMember> {
+    try {
+      console.log(`Creating and adding player to team ${teamId}:`, playerData)
+      const response = await api.post(`/teams/${teamId}/create_and_add_player/`, playerData)
+      console.log('Player created and added successfully:', response)
+      
+      return {
+        id: (response as any).id,
+        username: (response as any).username,
+        email: (response as any).email,
+        first_name: (response as any).first_name,
+        last_name: (response as any).last_name,
+        role: 'PLAYER',
+        coach_type: '',
+        staff_type: '',
+        jersey_number: (response as any).jersey_number,
+        is_active: (response as any).is_active || false,
+        team: teamId
+      } as TeamMember
+    } catch (error: any) {
+      console.error(`Failed to create and add player to team ${teamId}:`, error)
+      throw error
+    }
+  },
+
+  async createAndAddCoach(teamId: number, coachData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    coach_type: string
+  }): Promise<TeamMember> {
+    try {
+      console.log(`Creating and adding coach to team ${teamId}:`, coachData)
+      const response = await api.post(`/teams/${teamId}/create_and_add_coach/`, coachData)
+      console.log('Coach created and added successfully:', response)
+      
+      return {
+        id: (response as any).id,
+        username: (response as any).username,
+        email: (response as any).email,
+        first_name: (response as any).first_name,
+        last_name: (response as any).last_name,
+        role: 'COACH',
+        coach_type: (response as any).coach_type,
+        staff_type: '',
+        jersey_number: (response as any).jersey_number,
+        is_active: (response as any).is_active || false,
+        team: teamId
+      } as TeamMember
+    } catch (error: any) {
+      console.error(`Failed to create and add coach to team ${teamId}:`, error)
+      throw error
+    }
+  },
+
+  async createAndAddStaff(teamId: number, staffData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    staff_type: string
+  }): Promise<TeamMember> {
+    try {
+      console.log(`Creating and adding staff to team ${teamId}:`, staffData)
+      const response = await api.post(`/teams/${teamId}/create_and_add_staff/`, staffData)
+      console.log('Staff created and added successfully:', response)
+      
+      return {
+        id: (response as any).id,
+        username: (response as any).username,
+        email: (response as any).email,
+        first_name: (response as any).first_name,
+        last_name: (response as any).last_name,
+        role: 'STAFF',
+        coach_type: '',
+        staff_type: (response as any).staff_type,
+        jersey_number: (response as any).jersey_number,
+        is_active: (response as any).is_active || false,
+        team: teamId
+      } as TeamMember
+    } catch (error: any) {
+      console.error(`Failed to create and add staff to team ${teamId}:`, error)
+      throw error
+    }
+  },
+
+  // User search functionality
+  async searchUsers(query: string, role?: string): Promise<ExistingUser[]> {
+    try {
+      console.log(`Searching users with query: "${query}", role: ${role}`)
+      
+      const params = new URLSearchParams({ search: query })
+      if (role) {
+        params.append('role', role)
+      }
+      
+      const response = await api.get<{ results: any[] }>(`/auth/search/?${params.toString()}`)
+      console.log(`Found ${response.results.length} users`)
+      
+      return response.results.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role: user.role,
+        coach_type: user.coach_type,
+        staff_type: user.staff_type,
+        jersey_number: user.jersey_number
+      }))
+    } catch (error: any) {
+      console.error('Failed to search users:', error)
+      return []
     }
   }
 }

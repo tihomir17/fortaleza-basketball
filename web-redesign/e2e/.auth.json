@@ -1,0 +1,26 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "auth_token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3NjA3MTE5LCJpYXQiOjE3NTc2MDM1MTksImp0aSI6Ijg3OWRkZDRiZmVjNzRkNGZhYTVhZGUyZDc5MmUyNDMzIiwidXNlcl9pZCI6IjE5MCJ9.rsDL_uWWNJ2KUMgeIvHWSnQ2demtuTpSX8cpfu60eWU"
+        },
+        {
+          "name": "theme-storage",
+          "value": "{\"state\":{\"theme\":\"system\"},\"version\":0}"
+        },
+        {
+          "name": "auth-storage",
+          "value": "{\"state\":{\"user\":{\"id\":190,\"username\":\"vladdos\",\"email\":\"\",\"first_name\":\"Vladimir\",\"last_name\":\"Dosenovic\",\"role\":\"COACH\",\"coach_type\":\"ASSISTANT_COACH\",\"staff_type\":\"NONE\",\"jersey_number\":null},\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3NjA3MTE5LCJpYXQiOjE3NTc2MDM1MTksImp0aSI6Ijg3OWRkZDRiZmVjNzRkNGZhYTVhZGUyZDc5MmUyNDMzIiwidXNlcl9pZCI6IjE5MCJ9.rsDL_uWWNJ2KUMgeIvHWSnQ2demtuTpSX8cpfu60eWU\",\"isAuthenticated\":true,\"lastActivity\":1757603519881},\"version\":0}"
+        },
+        {
+          "name": "refresh_token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1NzY4OTkxOSwiaWF0IjoxNzU3NjAzNTE5LCJqdGkiOiI4YTRlZjEwOTJjMWM0ZjZmYTk3NjRiZWMzN2Q5M2UzNSIsInVzZXJfaWQiOiIxOTAifQ.rQzGVF5nf11sZABpKl_f6WNbBAb6elgcJ35jGjtFHSc"
+        }
+      ]
+    }
+  ]
+}

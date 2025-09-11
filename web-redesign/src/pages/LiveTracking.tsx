@@ -201,7 +201,7 @@ export function LiveTracking() {
   const [, setTime] = useState(0)
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: ReturnType<typeof setInterval>
     if (gameState.isLive && !gameState.isPaused) {
       interval = setInterval(() => {
         setTime(prev => {

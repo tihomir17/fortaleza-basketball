@@ -180,9 +180,9 @@ export const apiWithFallback = {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error(`❌ Failed to update play ${id} in backend:`, errorMessage)
-      if (error.response) {
-        console.error('📥 Response data:', error.response.data)
-        console.error('📥 Response status:', error.response.status)
+      if ((error as any).response) {
+        console.error('📥 Response data:', (error as any).response.data)
+        console.error('📥 Response status:', (error as any).response.status)
       }
       throw error
     }

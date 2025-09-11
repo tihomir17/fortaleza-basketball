@@ -729,7 +729,7 @@ export default function Teams() {
         onSubmitExisting={handleExistingUserSubmit}
         member={editingMember}
         teamId={selectedTeam?.id || 0}
-        availableJerseyNumbers={availableJerseyNumbers}
+        availableJerseyNumbers={availableJerseyNumbers?.available_numbers || []}
         existingUsers={existingUsers}
         isLoading={isLoading}
       />

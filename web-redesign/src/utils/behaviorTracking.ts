@@ -27,7 +27,7 @@ class BehaviorTracker {
   private sessionData: SessionData
   private readonly maxEvents = 1000
   private readonly batchSize = 50
-  private batchTimeout: NodeJS.Timeout | null = null
+  private batchTimeout: ReturnType<typeof setTimeout> | null = null
   private isTracking = false
 
   constructor() {
@@ -77,7 +77,7 @@ class BehaviorTracker {
     })
 
     // Track scroll events
-    let scrollTimeout: NodeJS.Timeout
+    let scrollTimeout: ReturnType<typeof setTimeout>
     window.addEventListener('scroll', () => {
       clearTimeout(scrollTimeout)
       scrollTimeout = setTimeout(() => {
@@ -86,7 +86,7 @@ class BehaviorTracker {
     })
 
     // Track mouse movements (throttled)
-    let mouseTimeout: NodeJS.Timeout
+    let mouseTimeout: ReturnType<typeof setTimeout>
     document.addEventListener('mousemove', () => {
       clearTimeout(mouseTimeout)
       mouseTimeout = setTimeout(() => {

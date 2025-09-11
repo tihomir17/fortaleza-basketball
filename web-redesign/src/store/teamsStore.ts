@@ -1,12 +1,13 @@
 import { create } from 'zustand'
-import type { Team, TeamCreate, TeamMember, TeamMemberCreate, TeamMemberUpdate } from '../services/teams'
+import type { Team, TeamCreate, TeamMember, TeamMemberCreate, TeamMemberUpdate, ExistingUser } from '../services/teams'
 import { teamsService } from '../services/teams'
 
 interface TeamsState {
   teams: Team[]
   currentTeam: Team | null
   teamMembers: TeamMember[]
-  availableJerseyNumbers: number[]
+  availableJerseyNumbers: { available_numbers: number[], used_numbers: number[] } | null
+  searchResults: ExistingUser[]
   isLoading: boolean
   error: string | null
   
@@ -27,7 +28,34 @@ interface TeamsState {
   fetchAvailableJerseyNumbers: (teamId: number) => Promise<void>
   setTeamMembers: (members: TeamMember[]) => void
   
-  // Legacy methods removed - using unified team member management
+  // New member management methods matching Flutter repository
+  addMemberToTeam: (teamId: number, userId: number, role: string, staffType?: string) => Promise<void>
+  removeMemberFromTeam: (teamId: number, userId: number, role: string) => Promise<void>
+  createAndAddPlayer: (teamId: number, playerData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    jersey_number?: number
+  }) => Promise<TeamMember>
+  createAndAddCoach: (teamId: number, coachData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    coach_type: string
+  }) => Promise<TeamMember>
+  createAndAddStaff: (teamId: number, staffData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    staff_type: string
+  }) => Promise<TeamMember>
+  
+  // User search functionality
+  searchUsers: (query: string, role?: string) => Promise<void>
+  clearSearchResults: () => void
   
   clearError: () => void
 }
@@ -36,7 +64,8 @@ export const useTeamsStore = create<TeamsState>((set, get) => ({
   teams: [],
   currentTeam: null,
   teamMembers: [],
-  availableJerseyNumbers: [],
+  availableJerseyNumbers: null,
+  searchResults: [],
   isLoading: false,
   error: null,
 
@@ -266,7 +295,7 @@ export const useTeamsStore = create<TeamsState>((set, get) => ({
   fetchAvailableJerseyNumbers: async (teamId: number) => {
     try {
       const availableNumbers = await teamsService.getAvailableJerseyNumbers(teamId)
-      console.info('[teamsStore] fetched available jersey numbers:', availableNumbers.length)
+      console.info('[teamsStore] fetched available jersey numbers:', availableNumbers)
       set({ availableJerseyNumbers: availableNumbers })
     } catch (error: any) {
       console.error('[teamsStore] fetchAvailableJerseyNumbers error:', error)
@@ -276,7 +305,146 @@ export const useTeamsStore = create<TeamsState>((set, get) => ({
     }
   },
 
-  // Legacy methods removed - using unified team member management
+  // New member management methods matching Flutter repository
+  addMemberToTeam: async (teamId: number, userId: number, role: string, staffType?: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      await teamsService.addMemberToTeam(teamId, userId, role, staffType)
+      console.info('[teamsStore] added member to team:', { teamId, userId, role })
+      
+      // Refresh team data to get updated member lists
+      await get().fetchTeam(teamId)
+      await get().fetchTeamMembers(teamId)
+      set({ isLoading: false })
+    } catch (error: any) {
+      console.error('[teamsStore] addMemberToTeam error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || `Failed to add member to team ${teamId}`,
+        isLoading: false 
+      })
+    }
+  },
+
+  removeMemberFromTeam: async (teamId: number, userId: number, role: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      await teamsService.removeMemberFromTeam(teamId, userId, role)
+      console.info('[teamsStore] removed member from team:', { teamId, userId, role })
+      
+      // Refresh team data to get updated member lists
+      await get().fetchTeam(teamId)
+      await get().fetchTeamMembers(teamId)
+      set({ isLoading: false })
+    } catch (error: any) {
+      console.error('[teamsStore] removeMemberFromTeam error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || `Failed to remove member from team ${teamId}`,
+        isLoading: false 
+      })
+    }
+  },
+
+  createAndAddPlayer: async (teamId: number, playerData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    jersey_number?: number
+  }) => {
+    set({ isLoading: true, error: null })
+    try {
+      const newPlayer = await teamsService.createAndAddPlayer(teamId, playerData)
+      console.info('[teamsStore] created and added player:', newPlayer)
+      
+      // Refresh team data to get updated member lists
+      await get().fetchTeam(teamId)
+      await get().fetchTeamMembers(teamId)
+      set({ isLoading: false })
+      return newPlayer
+    } catch (error: any) {
+      console.error('[teamsStore] createAndAddPlayer error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || `Failed to create and add player to team ${teamId}`,
+        isLoading: false 
+      })
+      throw error
+    }
+  },
+
+  createAndAddCoach: async (teamId: number, coachData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    coach_type: string
+  }) => {
+    set({ isLoading: true, error: null })
+    try {
+      const newCoach = await teamsService.createAndAddCoach(teamId, coachData)
+      console.info('[teamsStore] created and added coach:', newCoach)
+      
+      // Refresh team data to get updated member lists
+      await get().fetchTeam(teamId)
+      await get().fetchTeamMembers(teamId)
+      set({ isLoading: false })
+      return newCoach
+    } catch (error: any) {
+      console.error('[teamsStore] createAndAddCoach error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || `Failed to create and add coach to team ${teamId}`,
+        isLoading: false 
+      })
+      throw error
+    }
+  },
+
+  createAndAddStaff: async (teamId: number, staffData: {
+    username: string
+    email: string
+    first_name?: string
+    last_name?: string
+    staff_type: string
+  }) => {
+    set({ isLoading: true, error: null })
+    try {
+      const newStaff = await teamsService.createAndAddStaff(teamId, staffData)
+      console.info('[teamsStore] created and added staff:', newStaff)
+      
+      // Refresh team data to get updated member lists
+      await get().fetchTeam(teamId)
+      await get().fetchTeamMembers(teamId)
+      set({ isLoading: false })
+      return newStaff
+    } catch (error: any) {
+      console.error('[teamsStore] createAndAddStaff error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || `Failed to create and add staff to team ${teamId}`,
+        isLoading: false 
+      })
+      throw error
+    }
+  },
+
+  // User search functionality
+  searchUsers: async (query: string, role?: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const results = await teamsService.searchUsers(query, role)
+      console.info('[teamsStore] searched users:', results.length, 'results')
+      set({ searchResults: results, isLoading: false })
+    } catch (error: any) {
+      console.error('[teamsStore] searchUsers error:', error)
+      set({ 
+        error: error?.response?.data?.detail || error?.message || 'Failed to search users',
+        searchResults: [],
+        isLoading: false 
+      })
+    }
+  },
+
+  clearSearchResults: () => {
+    set({ searchResults: [] })
+  },
 
   setTeamMembers: (members: TeamMember[]) => {
     set({ teamMembers: members })

@@ -1,12 +1,10 @@
 import '@testing-library/jest-dom'
 
 // Polyfill for TextEncoder/TextDecoder (needed for React Router)
-import { TextEncoder, TextDecoder } from 'util'
-global.TextEncoder = TextEncoder
-global.TextDecoder = TextDecoder
+// TextEncoder and TextDecoder are available in modern Node.js environments
 
 // Mock environment variables for Vite
-Object.defineProperty(global, 'import', {
+Object.defineProperty(globalThis, 'import', {
   value: {
     meta: {
       env: {
@@ -19,57 +17,55 @@ Object.defineProperty(global, 'import', {
   }
 })
 
-// Mock localStorage
+// Mock localStorage (working in-memory version)
+const storage: Record<string, string> = {}
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: jest.fn((key: string) => (key in storage ? storage[key] : null)),
+  setItem: jest.fn((key: string, value: string) => { storage[key] = String(value) }),
+  removeItem: jest.fn((key: string) => { delete storage[key] }),
+  clear: jest.fn(() => { for (const k of Object.keys(storage)) delete storage[k] }),
 }
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 })
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-})
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+}
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor(
-    public callback: IntersectionObserverCallback,
-    public options?: IntersectionObserverInit
-  ) {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
-  takeRecords() { return [] }
-  readonly root: Element | null = null
-  readonly rootMargin: string = '0px'
-  readonly thresholds: ReadonlyArray<number> = []
-}
+(globalThis as any).IntersectionObserver = jest.fn().mockImplementation(() => ({
+  disconnect: jest.fn(),
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  takeRecords: jest.fn(() => []),
+  root: null,
+  rootMargin: '0px',
+  thresholds: []
+}))
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
-}
+(globalThis as any).ResizeObserver = jest.fn().mockImplementation(() => ({
+  disconnect: jest.fn(),
+  observe: jest.fn(),
+  unobserve: jest.fn()
+}))
 
 // Mock fetch
-global.fetch = jest.fn()
+(globalThis as any).fetch = jest.fn()
 
 // Mock console methods to reduce noise in tests
 const originalError = console.error

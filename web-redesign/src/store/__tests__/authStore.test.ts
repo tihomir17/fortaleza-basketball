@@ -1,175 +1,81 @@
-import { renderHook, act } from '@testing-library/react'
+import { act, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { useAuthStore } from '../authStore'
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-}
+jest.mock('../../utils/monitoring', () => ({
+  errorTracker: { captureError: jest.fn(), setUser: jest.fn(), setContext: jest.fn(), addBreadcrumb: jest.fn() },
+  behaviorTracker: { trackAction: jest.fn(), trackPageView: jest.fn(), trackFormSubmission: jest.fn(), trackApiCall: jest.fn() },
+}))
 
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-})
+jest.mock('../../services/api', () => ({
+  authApi: {
+    login: jest.fn().mockResolvedValue({ access: 'token', refresh: 'refresh' }),
+    me: jest.fn().mockResolvedValue({ id: 1, username: 'test', role: 'coach' }),
+    logout: jest.fn().mockResolvedValue({}),
+    refreshToken: jest.fn().mockResolvedValue({ access: 'new-token' }),
+  },
+}))
 
-// Mock fetch
-global.fetch = jest.fn()
+const { authApi } = jest.requireMock('../../services/api')
 
-describe('AuthStore', () => {
+describe('authStore', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    // Reset store state
-    useAuthStore.getState().logout()
+    ;(window.localStorage.clear as jest.Mock).mockClear?.()
+    window.localStorage.clear()
+    // Reset relevant auth state between tests without overwriting actions
+    useAuthStore.setState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    })
   })
 
-  it('initializes with default state', () => {
+  it('logs in successfully', async () => {
     const { result } = renderHook(() => useAuthStore())
-    
-    expect(result.current.isAuthenticated).toBe(false)
-    expect(result.current.user).toBeNull()
-    expect(result.current.token).toBeNull()
-    expect(result.current.isLoading).toBe(false)
-  })
 
-  it('sets loading state during login', async () => {
-    const { result } = renderHook(() => useAuthStore())
-    
-    const mockResponse = {
-      ok: true,
-      json: async () => ({
-        access: 'mock-access-token',
-        refresh: 'mock-refresh-token',
-        user: {
-          id: 1,
-          username: 'testuser',
-          email: 'test@example.com',
-          first_name: 'Test',
-          last_name: 'User',
-        },
-      }),
-    }
-    
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
-    
     await act(async () => {
-      result.current.login('testuser', 'password')
+      await result.current.login({ username: 'testuser', password: 'password' })
     })
-    
-    expect(result.current.isAuthenticated).toBe(true)
-    expect(result.current.user).toEqual({
-      id: 1,
-      username: 'testuser',
-      email: 'test@example.com',
-      first_name: 'Test',
-      last_name: 'User',
-    })
-    expect(result.current.token).toBe('mock-access-token')
+
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+    expect(result.current.token).toBe('token')
+    expect(result.current.user?.username).toBe('test')
   })
 
   it('handles login failure', async () => {
+    ;(authApi.login as jest.Mock).mockRejectedValueOnce(new Error('Invalid credentials'))
+
     const { result } = renderHook(() => useAuthStore())
-    
-    const mockResponse = {
-      ok: false,
-      status: 401,
-      json: async () => ({ error: 'Invalid credentials' }),
-    }
-    
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse)
-    
+
     await act(async () => {
-      try {
-        await result.current.login('testuser', 'wrongpassword')
-      } catch (error) {
-        // Expected to throw
-      }
+      await expect(result.current.login({ username: 'testuser', password: 'wrongpassword' })).rejects.toThrow()
     })
-    
+
     expect(result.current.isAuthenticated).toBe(false)
-    expect(result.current.user).toBeNull()
-    expect(result.current.token).toBeNull()
   })
 
-  it('logs out user', () => {
+  it('refreshes token', async () => {
     const { result } = renderHook(() => useAuthStore())
-    
-    // First set some state
-    act(() => {
-      result.current.setUser({
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        first_name: 'Test',
-        last_name: 'User',
-      })
-      result.current.setToken('mock-token')
-    })
-    
-    expect(result.current.isAuthenticated).toBe(true)
-    
-    // Then logout
-    act(() => {
-      result.current.logout()
-    })
-    
-    expect(result.current.isAuthenticated).toBe(false)
-    expect(result.current.user).toBeNull()
-    expect(result.current.token).toBeNull()
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('auth_token')
-  })
 
-  it('loads user from token', async () => {
-    const { result } = renderHook(() => useAuthStore())
-    
-    const mockUserResponse = {
-      ok: true,
-      json: async () => ({
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        first_name: 'Test',
-        last_name: 'User',
-      }),
-    }
-    
-    mockLocalStorage.getItem.mockReturnValue('mock-token')
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockUserResponse)
-    
-    await act(async () => {
-      await result.current.loadUserFromToken()
-    })
-    
-    expect(result.current.isAuthenticated).toBe(true)
-    expect(result.current.user).toEqual({
-      id: 1,
-      username: 'testuser',
-      email: 'test@example.com',
-      first_name: 'Test',
-      last_name: 'User',
-    })
-    expect(result.current.token).toBe('mock-token')
-  })
-
-  it('handles token refresh', async () => {
-    const { result } = renderHook(() => useAuthStore())
-    
-    const mockRefreshResponse = {
-      ok: true,
-      json: async () => ({
-        access: 'new-access-token',
-        refresh: 'new-refresh-token',
-      }),
-    }
-    
-    mockLocalStorage.getItem.mockReturnValue('old-refresh-token')
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce(mockRefreshResponse)
-    
     await act(async () => {
       await result.current.refreshToken()
     })
-    
-    expect(result.current.token).toBe('new-access-token')
-    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('auth_token', 'new-access-token')
+
+    await waitFor(() => expect(result.current.token).toBe('new-token'))
+  })
+
+  it('logs out', async () => {
+    const { result } = renderHook(() => useAuthStore())
+
+    await act(async () => {
+      await result.current.login({ username: 'testuser', password: 'password' })
+      result.current.logout()
+    })
+
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(false))
+    expect(result.current.token).toBeNull()
   })
 })

@@ -317,6 +317,71 @@ class TeamViewSet(viewsets.ModelViewSet):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=["post"])
+    def create_and_add_staff(self, request, pk=None):
+        """
+        Creates a new user with role 'STAFF' and adds them directly to this team.
+        """
+        team = self.get_object()
+        email = request.data.get("email")
+        username = request.data.get("username")
+        first_name = request.data.get("first_name", "")
+        last_name = request.data.get("last_name", "")
+        staff_type = request.data.get("staff_type")
+
+        if not username or not email or not staff_type:
+            return Response(
+                {"error": "Username, email, and staff_type are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if User.objects.filter(Q(email=email) | Q(username=username)).exists():
+            return Response(
+                {"error": "A user with this email or username already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            new_staff = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                password=None,  # Creates an unusable password
+                role=User.Role.STAFF,
+                staff_type=staff_type,
+                is_active=False,  # Cannot log in initially
+            )
+
+            team.staff.add(new_staff)
+            serializer = UserSerializer(new_staff)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["get"])
+    def available_jersey_numbers(self, request, pk=None):
+        """
+        Returns available jersey numbers for this team (0-99, excluding already used numbers).
+        """
+        team = self.get_object()
+        
+        # Get all jersey numbers currently used by players on this team
+        used_numbers = set(
+            team.players.filter(jersey_number__isnull=False)
+            .values_list('jersey_number', flat=True)
+        )
+        
+        # Generate list of available numbers (0-99)
+        available_numbers = [num for num in range(100) if num not in used_numbers]
+        
+        return Response({
+            "available_numbers": available_numbers,
+            "used_numbers": list(used_numbers)
+        })
+
     @action(detail=True, methods=["get"])
     def plays(self, request, pk=None):
         """

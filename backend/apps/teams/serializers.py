@@ -17,10 +17,31 @@ class TeamReadSerializer(serializers.ModelSerializer):
     coaches = UserSerializer(many=True, read_only=True)
     staff = UserSerializer(many=True, read_only=True)
     created_by = UserSerializer(read_only=True)  # Also serialize the creator
+    
+    # Add computed fields for member counts
+    player_count = serializers.SerializerMethodField()
+    coach_count = serializers.SerializerMethodField()
+    staff_count = serializers.SerializerMethodField()
+    total_members = serializers.SerializerMethodField()
 
     class Meta:
         model = Team
-        fields = ["id", "name", "created_by", "players", "coaches", "staff", "competition"]
+        fields = [
+            "id", "name", "created_by", "players", "coaches", "staff", "competition",
+            "player_count", "coach_count", "staff_count", "total_members", "logo_url"
+        ]
+
+    def get_player_count(self, obj):
+        return obj.players.count()
+
+    def get_coach_count(self, obj):
+        return obj.coaches.count()
+
+    def get_staff_count(self, obj):
+        return obj.staff.count()
+
+    def get_total_members(self, obj):
+        return obj.players.count() + obj.coaches.count() + obj.staff.count()
 
     def to_representation(self, instance):
         """
@@ -37,12 +58,7 @@ class TeamReadSerializer(serializers.ModelSerializer):
             'coach_type'  # This will put HEAD_COACH first, then ASSISTANT_COACH
         )
         staff_queryset = instance.staff.all()
-        players_queryset = instance.players.all()
-
-        # print(f"Serializing team: {instance.name}")
-        # print(f"Coaches found MANUALLY: {list(coaches_queryset)}")
-        # print(f"Staff found MANUALLY: {list(staff_queryset)}")
-        # print(f"Players found MANUALLY: {list(players_queryset)}")
+        players_queryset = instance.players.all().order_by('jersey_number', 'first_name', 'last_name')
 
         # Serialize the querysets using the UserSerializer
         representation["coaches"] = UserSerializer(coaches_queryset, many=True).data

@@ -418,7 +418,7 @@ export const useAuthStore = create<AuthStore>()(
 )
 
 // Session monitoring
-let sessionCheckInterval: NodeJS.Timeout | null = null
+let sessionCheckInterval: ReturnType<typeof setInterval> | null = null
 
 export const startSessionMonitoring = () => {
   if (sessionCheckInterval) {
