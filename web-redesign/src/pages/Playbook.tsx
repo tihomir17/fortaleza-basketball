@@ -41,7 +41,7 @@ const transformPlayData = (backendPlay: any): Play => {
     last_used: backendPlay.last_used || new Date().toISOString().split('T')[0],
     is_favorite: Boolean(backendPlay.is_favorite),
     difficulty: backendPlay.difficulty || 'Beginner',
-    duration: backendPlay.duration || 5,
+    duration: backendPlay.duration || 12,
     players: backendPlay.players || 5,
   }
 }
@@ -153,7 +153,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
               {play.difficulty}
             </span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              {play.duration} min
+              {play.duration}s
             </span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
               {play.players} players
@@ -228,6 +228,253 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
   )
 }
 
+// Edit Play Modal Component
+function EditPlayModal({ play, onClose, onSave }: {
+  play: Play
+  onClose: () => void
+  onSave: (updatedPlay: Partial<Play>) => void
+}) {
+  const [formData, setFormData] = useState({
+    name: play.name,
+    description: play.description || '',
+    play_type: play.play_type,
+    difficulty: play.difficulty,
+    duration: play.duration,
+    players: play.players,
+    success_rate: play.success_rate,
+    tags: play.tags.join(', '),
+    subcategory: play.subcategory || '',
+    diagram_url: play.diagram_url || '',
+    video_url: play.video_url || '',
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const updatedPlay = {
+      name: formData.name,
+      description: formData.description,
+      play_type: formData.play_type,
+      difficulty: formData.difficulty,
+      duration: Number(formData.duration),
+      players: Number(formData.players),
+      success_rate: Number(formData.success_rate),
+      tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      subcategory: formData.subcategory,
+      diagram_url: formData.diagram_url,
+      video_url: formData.video_url,
+    }
+    onSave(updatedPlay)
+  }
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Edit Play: {play.name}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Play Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Play Type *
+                </label>
+                <select
+                  value={formData.play_type}
+                  onChange={(e) => handleChange('play_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  required
+                >
+                  <option value="OFFENSIVE">Offensive</option>
+                  <option value="DEFENSIVE">Defensive</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Describe the play..."
+              />
+            </div>
+
+            {/* Play Details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Difficulty *
+                </label>
+                <select
+                  value={formData.difficulty}
+                  onChange={(e) => handleChange('difficulty', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  required
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Duration (seconds)
+                </label>
+                <input
+                  type="number"
+                  value={formData.duration}
+                  onChange={(e) => handleChange('duration', parseInt(e.target.value) || 0)}
+                  min="1"
+                  max="24"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of Players
+                </label>
+                <input
+                  type="number"
+                  value={formData.players}
+                  onChange={(e) => handleChange('players', parseInt(e.target.value) || 0)}
+                  min="1"
+                  max="10"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Success Rate (%)
+                </label>
+                <input
+                  type="number"
+                  value={formData.success_rate}
+                  onChange={(e) => handleChange('success_rate', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Subcategory
+                </label>
+                <input
+                  type="text"
+                  value={formData.subcategory}
+                  onChange={(e) => handleChange('subcategory', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g., Pick and Roll, Zone Defense"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Tags (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.tags}
+                onChange={(e) => handleChange('tags', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="e.g., pick, roll, screen, ball-handler"
+              />
+            </div>
+
+            {/* Media URLs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Diagram URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.diagram_url}
+                  onChange={(e) => handleChange('diagram_url', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="https://example.com/diagram.png"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Video URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.video_url}
+                  onChange={(e) => handleChange('video_url', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Playbook() {
   const [plays, setPlays] = useState<Play[]>([])
   const [loading, setLoading] = useState(true)
@@ -239,6 +486,8 @@ export function Playbook() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [editingPlay, setEditingPlay] = useState<Play | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Load plays on component mount
   useEffect(() => {
@@ -324,9 +573,9 @@ export function Playbook() {
 
   // Play management functions
   const handleEditPlay = (play: Play) => {
-    // TODO: Open edit modal
     console.log('Edit play:', play)
-    notify.info('Edit Play', `Opening edit form for "${play.name}"`)
+    setEditingPlay(play)
+    setShowEditModal(true)
   }
 
   const handleDeletePlay = async (id: string) => {
@@ -564,7 +813,7 @@ export function Playbook() {
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.round(plays.reduce((acc, play) => acc + play.duration, 0) / plays.length)} min
+            {Math.round(plays.reduce((acc, play) => acc + play.duration, 0) / plays.length)}s
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Avg Duration</div>
         </div>
@@ -652,6 +901,32 @@ export function Playbook() {
           </div>
         </div>
       ) : null}
+
+      {/* Edit Play Modal */}
+      {showEditModal && editingPlay && (
+        <EditPlayModal
+          play={editingPlay}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingPlay(null)
+          }}
+          onSave={async (updatedPlay) => {
+            try {
+              console.log('💾 Saving play:', updatedPlay)
+              const savedPlay = await apiWithFallback.updatePlay(editingPlay.id, updatedPlay) as Play
+              setPlays(plays.map(play => 
+                play.id === editingPlay.id ? savedPlay : play
+              ))
+              setShowEditModal(false)
+              setEditingPlay(null)
+              notify.success('Play Updated', `"${updatedPlay.name}" has been updated successfully`)
+            } catch (error) {
+              console.error('❌ Failed to update play:', error)
+              notify.error('Update Failed', 'Failed to update the play')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

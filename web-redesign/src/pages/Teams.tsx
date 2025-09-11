@@ -18,7 +18,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { TeamMemberForm } from '../components/teams/TeamMemberForm'
 import { TeamMemberCard } from '../components/teams/TeamMemberCard'
-import type { Team, TeamMember, TeamMemberCreate, TeamMemberUpdate, ExistingUser } from '../services/teams'
+import { TeamForm } from '../components/teams/TeamForm'
+import type { Team, TeamMember, TeamMemberCreate, TeamMemberUpdate, ExistingUser, TeamCreate } from '../services/teams'
 import { teamsService } from '../services/teams'
 
 export default function Teams() {
@@ -38,7 +39,10 @@ export default function Teams() {
     toggleMemberStatus,
     setCurrentTeam,
     clearError,
-    setTeamMembers
+    setTeamMembers,
+    createTeam,
+    updateTeam,
+    deleteTeam
   } = useTeamsStore()
   
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
@@ -50,6 +54,8 @@ export default function Teams() {
   const [existingUsers, setExistingUsers] = useState<ExistingUser[]>([])
   const [showHealthDetails, setShowHealthDetails] = useState(false)
   const [showTrainingDetails, setShowTrainingDetails] = useState(false)
+  const [isTeamFormOpen, setIsTeamFormOpen] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
 
   // Mock health and training data
   const [healthData] = useState([
@@ -163,6 +169,46 @@ export default function Teams() {
     await toggleMemberStatus(memberId, isActive)
   }
 
+  // Team management functions
+  const handleCreateTeam = () => {
+    setEditingTeam(null)
+    setIsTeamFormOpen(true)
+  }
+
+  const handleEditTeam = (team: Team) => {
+    setEditingTeam(team)
+    setIsTeamFormOpen(true)
+  }
+
+  const handleDeleteTeam = async (team: Team) => {
+    if (window.confirm(`Are you sure you want to delete "${team.name}"? This action cannot be undone.`)) {
+      try {
+        await deleteTeam(team.id)
+        if (selectedTeam?.id === team.id) {
+          setSelectedTeam(null)
+          setCurrentTeam(null)
+        }
+      } catch (error) {
+        console.error('Failed to delete team:', error)
+      }
+    }
+  }
+
+  const handleTeamFormSubmit = async (data: TeamCreate) => {
+    try {
+      if (editingTeam) {
+        await updateTeam(editingTeam.id, data)
+      } else {
+        await createTeam(data)
+      }
+      setIsTeamFormOpen(false)
+      setEditingTeam(null)
+    } catch (error) {
+      console.error('Team form submission error:', error)
+      throw error
+    }
+  }
+
   const filteredMembers = teamMembers.filter(member => {
     const roleMatch = roleFilter === 'ALL' || member.role === roleFilter
     const statusMatch = statusFilter === 'ALL' || 
@@ -218,7 +264,10 @@ export default function Teams() {
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Teams</h2>
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                <button 
+                  onClick={handleCreateTeam}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                >
                   <PlusIcon className="h-4 w-4 mr-1" />
                   Add Team
                 </button>
@@ -237,21 +286,47 @@ export default function Teams() {
                   {teams.map((team) => (
                     <div
                       key={team.id}
-                      onClick={() => handleTeamSelect(team)}
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      className={`p-4 border rounded-lg transition-colors ${
                         selectedTeam?.id === team.id
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div 
+                          onClick={() => handleTeamSelect(team)}
+                          className="flex-1 cursor-pointer"
+                        >
                           <h3 className="text-sm font-medium text-gray-900">{team.name}</h3>
                           <p className="text-xs text-gray-500">
                             {team.players?.length || 0} players • {team.coaches?.length || 0} coaches • {team.staff?.length || 0} staff
                           </p>
                         </div>
-                        <UserGroupIcon className="h-5 w-5 text-gray-400" />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditTeam(team)
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Edit team"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteTeam(team)
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete team"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                          <UserGroupIcon className="h-5 w-5 text-gray-400" />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -656,6 +731,18 @@ export default function Teams() {
         teamId={selectedTeam?.id || 0}
         availableJerseyNumbers={availableJerseyNumbers}
         existingUsers={existingUsers}
+        isLoading={isLoading}
+      />
+
+      {/* Team Form Modal */}
+      <TeamForm
+        isOpen={isTeamFormOpen}
+        onClose={() => {
+          setIsTeamFormOpen(false)
+          setEditingTeam(null)
+        }}
+        onSubmit={handleTeamFormSubmit}
+        team={editingTeam}
         isLoading={isLoading}
       />
     </div>

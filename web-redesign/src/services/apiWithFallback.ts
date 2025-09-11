@@ -173,12 +173,17 @@ export const apiWithFallback = {
   updatePlay: async (id: string, playData: any) => {
     try {
       console.log(`Attempting to update play ${id} in backend...`)
-      const data = await adminApi.put(`/api/plays/${id}/`, playData)
+      console.log('📤 Sending data:', JSON.stringify(playData, null, 2))
+      const data = await adminApi.patch(`/api/plays/${id}/`, playData)
       console.log(`✅ Play ${id} updated successfully in backend`)
       return data
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error(`❌ Failed to update play ${id} in backend:`, errorMessage)
+      if (error.response) {
+        console.error('📥 Response data:', error.response.data)
+        console.error('📥 Response status:', error.response.status)
+      }
       throw error
     }
   },

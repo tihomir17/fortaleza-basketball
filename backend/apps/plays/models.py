@@ -116,9 +116,9 @@ class PlayDefinition(models.Model):
         default="Beginner",
     )
     duration = models.PositiveIntegerField(
-        _("Duration (minutes)"),
-        default=5,
-        help_text="Estimated duration of the play in minutes"
+        _("Duration (seconds)"),
+        default=12,
+        help_text="Estimated duration of the play in seconds (max 24 for shot clock)"
     )
     players = models.PositiveIntegerField(
         _("Number of Players"),
