@@ -1,6 +1,5 @@
 import { api, adminApi } from './api'
-import { mockDashboardData, mockGamesData, mockScoutingReports, mockAnalyticsData, simulateApiDelay } from './mockData'
-// Removed mock data import - using real API only
+// Using dynamic imports for mock data to avoid Vite chunking conflicts
 
 // Configuration for fallback behavior
 const USE_MOCK_FALLBACK = import.meta.env.VITE_USE_MOCKS === 'true' || 
@@ -35,6 +34,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock dashboard data:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockDashboardData, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(300) // Simulate network delay
         return mockDashboardData
       }
@@ -53,6 +53,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock games data:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockGamesData, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(400)
         return mockGamesData
       }
@@ -70,6 +71,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock upcoming games:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockGamesData, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(200)
         return mockGamesData.filter(game => game.status === 'SCHEDULED')
       }
@@ -87,6 +89,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock recent games:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockGamesData, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(250)
         return mockGamesData.filter(game => game.status === 'COMPLETED')
       }
@@ -105,6 +108,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock scouting reports:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockScoutingReports, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(350)
         return mockScoutingReports
       }
@@ -123,6 +127,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn('⚠️ Backend unavailable, using mock analytics data:', errorMessage)
       if (shouldUseMockData(error)) {
+        const { mockAnalyticsData, simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(400)
         return mockAnalyticsData
       }
@@ -238,6 +243,7 @@ export const apiWithFallback = {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.warn(`⚠️ Backend unavailable for ${url}, using fallback:`, errorMessage)
       if (shouldUseMockData(error) && fallbackData) {
+        const { simulateApiDelay } = await import('./mockData')
         await simulateApiDelay(300)
         return fallbackData
       }

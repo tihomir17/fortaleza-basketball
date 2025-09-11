@@ -4,6 +4,7 @@ import { ThemeToggle } from '../ui/ThemeToggle'
 import { NotificationBell, NotificationPanel } from '../ui/NotificationSystem'
 import { ThemeCustomizer } from '../ui/ThemeCustomizer'
 import { useState } from 'react'
+import { DensityToggle } from '../ui/DensityToggle'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -114,6 +115,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               <PaintBrushIcon className="w-5 h-5" />
             </button>
             <ThemeToggle size="sm" />
+            <DensityToggle />
             
             {/* User Profile */}
             <div className="flex items-center space-x-3 p-2 rounded-xl hover:bg-white/50 dark:hover:bg-gray-700/50 backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg">

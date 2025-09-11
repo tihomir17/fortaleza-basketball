@@ -27,9 +27,9 @@ const GameAdvancedReport = lazy(() => import('./pages/games/GameAdvancedReport')
 const GameAddPossession = lazy(() => import('./pages/games/GameAddPossession').then(m => ({ default: m.GameAddPossession })))
 const GameSchedule = lazy(() => import('./pages/games/GameSchedule').then(m => ({ default: m.GameSchedule })))
 
-const TeamDetails = lazy(() => import('./pages/teams/TeamDetails').then(m => ({ default: m.TeamDetails })))
+const TeamDetails = lazy(() => import('./pages/teams/TeamDetails'))
 const TeamPlayCategories = lazy(() => import('./pages/teams/TeamPlayCategories').then(m => ({ default: m.TeamPlayCategories })))
-const Roster = lazy(() => import('./pages/teams/Roster').then(m => ({ default: m.Roster })))
+const ManageRoster = lazy(() => import('./pages/teams/ManageRoster').then(m => ({ default: m.ManageRoster })))
 
 const Playbook = lazy(() => import('./pages/Playbook').then(m => ({ default: m.Playbook })))
 const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.Calendar })))
@@ -94,8 +94,8 @@ function App() {
                     <Route path="/games/:gameId/advanced-report" element={<GameAdvancedReport />} />
                     <Route path="/games/:gameId/add-possession" element={<GameAddPossession />} />
                     <Route path="/teams" element={<Teams />} />
-                    <Route path="/teams/roster" element={<Roster />} />
                     <Route path="/teams/:teamId" element={<TeamDetails />} />
+                    <Route path="/teams/:teamId/roster" element={<ManageRoster />} />
                     <Route path="/teams/:teamId/play-categories" element={<TeamPlayCategories />} />
                     <Route path="/live" element={<LiveTracking />} />
                     <Route path="/analytics" element={<Analytics />} />

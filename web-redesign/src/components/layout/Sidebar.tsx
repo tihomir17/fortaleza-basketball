@@ -21,7 +21,6 @@ interface SidebarProps {
     { name: 'Dashboard', href: '/', icon: HomeIcon },
     { name: 'Games', href: '/games', icon: CalendarDaysIcon },
     { name: 'Teams', href: '/teams', icon: UserGroupIcon },
-    { name: 'Roster', href: '/teams/roster', icon: UsersIcon },
     { name: 'Playbook', href: '/playbook', icon: BookOpenIcon },
     { name: 'Calendar', href: '/calendar', icon: CalendarDaysIcon },
     { name: 'Events', href: '/events', icon: CalendarDaysIcon },
@@ -47,11 +46,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-2xl lg:shadow-none border-r border-white/20 dark:border-gray-700/50
+        fixed lg:relative inset-x-0 bottom-0 lg:inset-x-0 lg:bottom-0 z-40 ${isOpen ? 'h-64' : 'h-16'} bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-2xl lg:shadow-none border-t border-white/20 dark:border-gray-700/50
         transform transition-all duration-300 ease-in-out lg:transform-none
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        pt-16 lg:pt-0
-        ${isOpen ? 'animate-slide-in-left' : ''}
+        ${isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        ${isOpen ? 'animate-slide-in-up' : ''}
       `}>
         {/* Close button for mobile */}
         <div className="flex items-center justify-between p-4 lg:hidden">
@@ -69,8 +67,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="mt-8 px-4">
-          <ul className="space-y-1">
+        <nav className="px-4 py-2">
+          <ul className="flex flex-wrap justify-center gap-1">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href
               return (
@@ -84,17 +82,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       }
                     }}
                     className={`
-                      group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 relative overflow-hidden
+                      group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden
                       ${isActive 
                         ? 'text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25' 
                         : 'text-gray-700 dark:text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/25 hover:scale-105'
                       }
                     `}
+                    title={item.name}
                   >
-                    <item.icon className={`w-5 h-5 mr-3 transition-all duration-200 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
-                    <span className="relative z-10">{item.name}</span>
+                    <item.icon className={`w-4 h-4 ${isOpen ? 'mr-2' : ''} transition-all duration-200 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                    {isOpen && <span className="relative z-10 text-xs">{item.name}</span>}
                     {isActive && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl opacity-90"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg opacity-90"></div>
                     )}
                   </Link>
                 </li>

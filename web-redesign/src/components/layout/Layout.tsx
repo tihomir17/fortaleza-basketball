@@ -7,7 +7,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -17,15 +17,15 @@ export function Layout({ children }: LayoutProps) {
       }}></div>
       
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="flex pt-16 relative z-10">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 lg:ml-64 transition-all duration-300">
-          <div className="p-4 sm:p-6 lg:p-8 xl:p-10 min-h-screen">
-            <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col pt-16 relative z-10 min-h-screen">
+        <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'pb-16' : 'pb-0'}`}>
+          <div className="p-4 sm:p-6 lg:p-8 xl:p-10">
+            <div className="max-w-none">
               {children}
             </div>
           </div>
         </main>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </div>
     </div>
   )

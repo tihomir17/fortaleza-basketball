@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTeamsStore } from '../store/teamsStore'
 import { 
   PlusIcon, 
@@ -14,7 +15,8 @@ import {
   ClockIcon,
   AcademicCapIcon,
   EyeIcon,
-  PencilIcon
+  PencilIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline'
 import { TeamMemberForm } from '../components/teams/TeamMemberForm'
 import { TeamMemberCard } from '../components/teams/TeamMemberCard'
@@ -23,6 +25,7 @@ import type { Team, TeamMember, TeamMemberCreate, TeamMemberUpdate, ExistingUser
 import { teamsService } from '../services/teams'
 
 export default function Teams() {
+  const navigate = useNavigate()
   const { 
     teams, 
     teamMembers,
@@ -348,13 +351,22 @@ export default function Teams() {
                       Created by {selectedTeam.created_by.first_name} {selectedTeam.created_by.last_name}
                     </p>
                   </div>
-                  <button 
-                    onClick={handleAddMember}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add Member
-                  </button>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => navigate(`/teams/${selectedTeam.id}/roster`)}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      <UsersIcon className="h-4 w-4 mr-1" />
+                      Manage Roster
+                    </button>
+                    <button 
+                      onClick={handleAddMember}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Member
+                    </button>
+                  </div>
                 </div>
 
                 {/* Tabs */}

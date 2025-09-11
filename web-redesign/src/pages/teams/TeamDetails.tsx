@@ -12,7 +12,7 @@ import {
   Shirt
 } from 'lucide-react'
 
-export function TeamDetails() {
+function TeamDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const teamId = id ? parseInt(id) : 0
@@ -396,3 +396,5 @@ export function TeamDetails() {
     </div>
   )
 }
+
+export default TeamDetails

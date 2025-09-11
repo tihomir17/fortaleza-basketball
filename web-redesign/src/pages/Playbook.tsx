@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   BookOpenIcon, 
   PlusIcon, 
@@ -79,12 +79,13 @@ const loadPlays = async (filters: PlayFilters = {}): Promise<Play[]> => {
 }
 
 // Sortable Play Card Component
-function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorite }: {
+function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorite, isCompact = false }: {
   play: Play
   onEdit: (play: Play) => void
   onDelete: (id: string) => void
   onDuplicate: (play: Play) => void
   onToggleFavorite: (id: string) => void
+  isCompact?: boolean
 }) {
   const {
     attributes,
@@ -94,6 +95,8 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
     transition,
     isDragging,
   } = useSortable({ id: play.id })
+
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -119,54 +122,164 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
     }
   }
 
+  if (isCompact) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 hover:shadow-sm transition-all cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between p-2">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div 
+              {...listeners}
+              className="cursor-move p-0.5 hover:bg-gray-100 rounded flex-shrink-0"
+              title="Drag to reorder"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+              </svg>
+            </div>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{play.name}</h3>
+            {play.is_favorite && (
+              <span className="text-yellow-500 flex-shrink-0 text-xs">⭐</span>
+            )}
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getCategoryColor(play.category?.name || 'Unknown')}`}>
+              {play.category?.name || 'Unknown'}
+            </span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getDifficultyColor(play.difficulty)}`}>
+              {play.difficulty}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {play.duration}s • {play.players}p • {play.success_rate}%
+            </span>
+          </div>
+          
+          <div className="flex items-center space-x-1 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleFavorite(play.id)
+              }}
+              className={`p-1 rounded transition-colors ${
+                play.is_favorite 
+                  ? 'text-yellow-500 hover:bg-yellow-50' 
+                  : 'text-gray-400 hover:bg-gray-50 hover:text-yellow-500'
+              }`}
+            >
+              ⭐
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(play)
+              }}
+              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            >
+              <PencilIcon className="w-3 h-3" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(play.id)
+              }}
+              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+            >
+              <TrashIcon className="w-3 h-3" />
+            </button>
+            <svg 
+              className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        
+        {isExpanded && (
+          <div className="px-2 pb-2 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 mb-2">{play.description}</p>
+            <div className="flex flex-wrap gap-1">
+              {(play.tags || []).map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] rounded"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <span>Last used: {play.last_used}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDuplicate(play)
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+              >
+                <DocumentDuplicateIcon className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-3 sm:p-5 hover:shadow-lg transition-shadow"
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2 mb-1.5 sm:mb-2">
             <div 
               {...listeners}
-              className="cursor-move p-1 hover:bg-gray-100 rounded"
+              className="cursor-move p-1 hover:bg-gray-100 rounded flex-shrink-0"
               title="Drag to reorder"
             >
               <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{play.name}</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{play.name}</h3>
             {play.is_favorite && (
-              <span className="text-yellow-500">⭐</span>
+              <span className="text-yellow-500 flex-shrink-0">⭐</span>
             )}
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{play.description}</p>
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none">{play.description}</p>
           
-          <div className="flex flex-wrap gap-2 mb-3">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(play.category?.name || 'Unknown')}`}>
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium border ${getCategoryColor(play.category?.name || 'Unknown')}`}>
               {play.category?.name || 'Unknown'}
             </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(play.difficulty)}`}>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${getDifficultyColor(play.difficulty)}`}>
               {play.difficulty}
             </span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800">
               {play.duration}s
             </span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800">
               {play.players} players
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <span>Success Rate: {play.success_rate}%</span>
-            <span>Last used: {play.last_used}</span>
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            <span className="truncate">Success: {play.success_rate}%</span>
+            <span className="truncate ml-2">Last: {play.last_used}</span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 ml-4">
+        <div className="flex items-center space-x-1 sm:space-x-1.5 ml-2 sm:ml-3 flex-shrink-0">
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -218,7 +331,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
         {(play.tags || []).map((tag, index) => (
           <span
             key={index}
-            className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded"
+            className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] sm:text-xs rounded"
           >
             #{tag}
           </span>
@@ -483,11 +596,26 @@ export function Playbook() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 640 ? 'compact' : 'grid'
+    }
+    return 'grid'
+  })
   const [showFilters, setShowFilters] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editingPlay, setEditingPlay] = useState<Play | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  // Unique categories derived from loaded plays to ensure all available categories are shown
+  const availableCategories = useMemo(() => {
+    const names = new Set<string>()
+    for (const p of plays) {
+      const name = p.category?.name
+      if (name) names.add(name)
+    }
+    return Array.from(names).sort()
+  }, [plays])
 
   // Load plays on component mount
   useEffect(() => {
@@ -631,9 +759,9 @@ export function Playbook() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in">
+    <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center">
@@ -658,7 +786,7 @@ export function Playbook() {
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 sm:space-x-4">
           {/* Search */}
           <div className="relative flex-1">
@@ -697,7 +825,7 @@ export function Playbook() {
           </button>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg transition-colors ${
@@ -705,6 +833,7 @@ export function Playbook() {
                   ? 'bg-blue-100 text-blue-600' 
                   : 'text-gray-400 hover:bg-gray-100'
               }`}
+              title="Grid View"
             >
               <Squares2X2Icon className="w-4 h-4" />
             </button>
@@ -715,8 +844,22 @@ export function Playbook() {
                   ? 'bg-blue-100 text-blue-600' 
                   : 'text-gray-400 hover:bg-gray-100'
               }`}
+              title="List View"
             >
               <ListBulletIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'compact' 
+                  ? 'bg-blue-100 text-blue-600' 
+                  : 'text-gray-400 hover:bg-gray-100'
+              }`}
+              title="Compact Folded View"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
             </button>
           </div>
         </div>
@@ -735,9 +878,9 @@ export function Playbook() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 >
                   <option value="">All Categories</option>
-                  <option value="Offense">Offense</option>
-                  <option value="Defense">Defense</option>
-                  <option value="Special Situations">Special Situations</option>
+                  {availableCategories.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
                 </select>
               </div>
               
@@ -794,7 +937,7 @@ export function Playbook() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{plays.length}</div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total Plays</div>
@@ -851,8 +994,10 @@ export function Playbook() {
         <SortableContext items={filteredPlays.map(play => play.id)} strategy={verticalListSortingStrategy}>
           <div className={`${
             viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
-              : 'space-y-4'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5' 
+              : viewMode === 'list'
+              ? 'space-y-3 sm:space-y-4'
+              : 'space-y-1'
           }`}>
             {filteredPlays.map((play) => (
               <SortablePlayCard
@@ -862,6 +1007,7 @@ export function Playbook() {
                 onDelete={handleDeletePlay}
                 onDuplicate={handleDuplicatePlay}
                 onToggleFavorite={handleToggleFavorite}
+                isCompact={viewMode === 'compact'}
               />
             ))}
           </div>
