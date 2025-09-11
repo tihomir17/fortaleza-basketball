@@ -6,11 +6,21 @@ import { retryNetworkOperation, retryAuthOperation } from '../utils/retry'
 
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'http://localhost:8000'
 const API_TIMEOUT = 30000 // 30 seconds
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Create admin axios instance for admin endpoints
+const adminApiClient: AxiosInstance = axios.create({
+  baseURL: ADMIN_API_BASE_URL,
   timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -31,8 +41,57 @@ apiClient.interceptors.request.use(
   }
 )
 
+// Admin API request interceptor to add auth token
+adminApiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
+  (response: AxiosResponse) => {
+    return response
+  },
+  async (error) => {
+    const originalRequest = error.config
+
+    // Handle 401 errors (unauthorized)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      
+      // Clear stored token
+      localStorage.removeItem('auth_token')
+      
+      // In development, don't hard-redirect; allow pages to render with mocks/bypass
+      if (import.meta.env.PROD) {
+        // Redirect to login page in production
+        window.location.href = '/login'
+      } else {
+        console.warn('401 Unauthorized in development - bypassing redirect to /login')
+      }
+      
+      return Promise.reject(error)
+    }
+
+    // Handle network errors
+    if (!error.response) {
+      error.message = 'Network error. Please check your connection.'
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+// Admin API response interceptor for error handling
+adminApiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response
   },
@@ -91,6 +150,34 @@ export const api = {
   delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     retryNetworkOperation(() => 
       apiClient.delete(url, config).then(response => response.data)
+    ),
+}
+
+// Admin API methods for admin endpoints (without /api prefix)
+export const adminApi = {
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    retryNetworkOperation(() => 
+      adminApiClient.get(url, config).then(response => response.data)
+    ),
+    
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    retryNetworkOperation(() => 
+      adminApiClient.post(url, data, config).then(response => response.data)
+    ),
+    
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    retryNetworkOperation(() => 
+      adminApiClient.put(url, data, config).then(response => response.data)
+    ),
+    
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    retryNetworkOperation(() => 
+      adminApiClient.patch(url, data, config).then(response => response.data)
+    ),
+    
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    retryNetworkOperation(() => 
+      adminApiClient.delete(url, config).then(response => response.data)
     ),
 }
 
@@ -294,6 +381,45 @@ export const usersApi = {
     
   toggleUserStatus: (id: string) =>
     api.patch(`/users/${id}/toggle-status`),
+}
+
+// Playbook API - Using existing backend endpoints
+export const playbookApi = {
+  getPlays: (params?: { category?: string; difficulty?: string; search?: string; tags?: string; is_favorite?: boolean }) =>
+    adminApi.get<{ data: unknown[]; count: number }>('/admin/plays/playdefinition/', { params }),
+    
+  getPlay: (id: string) =>
+    adminApi.get<unknown>(`/admin/plays/playdefinition/${id}/`),
+    
+  createPlay: (playData: unknown) =>
+    adminApi.post<unknown>('/admin/plays/playdefinition/', playData),
+    
+  updatePlay: (id: string, playData: unknown) =>
+    adminApi.put<unknown>(`/admin/plays/playdefinition/${id}/`, playData),
+    
+  deletePlay: (id: string) =>
+    adminApi.delete(`/admin/plays/playdefinition/${id}/`),
+    
+  duplicatePlay: (id: string, newName?: string) =>
+    adminApi.post<unknown>(`/admin/plays/playdefinition/${id}/duplicate/`, { name: newName }),
+    
+  toggleFavorite: (id: string) =>
+    adminApi.patch<unknown>(`/admin/plays/playdefinition/${id}/favorite/`),
+    
+  updatePlayOrder: (playIds: string[]) =>
+    adminApi.patch('/admin/plays/playdefinition/order/', { play_ids: playIds }),
+    
+  getCategories: () =>
+    adminApi.get<{ categories: string[] }>('/admin/plays/playcategory/'),
+    
+  getDifficulties: () =>
+    adminApi.get<{ difficulties: string[] }>('/admin/plays/playdefinition/difficulties/'),
+    
+  getTags: () =>
+    adminApi.get<{ tags: string[] }>('/admin/plays/playdefinition/tags/'),
+    
+  getPlayStats: () =>
+    adminApi.get<unknown>('/admin/plays/playdefinition/stats/')
 }
 
 // Analytics API

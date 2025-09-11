@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   BookOpenIcon, 
   PlusIcon, 
@@ -15,95 +15,68 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { apiWithFallback } from '../services/apiWithFallback'
+import { notify } from '../store/notificationsStore'
+import type { Play, PlayFilters } from '../services/playbook'
+import { testPlaysApi } from '../utils/testApi'
 
-// Types
-interface Play {
-  id: string
-  name: string
-  description: string
-  category: 'Offense' | 'Defense' | 'Special Situations'
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
-  duration: number // in minutes
-  players: number
-  tags: string[]
-  steps: PlayStep[]
-  successRate: number
-  lastUsed: string
-  createdBy: string
-  isFavorite: boolean
-}
-
-interface PlayStep {
-  id: string
-  order: number
-  title: string
-  description: string
-  diagram?: string
-  duration: number
-}
-
-// Mock data
-const mockPlays: Play[] = [
-  {
-    id: '1',
-    name: 'Pick and Roll',
-    description: 'Classic pick and roll play with multiple options',
-    category: 'Offense',
-    difficulty: 'Intermediate',
-    duration: 15,
-    players: 5,
-    tags: ['pick', 'roll', 'screen', 'ball-handler'],
-    steps: [
-      { id: '1-1', order: 1, title: 'Setup', description: 'Point guard brings ball up court, center sets up at high post', duration: 2 },
-      { id: '1-2', order: 2, title: 'Screen', description: 'Center sets pick on point guard defender', duration: 3 },
-      { id: '1-3', order: 3, title: 'Roll', description: 'Center rolls to basket, point guard drives or passes', duration: 5 },
-      { id: '1-4', order: 4, title: 'Options', description: 'Multiple scoring options based on defense reaction', duration: 5 }
-    ],
-    successRate: 78,
-    lastUsed: '2024-01-15',
-    createdBy: 'Coach Smith',
-    isFavorite: true
-  },
-  {
-    id: '2',
-    name: 'Zone Defense',
-    description: '2-3 zone defense with active hands and communication',
-    category: 'Defense',
-    difficulty: 'Beginner',
-    duration: 20,
-    players: 5,
-    tags: ['zone', 'defense', 'team', 'communication'],
-    steps: [
-      { id: '2-1', order: 1, title: 'Setup', description: 'Two guards at top, three bigs in the paint', duration: 3 },
-      { id: '2-2', order: 2, title: 'Movement', description: 'Defenders shift based on ball movement', duration: 8 },
-      { id: '2-3', order: 3, title: 'Communication', description: 'Constant communication and hand activity', duration: 6 },
-      { id: '2-4', order: 4, title: 'Rebound', description: 'Box out and secure defensive rebound', duration: 3 }
-    ],
-    successRate: 85,
-    lastUsed: '2024-01-12',
-    createdBy: 'Assistant Coach',
-    isFavorite: false
-  },
-  {
-    id: '3',
-    name: 'Out of Bounds Play',
-    description: 'Sideline out of bounds play for last second shot',
-    category: 'Special Situations',
-    difficulty: 'Advanced',
-    duration: 10,
-    players: 5,
-    tags: ['out-of-bounds', 'last-second', 'clutch', 'special'],
-    steps: [
-      { id: '3-1', order: 1, title: 'Setup', description: 'All players in specific positions', duration: 2 },
-      { id: '3-2', order: 2, title: 'Execution', description: 'Multiple screens and cuts for open shot', duration: 6 },
-      { id: '3-3', order: 3, title: 'Shot', description: 'Best available shot opportunity', duration: 2 }
-    ],
-    successRate: 65,
-    lastUsed: '2024-01-10',
-    createdBy: 'Head Coach',
-    isFavorite: true
+// Helper function to transform backend play data to frontend format
+const transformPlayData = (backendPlay: any): Play => {
+  // Debug: Log the raw backend data for the first few plays
+  if (Math.random() < 0.1) { // Only log 10% of the time to avoid spam
+    console.log('🔍 Raw backend play data:', {
+      id: backendPlay.id,
+      name: backendPlay.name,
+      is_favorite: backendPlay.is_favorite,
+      is_favorite_type: typeof backendPlay.is_favorite
+    })
   }
-]
+  
+  return {
+    ...backendPlay,
+    // Ensure all required fields have default values
+    tags: backendPlay.tags || [],
+    steps: backendPlay.steps || [],
+    success_rate: backendPlay.success_rate || 0,
+    last_used: backendPlay.last_used || new Date().toISOString().split('T')[0],
+    is_favorite: Boolean(backendPlay.is_favorite),
+    difficulty: backendPlay.difficulty || 'Beginner',
+    duration: backendPlay.duration || 5,
+    players: backendPlay.players || 5,
+  }
+}
+
+// Helper function to load plays from API
+const loadPlays = async (filters: PlayFilters = {}): Promise<Play[]> => {
+  try {
+    const response = await apiWithFallback.getPlays(filters)
+    console.log('🔍 Raw API response:', response)
+    
+    let playsData: any[] = []
+    
+    // Handle different response formats
+    if (Array.isArray(response)) {
+      // Direct array response
+      playsData = response
+    } else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
+      // Wrapped in data property
+      playsData = (response as any).data
+    } else if (response && typeof response === 'object' && 'results' in response && Array.isArray((response as any).results)) {
+      // Paginated response
+      playsData = (response as any).results
+    } else {
+      console.warn('Unexpected response format:', response)
+      return []
+    }
+    
+    // Transform backend data to frontend format
+    return playsData.map(transformPlayData)
+  } catch (error) {
+    console.error('Failed to load plays:', error)
+    notify.error('Error Loading Plays', 'Failed to load plays from the database')
+    return []
+  }
+}
 
 // Sortable Play Card Component
 function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorite }: {
@@ -151,22 +124,30 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow cursor-move"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow"
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-2">
+            <div 
+              {...listeners}
+              className="cursor-move p-1 hover:bg-gray-100 rounded"
+              title="Drag to reorder"
+            >
+              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+              </svg>
+            </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{play.name}</h3>
-            {play.isFavorite && (
+            {play.is_favorite && (
               <span className="text-yellow-500">⭐</span>
             )}
           </div>
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{play.description}</p>
           
           <div className="flex flex-wrap gap-2 mb-3">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(play.category)}`}>
-              {play.category}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(play.category?.name || 'Unknown')}`}>
+              {play.category?.name || 'Unknown'}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(play.difficulty)}`}>
               {play.difficulty}
@@ -180,8 +161,8 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
           </div>
 
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <span>Success Rate: {play.successRate}%</span>
-            <span>Last used: {play.lastUsed}</span>
+            <span>Success Rate: {play.success_rate}%</span>
+            <span>Last used: {play.last_used}</span>
           </div>
         </div>
 
@@ -189,10 +170,11 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
           <button
             onClick={(e) => {
               e.stopPropagation()
+              console.log('⭐ Favorite button clicked in UI for play:', play.id)
               onToggleFavorite(play.id)
             }}
             className={`p-2 rounded-lg transition-colors ${
-              play.isFavorite 
+              play.is_favorite 
                 ? 'text-yellow-500 hover:bg-yellow-50' 
                 : 'text-gray-400 hover:bg-gray-50 hover:text-yellow-500'
             }`}
@@ -202,6 +184,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
           <button
             onClick={(e) => {
               e.stopPropagation()
+              console.log('✏️ Edit button clicked in UI for play:', play.id)
               onEdit(play)
             }}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -211,6 +194,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
           <button
             onClick={(e) => {
               e.stopPropagation()
+              console.log('📋 Duplicate button clicked in UI for play:', play.id)
               onDuplicate(play)
             }}
             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -220,6 +204,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
           <button
             onClick={(e) => {
               e.stopPropagation()
+              console.log('🗑️ Delete button clicked in UI for play:', play.id)
               onDelete(play.id)
             }}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -230,7 +215,7 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
       </div>
 
       <div className="flex flex-wrap gap-1">
-        {play.tags.map((tag, index) => (
+        {(play.tags || []).map((tag, index) => (
           <span
             key={index}
             className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded"
@@ -244,24 +229,78 @@ function SortablePlayCard({ play, onEdit, onDelete, onDuplicate, onToggleFavorit
 }
 
 export function Playbook() {
-  const [plays, setPlays] = useState<Play[]>(mockPlays)
+  const [plays, setPlays] = useState<Play[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('')
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
+  // Load plays on component mount
+  useEffect(() => {
+    const fetchPlays = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        console.log('🎯 Loading plays from database...')
+        
+        // Test the API first
+        try {
+          await testPlaysApi()
+        } catch (testError) {
+          console.warn('⚠️ API test failed, continuing with normal flow:', testError)
+        }
+        
+        const playsData = await loadPlays()
+        console.log('✅ Plays loaded successfully:', playsData.length, 'plays')
+        setPlays(playsData)
+      } catch (err) {
+        setError('Failed to load plays')
+        console.error('❌ Error loading plays:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPlays()
+  }, [])
+
+  // Load plays when filters change
+  useEffect(() => {
+    const fetchFilteredPlays = async () => {
+      const filters: PlayFilters = {}
+      if (selectedCategory) filters.category = selectedCategory
+      if (selectedDifficulty) filters.difficulty = selectedDifficulty
+      if (searchTerm) filters.search = searchTerm
+
+      try {
+        const playsData = await loadPlays(filters)
+        setPlays(playsData)
+      } catch (err) {
+        console.error('Error loading filtered plays:', err)
+      }
+    }
+
+    if (!loading) {
+      fetchFilteredPlays()
+    }
+  }, [selectedCategory, selectedDifficulty, searchTerm, loading])
+
   // Filter plays based on search and filters
   const filteredPlays = plays.filter(play => {
     const matchesSearch = play.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         play.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (play.description && play.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          play.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     
-    const matchesCategory = !selectedCategory || play.category === selectedCategory
+    const matchesCategory = !selectedCategory || play.category?.name === selectedCategory
     const matchesDifficulty = !selectedDifficulty || play.difficulty === selectedDifficulty
+    const matchesFavorites = !showFavoritesOnly || play.is_favorite
     
-    return matchesSearch && matchesCategory && matchesDifficulty
+    return matchesSearch && matchesCategory && matchesDifficulty && matchesFavorites
   })
 
   // Drag and drop handlers
@@ -287,29 +326,54 @@ export function Playbook() {
   const handleEditPlay = (play: Play) => {
     // TODO: Open edit modal
     console.log('Edit play:', play)
+    notify.info('Edit Play', `Opening edit form for "${play.name}"`)
   }
 
-  const handleDeletePlay = (id: string) => {
+  const handleDeletePlay = async (id: string) => {
+    console.log('🗑️ Delete button clicked for play:', id)
     if (confirm('Are you sure you want to delete this play?')) {
-      setPlays(plays.filter(play => play.id !== id))
+      try {
+        console.log('🗑️ Attempting to delete play:', id)
+        await apiWithFallback.deletePlay(id)
+        setPlays(plays.filter(play => play.id !== id))
+        notify.success('Play Deleted', 'Play has been successfully deleted')
+        console.log('✅ Play deleted successfully')
+      } catch (error) {
+        console.error('❌ Failed to delete play:', error)
+        notify.error('Delete Failed', 'Failed to delete the play')
+      }
     }
   }
 
-  const handleDuplicatePlay = (play: Play) => {
-    const newPlay = {
-      ...play,
-      id: Date.now().toString(),
-      name: `${play.name} (Copy)`,
-      createdBy: 'Current User',
-      lastUsed: new Date().toISOString().split('T')[0]
+  const handleDuplicatePlay = async (play: Play) => {
+    console.log('📋 Duplicate button clicked for play:', play.id, play.name)
+    try {
+      console.log('📋 Attempting to duplicate play:', play.id)
+      const newPlay = await apiWithFallback.duplicatePlay(play.id, `${play.name} (Copy)`) as Play
+      setPlays([...plays, newPlay])
+      notify.success('Play Duplicated', `"${play.name}" has been duplicated`)
+      console.log('✅ Play duplicated successfully:', newPlay)
+    } catch (error) {
+      console.error('❌ Failed to duplicate play:', error)
+      notify.error('Duplicate Failed', 'Failed to duplicate the play')
     }
-    setPlays([...plays, newPlay])
   }
 
-  const handleToggleFavorite = (id: string) => {
-    setPlays(plays.map(play => 
-      play.id === id ? { ...play, isFavorite: !play.isFavorite } : play
-    ))
+  const handleToggleFavorite = async (id: string) => {
+    console.log('⭐ Favorite button clicked for play:', id)
+    try {
+      console.log('⭐ Attempting to toggle favorite for play:', id)
+      const updatedPlay = await apiWithFallback.toggleFavorite(id) as Play
+      setPlays(plays.map(play => 
+        play.id === id ? updatedPlay : play
+      ))
+      const play = plays.find(p => p.id === id)
+      notify.success('Favorite Updated', `"${play?.name}" favorite status updated`)
+      console.log('✅ Favorite toggled successfully:', updatedPlay)
+    } catch (error) {
+      console.error('❌ Failed to toggle favorite:', error)
+      notify.error('Update Failed', 'Failed to update favorite status')
+    }
   }
 
   const handleAddNewPlay = () => {
@@ -366,6 +430,21 @@ export function Playbook() {
           >
             <FunnelIcon className="w-4 h-4" />
             <span>Filters</span>
+          </button>
+
+          {/* Quick Favorites Toggle */}
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+              showFavoritesOnly 
+                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' 
+                : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            <span className="text-lg">⭐</span>
+            <span className="text-sm font-medium">
+              {showFavoritesOnly ? 'All Plays' : 'Favorites'}
+            </span>
           </button>
 
           {/* View Mode Toggle */}
@@ -429,11 +508,30 @@ export function Playbook() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Favorites
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="favorites-only"
+                    checked={showFavoritesOnly}
+                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <label htmlFor="favorites-only" className="text-sm text-gray-700 dark:text-gray-300">
+                    Show favorites only
+                  </label>
+                </div>
+              </div>
+
               <div className="flex items-end">
                 <button
                   onClick={() => {
                     setSelectedCategory('')
                     setSelectedDifficulty('')
+                    setShowFavoritesOnly(false)
                     setSearchTerm('')
                   }}
                   className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
@@ -454,13 +552,13 @@ export function Playbook() {
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {plays.filter(p => p.isFavorite).length}
+            {plays.filter(p => p.is_favorite).length}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Favorites</div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.round(plays.reduce((acc, play) => acc + play.successRate, 0) / plays.length)}%
+            {Math.round(plays.reduce((acc, play) => acc + play.success_rate, 0) / plays.length)}%
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Avg Success Rate</div>
         </div>
@@ -472,12 +570,35 @@ export function Playbook() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading plays...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="text-center py-12">
+          <div className="text-red-500 text-lg font-medium mb-2">Error Loading Plays</div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Plays Grid/List */}
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
+      {!loading && !error && (
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
         <SortableContext items={filteredPlays.map(play => play.id)} strategy={verticalListSortingStrategy}>
           <div className={`${
             viewMode === 'grid' 
@@ -506,10 +627,11 @@ export function Playbook() {
             </div>
           ) : null}
         </DragOverlay>
-      </DndContext>
+        </DndContext>
+      )}
 
       {/* Empty State */}
-      {filteredPlays.length === 0 && (
+      {!loading && !error && filteredPlays.length === 0 ? (
         <div className="text-center py-12">
           <BookOpenIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No plays found</h3>
@@ -529,7 +651,7 @@ export function Playbook() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

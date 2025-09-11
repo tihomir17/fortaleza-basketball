@@ -33,7 +33,6 @@ export function Games() {
     clearError 
   } = useGamesStore()
 
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'recent' | 'all'>('upcoming')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -248,7 +247,7 @@ export function Games() {
               variant="outline"
             />
             <button 
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => window.location.href = '/games/add'}
               className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
             >
               <PlusIcon className="w-5 h-5 mr-2" />
@@ -565,7 +564,7 @@ export function Games() {
             }
           </p>
           <button 
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => window.location.href = '/games/add'}
             className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Add Your First Game
@@ -573,29 +572,6 @@ export function Games() {
         </div>
       )}
 
-      {/* Create Game Modal - Placeholder */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Game</h3>
-            <p className="text-gray-600 mb-4">Game creation form will be implemented here.</p>
-            <div className="flex justify-end space-x-3">
-              <button 
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => setShowCreateModal(false)}
-                className="bg-fortaleza-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                Create Game
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Game Details Modal - Placeholder */}
       {selectedGame && (

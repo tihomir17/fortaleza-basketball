@@ -1,6 +1,6 @@
 # apps/plays/views.py
 
-from .models import PlayDefinition
+from .models import PlayDefinition, PlayStep
 from .serializers import PlayDefinitionSerializer, PlayCategory, PlayCategorySerializer
 from apps.teams.models import Team
 from apps.users.models import User
@@ -87,5 +87,72 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
                 {
                     "error": "The 'Default Play Templates' team was not found in the database."
                 },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    @action(detail=True, methods=["patch"])
+    def favorite(self, request, pk=None):
+        """
+        Toggle the favorite status of a play.
+        """
+        try:
+            play = self.get_object()
+            play.is_favorite = not play.is_favorite
+            play.save()
+            serializer = self.get_serializer(play)
+            return Response(serializer.data)
+        except PlayDefinition.DoesNotExist:
+            return Response(
+                {"error": "Play not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    @action(detail=True, methods=["post"])
+    def duplicate(self, request, pk=None):
+        """
+        Duplicate a play with a new name.
+        """
+        try:
+            original_play = self.get_object()
+            new_name = request.data.get('name', f"{original_play.name} (Copy)")
+            
+            # Create a new play based on the original
+            new_play = PlayDefinition.objects.create(
+                name=new_name,
+                description=original_play.description,
+                play_type=original_play.play_type,
+                team=original_play.team,
+                parent=original_play.parent,
+                category=original_play.category,
+                subcategory=original_play.subcategory,
+                action_type=original_play.action_type,
+                diagram_url=original_play.diagram_url,
+                video_url=original_play.video_url,
+                tags=original_play.tags,
+                difficulty=original_play.difficulty,
+                duration=original_play.duration,
+                players=original_play.players,
+                success_rate=original_play.success_rate,
+                last_used=original_play.last_used,
+                is_favorite=False,  # New copy is not favorite by default
+                created_by=request.user,
+            )
+            
+            # Copy the steps
+            for step in original_play.steps.all():
+                PlayStep.objects.create(
+                    play=new_play,
+                    order=step.order,
+                    title=step.title,
+                    description=step.description,
+                    diagram=step.diagram,
+                    duration=step.duration,
+                )
+            
+            serializer = self.get_serializer(new_play)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except PlayDefinition.DoesNotExist:
+            return Response(
+                {"error": "Play not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )

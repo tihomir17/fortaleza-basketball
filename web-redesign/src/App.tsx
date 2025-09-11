@@ -25,6 +25,7 @@ const GameTrack = lazy(() => import('./pages/games/GameTrack').then(m => ({ defa
 const GamePostReport = lazy(() => import('./pages/games/GamePostReport').then(m => ({ default: m.GamePostReport })))
 const GameAdvancedReport = lazy(() => import('./pages/games/GameAdvancedReport').then(m => ({ default: m.GameAdvancedReport })))
 const GameAddPossession = lazy(() => import('./pages/games/GameAddPossession').then(m => ({ default: m.GameAddPossession })))
+const GameSchedule = lazy(() => import('./pages/games/GameSchedule').then(m => ({ default: m.GameSchedule })))
 
 const TeamDetails = lazy(() => import('./pages/teams/TeamDetails').then(m => ({ default: m.TeamDetails })))
 const TeamPlayCategories = lazy(() => import('./pages/teams/TeamPlayCategories').then(m => ({ default: m.TeamPlayCategories })))
@@ -45,6 +46,7 @@ const PerformanceMetrics = lazy(() => import('./pages/PerformanceMetrics').then(
 const IndividualGamePrep = lazy(() => import('./pages/IndividualGamePrep').then(m => ({ default: m.IndividualGamePrep })))
 const IndividualPostGame = lazy(() => import('./pages/IndividualPostGame').then(m => ({ default: m.IndividualPostGame })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
+const Debug = lazy(() => import('./pages/Debug').then(m => ({ default: m.Debug })))
 
 function App() {
   useEffect(() => {
@@ -83,6 +85,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/games" element={<Games />} />
+                    <Route path="/games/add" element={<GameSchedule />} />
                     <Route path="/games/:gameId" element={<GameDetails />} />
                     <Route path="/games/:gameId/stats" element={<GameStats />} />
                     <Route path="/games/:gameId/player-stats" element={<GamePlayerStats />} />
@@ -112,6 +115,7 @@ function App() {
                     <Route path="/individual-game-prep" element={<IndividualGamePrep />} />
                     <Route path="/individual-post-game" element={<IndividualPostGame />} />
                     <Route path="/change-password" element={<ChangePassword />} />
+                    <Route path="/debug" element={<Debug />} />
                     <Route path="/users" element={<UserManagement />} />
                     {/* Fallback to home */}
                     <Route path="*" element={<Navigate to="/" replace />} />

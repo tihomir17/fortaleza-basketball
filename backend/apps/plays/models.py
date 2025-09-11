@@ -18,6 +18,33 @@ class PlayCategory(models.Model):
         return self.name
 
 
+class PlayStep(models.Model):
+    """
+    Individual steps within a play definition.
+    """
+    play = models.ForeignKey(
+        "PlayDefinition",
+        on_delete=models.CASCADE,
+        related_name="steps"
+    )
+    order = models.PositiveIntegerField(_("Step Order"))
+    title = models.CharField(_("Step Title"), max_length=255)
+    description = models.TextField(_("Step Description"))
+    diagram = models.URLField(_("Step Diagram"), blank=True, null=True)
+    duration = models.PositiveIntegerField(
+        _("Step Duration (seconds)"),
+        default=30,
+        help_text="Duration of this step in seconds"
+    )
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('play', 'order')
+
+    def __str__(self):
+        return f"{self.play.name} - Step {self.order}: {self.title}"
+
+
 class PlayDefinition(models.Model):
     """
     Stores the definition of an offensive or defensive play.
@@ -75,6 +102,53 @@ class PlayDefinition(models.Model):
 
     diagram_url = models.URLField(blank=True, null=True)
     video_url = models.URLField(blank=True, null=True)
+
+    # Additional fields for frontend compatibility
+    tags = models.JSONField(default=list, blank=True, help_text="List of tags for categorization")
+    difficulty = models.CharField(
+        _("Difficulty Level"),
+        max_length=20,
+        choices=[
+            ("Beginner", "Beginner"),
+            ("Intermediate", "Intermediate"),
+            ("Advanced", "Advanced"),
+        ],
+        default="Beginner",
+    )
+    duration = models.PositiveIntegerField(
+        _("Duration (minutes)"),
+        default=5,
+        help_text="Estimated duration of the play in minutes"
+    )
+    players = models.PositiveIntegerField(
+        _("Number of Players"),
+        default=5,
+        help_text="Number of players involved in this play"
+    )
+    success_rate = models.FloatField(
+        _("Success Rate"),
+        default=0.0,
+        help_text="Success rate percentage (0-100)"
+    )
+    last_used = models.DateField(
+        _("Last Used"),
+        null=True,
+        blank=True,
+        help_text="Date when this play was last used"
+    )
+    is_favorite = models.BooleanField(
+        _("Is Favorite"),
+        default=False,
+        help_text="Whether this play is marked as favorite"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_plays",
+        help_text="User who created this play"
+    )
 
     class Meta:
         unique_together = ("name", "team")

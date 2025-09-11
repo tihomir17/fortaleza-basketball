@@ -1,5 +1,6 @@
-import { api } from './api'
+import { api, adminApi } from './api'
 import { mockDashboardData, mockGamesData, mockScoutingReports, mockAnalyticsData, simulateApiDelay } from './mockData'
+// Removed mock data import - using real API only
 
 // Configuration for fallback behavior
 const USE_MOCK_FALLBACK = import.meta.env.VITE_USE_MOCKS === 'true' || 
@@ -125,6 +126,98 @@ export const apiWithFallback = {
         await simulateApiDelay(400)
         return mockAnalyticsData
       }
+      throw error
+    }
+  },
+
+  // Playbook API with fallback - Using existing backend endpoints
+  getPlays: async (filters?: any) => {
+    try {
+      console.log('Attempting to fetch plays from backend...')
+      const data = await adminApi.get('/api/plays/', { params: filters })
+      console.log('✅ Plays fetched successfully from backend')
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ Failed to fetch plays from backend:', errorMessage)
+      throw error
+    }
+  },
+
+  getPlay: async (id: string) => {
+    try {
+      console.log(`Attempting to fetch play ${id} from backend...`)
+      const data = await adminApi.get(`/api/plays/${id}/`)
+      console.log(`✅ Play ${id} fetched successfully from backend`)
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ Failed to fetch play ${id} from backend:`, errorMessage)
+      throw error
+    }
+  },
+
+  createPlay: async (playData: any) => {
+    try {
+      console.log('Attempting to create play in backend...')
+      const data = await adminApi.post('/api/plays/', playData)
+      console.log('✅ Play created successfully in backend')
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ Failed to create play in backend:', errorMessage)
+      throw error
+    }
+  },
+
+  updatePlay: async (id: string, playData: any) => {
+    try {
+      console.log(`Attempting to update play ${id} in backend...`)
+      const data = await adminApi.put(`/api/plays/${id}/`, playData)
+      console.log(`✅ Play ${id} updated successfully in backend`)
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ Failed to update play ${id} in backend:`, errorMessage)
+      throw error
+    }
+  },
+
+  deletePlay: async (id: string) => {
+    try {
+      console.log(`Attempting to delete play ${id} from backend...`)
+      await adminApi.delete(`/api/plays/${id}/`)
+      console.log(`✅ Play ${id} deleted successfully from backend`)
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ Failed to delete play ${id} from backend:`, errorMessage)
+      throw error
+    }
+  },
+
+  toggleFavorite: async (id: string) => {
+    try {
+      console.log(`Attempting to toggle favorite for play ${id} in backend...`)
+      const data = await adminApi.patch(`/api/plays/${id}/favorite/`)
+      console.log(`✅ Play ${id} favorite toggled successfully in backend`)
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ Failed to toggle favorite for play ${id} in backend:`, errorMessage)
+      throw error
+    }
+  },
+
+  duplicatePlay: async (id: string, newName?: string) => {
+    try {
+      console.log(`Attempting to duplicate play ${id} in backend...`)
+      const data = await adminApi.post(`/api/plays/${id}/duplicate/`, { name: newName })
+      console.log(`✅ Play ${id} duplicated successfully in backend`)
+      return data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`❌ Failed to duplicate play ${id} in backend:`, errorMessage)
       throw error
     }
   },

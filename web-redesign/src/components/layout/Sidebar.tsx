@@ -7,7 +7,9 @@ import {
   EyeIcon,
   XMarkIcon,
   PlayIcon,
-  UsersIcon
+  UsersIcon,
+  BookOpenIcon,
+  BugAntIcon
 } from '@heroicons/react/24/outline'
 
 interface SidebarProps {
@@ -20,12 +22,14 @@ interface SidebarProps {
     { name: 'Games', href: '/games', icon: CalendarDaysIcon },
     { name: 'Teams', href: '/teams', icon: UserGroupIcon },
     { name: 'Roster', href: '/teams/roster', icon: UsersIcon },
+    { name: 'Playbook', href: '/playbook', icon: BookOpenIcon },
     { name: 'Calendar', href: '/calendar', icon: CalendarDaysIcon },
     { name: 'Events', href: '/events', icon: CalendarDaysIcon },
     { name: 'Live Tracking', href: '/live', icon: PlayIcon },
     { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
     { name: 'Scouting', href: '/scouting', icon: EyeIcon },
     { name: 'User Management', href: '/users', icon: UsersIcon },
+    { name: 'Debug', href: '/debug', icon: BugAntIcon },
   ]
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
