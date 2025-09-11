@@ -116,6 +116,12 @@ export function TeamMemberCard({
                 </span>
               )}
               
+              {member.role === 'PLAYER' && member.position && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  {member.position}
+                </span>
+              )}
+              
               {member.role === 'COACH' && member.coach_type && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCoachTypeColor(member.coach_type)}`}>
                   {formatCoachType(member.coach_type)}

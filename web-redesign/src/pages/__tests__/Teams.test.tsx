@@ -5,16 +5,14 @@ import Teams from '../Teams'
 import { useTeamsStore } from '../../store/teamsStore'
 
 jest.mock('../../services/teams', () => ({
-  teamsApi: {
-    getTeams: jest.fn().mockResolvedValue({ data: [], pagination: {} }),
+  teamsService: {
+    getAllUsers: jest.fn().mockResolvedValue([]),
   }
 }))
 
 // Mock the teams store
 jest.mock('../../store/teamsStore')
 const mockUseTeamsStore = useTeamsStore as jest.MockedFunction<typeof useTeamsStore>
-
-// Remove notification hook mock if module not present to prevent resolution errors
 
 const mockTeams = [
   {
@@ -39,6 +37,51 @@ const mockTeams = [
   },
 ]
 
+const mockTeamMembers = [
+  {
+    id: 1,
+    role: 'PLAYER',
+    first_name: 'John',
+    last_name: 'Smith',
+    username: 'johnsmith',
+    jersey_number: 10,
+    is_active: true,
+    team: 1,
+    user: 1,
+  },
+  {
+    id: 2,
+    role: 'PLAYER',
+    first_name: 'Mike',
+    last_name: 'Johnson',
+    username: 'mikejohnson',
+    jersey_number: 23,
+    is_active: true,
+    team: 1,
+    user: 2,
+  },
+  {
+    id: 3,
+    role: 'COACH',
+    first_name: 'Coach',
+    last_name: 'Smith',
+    username: 'coachsmith',
+    is_active: true,
+    team: 1,
+    user: 3,
+  },
+  {
+    id: 4,
+    role: 'STAFF',
+    first_name: 'Staff',
+    last_name: 'Member',
+    username: 'staffmember',
+    is_active: true,
+    team: 1,
+    user: 4,
+  },
+]
+
 // Mock store removed as it's not used
 
 const renderTeams = () => {
@@ -54,7 +97,9 @@ describe('Teams Component', () => {
     jest.clearAllMocks()
     mockUseTeamsStore.mockReturnValue({
       teams: mockTeams as any,
-      loading: false,
+      teamMembers: mockTeamMembers as any,
+      availableJerseyNumbers: { available_numbers: [1, 2, 3, 4, 5], used_numbers: [10, 23] },
+      isLoading: false,
       error: null,
       fetchTeams: jest.fn(),
       fetchTeam: jest.fn(),
@@ -64,12 +109,12 @@ describe('Teams Component', () => {
       createTeam: jest.fn(),
       updateTeam: jest.fn(),
       deleteTeam: jest.fn(),
-      selectedTeam: null,
-      teamMembers: [],
-      roleFilter: 'ALL',
-      statusFilter: 'ALL',
-      setRoleFilter: jest.fn(),
-      setStatusFilter: jest.fn(),
+      createTeamMember: jest.fn(),
+      updateTeamMember: jest.fn(),
+      deleteTeamMember: jest.fn(),
+      toggleMemberStatus: jest.fn(),
+      setCurrentTeam: jest.fn(),
+      clearError: jest.fn(),
     } as any)
   })
 

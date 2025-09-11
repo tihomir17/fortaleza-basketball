@@ -839,6 +839,10 @@ class Command(BaseCommand):
             game_time = time(20, 0)  # 8:00 PM
 
         game_datetime = datetime.combine(game_date, game_time)
+        # Make timezone-aware
+        from django.utils import timezone
+        if timezone.is_naive(game_datetime):
+            game_datetime = timezone.make_aware(game_datetime)
 
         # Create game
         game = Game.objects.create(

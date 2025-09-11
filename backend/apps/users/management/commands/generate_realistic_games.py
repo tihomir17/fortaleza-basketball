@@ -619,6 +619,10 @@ class Command(BaseCommand):
         game_date = datetime.datetime.now() - datetime.timedelta(
             days=random.randint(1, 180)
         )
+        # Make timezone-aware
+        from django.utils import timezone
+        if timezone.is_naive(game_date):
+            game_date = timezone.make_aware(game_date)
 
         # Generate quarter scores
         home_quarter_scores = []

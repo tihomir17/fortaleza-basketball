@@ -763,10 +763,21 @@ class GameViewSet(viewsets.ModelViewSet):
     @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
     def _get_dashboard_data_cached(self, request):
         """Cached version of dashboard data"""
-        return self._get_dashboard_data(request)
+        data = self._generate_dashboard_data(request)
+        return Response(data)
     
     def _get_dashboard_data(self, request):
         """Get fresh dashboard data without cache"""
+        try:
+            data = self._generate_dashboard_data(request)
+            return Response(data)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def _generate_dashboard_data(self, request):
+        """Generate dashboard data (without Response wrapper for caching)"""
         try:
             user = request.user
             today = timezone.now().date()
@@ -975,21 +986,17 @@ class GameViewSet(viewsets.ModelViewSet):
                     for event in upcoming_events
                 ]
 
-            return Response(
-                {
-                    "quick_stats": quick_stats,
-                    "upcoming_games": upcoming_games,
-                    "recent_games": recent_games,
-                    "recent_reports": recent_reports,
-                    "quick_actions": quick_actions,
-                    "upcoming_events": upcoming_events,
-                }
-            )
+            return {
+                "quick_stats": quick_stats,
+                "upcoming_games": upcoming_games,
+                "recent_games": recent_games,
+                "recent_reports": recent_reports,
+                "quick_actions": quick_actions,
+                "upcoming_events": upcoming_events,
+            }
 
         except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            raise e
 
     # Roster Management Endpoints
     @action(detail=True, methods=["post"], url_path="roster", permission_classes=[IsGameRosterPermission])

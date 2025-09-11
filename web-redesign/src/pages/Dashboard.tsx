@@ -91,8 +91,8 @@ export function Dashboard() {
     activePlayers: 0
   }
 
-  // Sample data for charts (replace with real data when available)
-  const performanceData = [
+  // Use real data from backend or fallback to sample data
+  const performanceData = data?.analyticsData?.performanceTrend || [
     { month: 'Jan', points: 85, rebounds: 42, assists: 18 },
     { month: 'Feb', points: 92, rebounds: 38, assists: 22 },
     { month: 'Mar', points: 78, rebounds: 45, assists: 19 },
@@ -106,11 +106,20 @@ export function Dashboard() {
     { name: 'Losses', value: stats.losses, color: '#EF4444' }
   ]
 
-  const playerStats = [
-    { name: 'John Smith', points: 24.5, rebounds: 8.2, assists: 6.1, efficiency: 18.3 },
-    { name: 'Mike Johnson', points: 19.8, rebounds: 6.5, assists: 4.2, efficiency: 15.1 },
-    { name: 'David Wilson', points: 16.2, rebounds: 9.1, assists: 2.8, efficiency: 14.7 },
-    { name: 'Chris Brown', points: 14.7, rebounds: 5.3, assists: 7.4, efficiency: 13.9 }
+  // Use real player data from backend or fallback to sample data
+  const playerStats = data?.topPerformers?.map(player => ({
+    name: player.player_name,
+    position: player.position,
+    jersey: player.jersey_number,
+    points: player.points_per_game,
+    rebounds: player.rebounds_per_game,
+    assists: player.assists_per_game,
+    efficiency: Math.round((player.points_per_game + player.rebounds_per_game + player.assists_per_game) * 0.6)
+  })) || [
+    { name: 'John Smith', position: 'PG', jersey: 1, points: 24.5, rebounds: 8.2, assists: 6.1, efficiency: 18.3 },
+    { name: 'Mike Johnson', position: 'SG', jersey: 23, points: 19.8, rebounds: 6.5, assists: 4.2, efficiency: 15.1 },
+    { name: 'David Wilson', position: 'SF', jersey: 7, points: 16.2, rebounds: 9.1, assists: 2.8, efficiency: 14.7 },
+    { name: 'Chris Brown', position: 'PF', jersey: 15, points: 14.7, rebounds: 5.3, assists: 7.4, efficiency: 13.9 }
   ]
 
   return (
@@ -332,6 +341,59 @@ export function Dashboard() {
 
       {activeTab === 'analytics' && (
         <div className="space-y-8">
+          {/* Team Statistics Cards */}
+          {data?.analyticsData?.teamStats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Possessions</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.analyticsData.teamStats.totalPossessions}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/50 rounded-xl">
+                    <ChartBarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Offensive Efficiency</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.analyticsData.teamStats.offensiveEfficiency.toFixed(1)}</p>
+                  </div>
+                  <div className="p-3 bg-green-50 dark:bg-green-900/50 rounded-xl">
+                    <ArrowTrendingUpIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Defensive Efficiency</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.analyticsData.teamStats.defensiveEfficiency.toFixed(1)}</p>
+                  </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/50 rounded-xl">
+                    <ArrowTrendingUpIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pace</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.analyticsData.teamStats.pace.toFixed(1)}</p>
+                  </div>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-900/50 rounded-xl">
+                    <ClockIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Performance Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Team Performance Trend */}
@@ -461,8 +523,18 @@ export function Dashboard() {
                         {index + 1}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{player.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Efficiency: {player.efficiency}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium text-gray-900 dark:text-white">{player.name}</p>
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                            #{player.jersey}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                            {player.position}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Efficiency: {player.efficiency}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-6 text-sm">

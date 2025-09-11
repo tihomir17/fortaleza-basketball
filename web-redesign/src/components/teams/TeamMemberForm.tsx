@@ -36,6 +36,7 @@ interface FormData {
   coach_type?: string
   staff_type?: string
   jersey_number?: number
+  position?: string
   password?: string
   is_active: boolean
 }
@@ -66,6 +67,7 @@ export function TeamMemberForm({
       coach_type: 'ASSISTANT_COACH',
       staff_type: 'PHYSIO',
       jersey_number: undefined,
+      position: '',
       password: '',
       is_active: true
     }
@@ -124,6 +126,7 @@ export function TeamMemberForm({
         coach_type: member.coach_type || 'ASSISTANT_COACH',
         staff_type: member.staff_type || 'PHYSIO',
         jersey_number: member.jersey_number || undefined,
+        position: member.position || '',
         password: '',
         is_active: member.is_active
       })
@@ -138,6 +141,7 @@ export function TeamMemberForm({
         coach_type: 'ASSISTANT_COACH',
         staff_type: 'PHYSIO',
         jersey_number: undefined,
+        position: '',
         password: '',
         is_active: true
       })
@@ -331,20 +335,40 @@ export function TeamMemberForm({
 
           {/* Role-specific fields */}
           {selectedRole === 'PLAYER' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Jersey Number</label>
-              <select
-                {...register('jersey_number', { required: 'Jersey number is required' })}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select jersey number</option>
-                {availableJerseyNumbers.map(num => (
-                  <option key={num} value={num}>#{num}</option>
-                ))}
-              </select>
-              {errors.jersey_number && (
-                <p className="mt-1 text-sm text-red-600">{errors.jersey_number.message}</p>
-              )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Jersey Number</label>
+                <select
+                  {...register('jersey_number', { required: 'Jersey number is required' })}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select jersey number</option>
+                  {availableJerseyNumbers.map(num => (
+                    <option key={num} value={num}>#{num}</option>
+                  ))}
+                </select>
+                {errors.jersey_number && (
+                  <p className="mt-1 text-sm text-red-600">{errors.jersey_number.message}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Position</label>
+                <select
+                  {...register('position')}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select position</option>
+                  <option value="PG">PG - Point Guard</option>
+                  <option value="SG">SG - Shooting Guard</option>
+                  <option value="SF">SF - Small Forward</option>
+                  <option value="PF">PF - Power Forward</option>
+                  <option value="C">C - Center</option>
+                </select>
+                {errors.position && (
+                  <p className="mt-1 text-sm text-red-600">{errors.position.message}</p>
+                )}
+              </div>
             </div>
           )}
 

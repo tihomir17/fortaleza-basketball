@@ -163,6 +163,10 @@ class Command(BaseCommand):
 
             # Combine date and time into datetime
             game_datetime = datetime.combine(game_date, game_time)
+            # Make timezone-aware
+            from django.utils import timezone
+            if timezone.is_naive(game_datetime):
+                game_datetime = timezone.make_aware(game_datetime)
 
             game = Game.objects.create(
                 home_team=home_team,

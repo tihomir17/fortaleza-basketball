@@ -76,6 +76,7 @@ export interface TeamMember {
   coach_type?: string
   staff_type?: string
   jersey_number?: number | null
+  position?: string
   is_active: boolean
   team?: number
 }
@@ -89,6 +90,7 @@ export interface TeamMemberCreate {
   coach_type?: string
   staff_type?: string
   jersey_number?: number
+  position?: string
   team: number
   password?: string
 }
@@ -101,6 +103,7 @@ export interface TeamMemberUpdate {
   coach_type?: string
   staff_type?: string
   jersey_number?: number | null
+  position?: string
   is_active?: boolean
 }
 
