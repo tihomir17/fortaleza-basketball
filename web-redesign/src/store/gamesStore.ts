@@ -32,8 +32,9 @@ export const useGamesStore = create<GamesState>((set) => ({
   fetchGames: async () => {
     set({ isLoading: true, error: null })
     try {
-      const games = await gamesService.getGames()
-      console.info('[gamesStore] fetched games from API count=', (games as any)?.length ?? 'unknown', games)
+      const response = await gamesService.getGames()
+      const games = response.results
+      console.info('[gamesStore] fetched games from API count=', games.length, games)
       set({ games, isLoading: false })
     } catch (error: any) {
       set({ 

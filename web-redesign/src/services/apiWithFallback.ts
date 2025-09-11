@@ -139,7 +139,7 @@ export const apiWithFallback = {
   getPlays: async (filters?: any) => {
     try {
       console.log('Attempting to fetch plays from backend...')
-      const data = await adminApi.get('/api/plays/', { params: filters })
+      const data = await api.get('/plays/', { params: filters })
       console.log('✅ Plays fetched successfully from backend')
       return data
     } catch (error) {
@@ -152,7 +152,7 @@ export const apiWithFallback = {
   getPlay: async (id: string) => {
     try {
       console.log(`Attempting to fetch play ${id} from backend...`)
-      const data = await adminApi.get(`/api/plays/${id}/`)
+      const data = await api.get(`/plays/${id}/`)
       console.log(`✅ Play ${id} fetched successfully from backend`)
       return data
     } catch (error) {
@@ -165,7 +165,7 @@ export const apiWithFallback = {
   createPlay: async (playData: any) => {
     try {
       console.log('Attempting to create play in backend...')
-      const data = await adminApi.post('/api/plays/', playData)
+      const data = await api.post('/plays/', playData)
       console.log('✅ Play created successfully in backend')
       return data
     } catch (error) {

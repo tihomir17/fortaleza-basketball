@@ -32,6 +32,16 @@ class PlayCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = PlayCategoryFilter
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Handle exclude parameter
+        exclude = self.request.query_params.get('exclude')
+        if exclude:
+            queryset = queryset.exclude(name=exclude)
+            
+        return queryset
+
 
 class PlayDefinitionViewSet(viewsets.ModelViewSet):
     queryset = PlayDefinition.objects.all()
@@ -47,27 +57,34 @@ class PlayDefinitionViewSet(viewsets.ModelViewSet):
 
         # Superusers can see/edit everything
         if user.is_superuser:
-            return self.queryset
+            queryset = self.queryset
+        else:
+            # --- NEW PERMISSION LOGIC ---
+            # 1. Get all teams the user is a member of.
+            user_teams = Team.objects.filter(Q(coaches=user) | Q(players=user))
 
-        # --- NEW PERMISSION LOGIC ---
-        # 1. Get all teams the user is a member of.
-        user_teams = Team.objects.filter(Q(coaches=user) | Q(players=user))
+            # 2. Get the "Default Play Templates" team.
+            try:
+                default_team = Team.objects.get(name="Default Play Templates")
+            except Team.DoesNotExist:
+                default_team = None
 
-        # 2. Get the "Default Play Templates" team.
-        try:
-            default_team = Team.objects.get(name="Default Play Templates")
-        except Team.DoesNotExist:
-            default_team = None
+            # 3. Build the final query.
+            # A user can see plays that belong to their teams.
+            allowed_plays_query = Q(team__in=user_teams)
 
-        # 3. Build the final query.
-        # A user can see plays that belong to their teams.
-        allowed_plays_query = Q(team__in=user_teams)
+            # If the user is a COACH, they can ALSO see the default templates.
+            if user.role == User.Role.COACH and default_team:
+                allowed_plays_query |= Q(team=default_team)
 
-        # If the user is a COACH, they can ALSO see the default templates.
-        if user.role == User.Role.COACH and default_team:
-            allowed_plays_query |= Q(team=default_team)
+            queryset = self.queryset.filter(allowed_plays_query)
 
-        return self.queryset.filter(allowed_plays_query).select_related('team', 'category', 'created_by').prefetch_related('steps').distinct().order_by('name')
+        # Handle exclude_category parameter
+        exclude_category = self.request.query_params.get('exclude_category')
+        if exclude_category:
+            queryset = queryset.exclude(category__name=exclude_category)
+
+        return queryset.select_related('team', 'category', 'created_by').prefetch_related('steps').distinct().order_by('name')
 
     @action(detail=False, methods=["get"])
     def templates(self, request):

@@ -498,7 +498,7 @@ export function Games() {
                           <MapPinIcon className="w-4 h-4 mr-1" />
                           Home Court
                         </div>
-                        {(game.home_team_score > 0 || game.away_team_score > 0) && (
+                        {((game.home_team_score ?? 0) > 0 || (game.away_team_score ?? 0) > 0) && (
                           <div className="font-semibold text-gray-900">
                             {game.home_team_score} - {game.away_team_score}
                           </div>
@@ -586,8 +586,8 @@ export function Games() {
                 <p className="text-gray-600">Venue: Home Court</p>
                 <p className="text-gray-600">Score: {selectedGame.home_team_score} - {selectedGame.away_team_score}</p>
                 <p className="text-gray-600">Quarter: {selectedGame.quarter}</p>
-                <p className="text-gray-600">Lead Changes: {selectedGame.lead_changes}</p>
-                <p className="text-gray-600">Clutch Situations: {selectedGame.clutch_situations}</p>
+                <p className="text-gray-600">Lead Changes: N/A</p>
+                <p className="text-gray-600">Clutch Situations: N/A</p>
               </div>
             </div>
             <div className="flex justify-end mt-6">

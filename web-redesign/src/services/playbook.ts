@@ -1,4 +1,4 @@
-import { adminApi } from './api'
+import { adminApi, api } from './api'
 
 // Playbook Types
 export interface PlayStep {
@@ -67,7 +67,7 @@ export const mockPlays: Play[] = []
 
 // Playbook API - Using existing backend endpoints
 export const playbookApi = {
-  // Get all plays with optional filtering
+  // Get all plays with optional filtering (excluding Control category)
   getPlays: (filters?: PlayFilters) => {
     const params = new URLSearchParams()
     if (filters?.category) params.append('category', filters.category)
@@ -76,48 +76,51 @@ export const playbookApi = {
     if (filters?.tags?.length) params.append('tags', filters.tags.join(','))
     if (filters?.isFavorite !== undefined) params.append('is_favorite', filters.isFavorite.toString())
     
-    return adminApi.get<{ data: Play[]; count: number }>(`/api/plays/?${params.toString()}`)
+    // Always exclude Control category plays
+    params.append('exclude_category', 'Control')
+    
+    return api.get<{ results: Play[]; count: number }>(`/plays/?${params.toString()}`)
   },
 
   // Get a single play by ID
   getPlay: (id: string) =>
-    adminApi.get<Play>(`/api/plays/${id}/`),
+    api.get<Play>(`/plays/${id}/`),
 
   // Create a new play
   createPlay: (playData: PlayCreate) =>
-    adminApi.post<Play>('/api/plays/', playData),
+    api.post<Play>('/plays/', playData),
 
   // Update an existing play
   updatePlay: (id: string, playData: Partial<PlayCreate>) =>
-    adminApi.put<Play>(`/api/plays/${id}/`, playData),
+    api.put<Play>(`/plays/${id}/`, playData),
 
   // Delete a play
   deletePlay: (id: string) =>
-    adminApi.delete(`/api/plays/${id}/`),
+    api.delete(`/plays/${id}/`),
 
   // Duplicate a play
   duplicatePlay: (id: string, newName?: string) =>
-    adminApi.post<Play>(`/api/plays/${id}/duplicate/`, { name: newName }),
+    api.post<Play>(`/plays/${id}/duplicate/`, { name: newName }),
 
   // Toggle favorite status
   toggleFavorite: (id: string) =>
-    adminApi.patch<Play>(`/api/plays/${id}/favorite/`),
+    api.patch<Play>(`/plays/${id}/favorite/`),
 
   // Update play order (for drag and drop)
   updatePlayOrder: (playIds: string[]) =>
-    adminApi.patch('/api/plays/order/', { play_ids: playIds }),
+    api.patch('/plays/order/', { play_ids: playIds }),
 
-  // Get play categories
+  // Get play categories (excluding Control category)
   getCategories: () =>
-    adminApi.get<{ categories: string[] }>('/api/play-categories/'),
+    api.get<{ results: string[] }>('/play-categories/?exclude=Control'),
 
   // Get play difficulties
   getDifficulties: () =>
-    adminApi.get<{ difficulties: string[] }>('/api/plays/difficulties/'),
+    api.get<{ difficulties: string[] }>('/plays/difficulties/'),
 
   // Get play tags
   getTags: () =>
-    adminApi.get<{ tags: string[] }>('/api/plays/tags/'),
+    api.get<{ tags: string[] }>('/plays/tags/'),
 
   // Get play statistics
   getPlayStats: () =>
@@ -149,7 +152,7 @@ export const cachedPlaybookApi = {
       }
     }
     
-    return playbookApi.getPlays(filters).then(response => {
+    return playbookApi.getPlays(filters).then((response: any) => {
       const cacheData = {
         data: response,
         timestamp: Date.now()
@@ -176,7 +179,7 @@ export const cachedPlaybookApi = {
       }
     }
     
-    return playbookApi.getPlay(id).then(response => {
+    return playbookApi.getPlay(id).then((response: any) => {
       const cacheData = {
         data: response,
         timestamp: Date.now()

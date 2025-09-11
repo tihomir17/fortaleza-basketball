@@ -199,7 +199,7 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.upcomingGames}</p>
               </div>
             </div>
-            <div className="flex items-center text-green-600">
+            <div className="flex items-center text-green-600 ml-4">
               <ArrowUpIcon className="w-4 h-4" />
               <span className="text-sm font-medium">+2</span>
             </div>
@@ -217,7 +217,7 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.wins}</p>
               </div>
             </div>
-            <div className="flex items-center text-green-600">
+            <div className="flex items-center text-green-600 ml-4">
               <ArrowUpIcon className="w-4 h-4" />
               <span className="text-sm font-medium">+12%</span>
             </div>
@@ -235,7 +235,7 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activePlayers || 12}</p>
               </div>
             </div>
-            <div className="flex items-center text-green-600">
+            <div className="flex items-center text-green-600 ml-4">
               <ArrowUpIcon className="w-4 h-4" />
               <span className="text-sm font-medium">+1</span>
             </div>
@@ -253,7 +253,7 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.winPercentage.toFixed(1)}%</p>
               </div>
             </div>
-            <div className="flex items-center text-green-600">
+            <div className="flex items-center text-green-600 ml-4">
               <ArrowUpIcon className="w-4 h-4" />
               <span className="text-sm font-medium">+5.2%</span>
             </div>

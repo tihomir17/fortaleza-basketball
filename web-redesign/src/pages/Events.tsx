@@ -1,22 +1,58 @@
 import { useEffect, useState } from 'react'
-import { eventsApi } from '../services/api'
+import { calendarService, type CalendarEvent, type CalendarEventCreate } from '../services/calendar'
+import { useTeamsStore } from '../store/teamsStore'
+import { useAuthStore } from '../store/authStore'
+import { notify } from '../store/notificationsStore'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 
-type EventItem = {
-  id: number
-  title: string
-  description?: string
-  start_time: string
-  end_time?: string
-  location?: string
-  event_type?: string
+// Helper functions for event permissions
+const canCreateEvent = (user: any) => {
+  if (!user) return false
+  return user.role === 'COACH' || user.role === 'ADMIN' || 
+         (user.role === 'STAFF' && user.staff_type === 'MANAGEMENT')
+}
+
+const canEditEvent = (user: any, event: CalendarEvent) => {
+  if (!user) return false
+  // Coach can edit all events
+  if (user.role === 'COACH' || user.role === 'ADMIN') return true
+  // Management can edit events they created or certain types
+  if (user.role === 'STAFF' && user.staff_type === 'MANAGEMENT') {
+    return event.created_by === user.id || 
+           ['TEAM_MEETING', 'TRAVEL_BUS', 'TRAVEL_PLANE'].includes(event.event_type)
+  }
+  return false
+}
+
+const canDeleteEvent = (user: any, event: CalendarEvent) => {
+  if (!user) return false
+  // Coach can delete all events
+  if (user.role === 'COACH' || user.role === 'ADMIN') return true
+  // Management can delete events they created
+  if (user.role === 'STAFF' && user.staff_type === 'MANAGEMENT') {
+    return event.created_by === user.id
+  }
+  return false
 }
 
 export function Events() {
-  const [items, setItems] = useState<EventItem[]>([])
+  const [items, setItems] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const { isAuthenticated, user } = useAuthStore()
+  const { teams, fetchTeams } = useTeamsStore()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+    }
+  }, [isAuthenticated, navigate])
 
   // Filters & pagination
   const [search, setSearch] = useState('')
@@ -28,25 +64,26 @@ export function Events() {
   const [hasNext, setHasNext] = useState(false)
 
   const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CalendarEventCreate>({
     title: '',
     start_time: '',
     end_time: '',
-    location: '',
-    event_type: 'Team Practice',
+    event_type: 'PRACTICE_TEAM',
     description: '',
-    recurrence_rule: '', // e.g., FREQ=WEEKLY;BYDAY=MO,WE;COUNT=8
-    send_notifications: false,
+    team: undefined,
+    attendees: []
   })
+  const [conflicts, setConflicts] = useState<CalendarEvent[]>([])
 
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<Partial<CalendarEventCreate>>({
     title: '',
     start_time: '',
     end_time: '',
-    location: '',
-    event_type: 'meeting',
-    description: ''
+    event_type: 'PRACTICE_TEAM',
+    description: '',
+    team: undefined,
+    attendees: []
   })
 
   // Local availability (RSVP) storage
@@ -67,28 +104,96 @@ export function Events() {
     })
   }
 
-  // Notifications (browser local reminders)
-  const scheduleReminder = async (ev: EventItem, minutesBefore = 30) => {
+  // Check for scheduling conflicts
+  const checkConflicts = (startTime: string, endTime: string, excludeId?: number) => {
+    if (!startTime) return []
+    
+    const start = new Date(startTime)
+    const end = new Date(endTime || startTime)
+    
+    const conflictingEvents = items.filter(event => {
+      if (excludeId && event.id === excludeId) return false
+      
+      const eventStart = new Date(event.start_time)
+      const eventEnd = new Date(event.end_time || event.start_time)
+      
+      // Check for overlap: events overlap if one starts before the other ends
+      return (start < eventEnd && end > eventStart)
+    })
+    
+    return conflictingEvents
+  }
+
+  // Enhanced reminder system
+  const scheduleReminder = async (ev: CalendarEvent, minutesBefore = 30) => {
     try {
-      if (!('Notification' in window)) return
-      if (Notification.permission !== 'granted') {
-        await Notification.requestPermission()
+      if (!('Notification' in window)) {
+        notify.warning('Notifications Not Supported', 'Your browser does not support notifications.')
+        return
       }
-      if (Notification.permission !== 'granted') return
+      
+      if (Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          notify.warning('Permission Denied', 'Please enable notifications to receive reminders.')
+          return
+        }
+      }
 
       const start = new Date(ev.start_time).getTime()
       const triggerAt = start - minutesBefore * 60 * 1000
       const delay = Math.max(0, triggerAt - Date.now())
-      // Best-effort local reminder (tab must be open)
-      setTimeout(() => {
-        new Notification('Event Reminder', {
-          body: `${ev.title} starts in ${minutesBefore} min${ev.location ? ' @ ' + ev.location : ''}`,
-        })
-      }, delay)
-    } catch {
-      // ignore
+      
+      if (delay > 0) {
+        // Store reminder in localStorage for persistence
+        const reminderId = `reminder_${ev.id}_${minutesBefore}`
+        const reminder = {
+          id: reminderId,
+          eventId: ev.id,
+          eventTitle: ev.title,
+          triggerTime: triggerAt,
+          minutesBefore
+        }
+        
+        const existingReminders = JSON.parse(localStorage.getItem('eventReminders') || '[]')
+        existingReminders.push(reminder)
+        localStorage.setItem('eventReminders', JSON.stringify(existingReminders))
+        
+        // Schedule the reminder
+        setTimeout(() => {
+          new Notification('Event Reminder', {
+            body: `${ev.title} starts in ${minutesBefore} minutes`,
+            icon: '/favicon.ico'
+          })
+          
+          // Remove from localStorage
+          const updatedReminders = existingReminders.filter((r: any) => r.id !== reminderId)
+          localStorage.setItem('eventReminders', JSON.stringify(updatedReminders))
+          
+          // Add to notifications store
+          notify.info('Event Reminder', `${ev.title} starts in ${minutesBefore} minutes`)
+        }, delay)
+        
+        notify.success('Reminder Set', `You'll be reminded ${minutesBefore} minutes before "${ev.title}"`)
+      } else {
+        notify.warning('Invalid Time', 'Cannot set reminder for past events.')
+      }
+    } catch (error) {
+      notify.error('Reminder Error', 'Failed to set reminder. Please try again.')
     }
   }
+
+  // Load existing reminders on component mount
+  useEffect(() => {
+    const existingReminders = JSON.parse(localStorage.getItem('eventReminders') || '[]')
+    const now = Date.now()
+    
+    // Check for overdue reminders and clean them up
+    const validReminders = existingReminders.filter((reminder: any) => reminder.triggerTime > now)
+    if (validReminders.length !== existingReminders.length) {
+      localStorage.setItem('eventReminders', JSON.stringify(validReminders))
+    }
+  }, [])
 
   // External calendar helpers
   const toDateTimeStamp = (iso: string) => {
@@ -96,7 +201,7 @@ export function Events() {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
   }
 
-  const googleCalendarLink = (ev: EventItem) => {
+  const googleCalendarLink = (ev: CalendarEvent) => {
     const start = toDateTimeStamp(ev.start_time)
     const end = toDateTimeStamp(ev.end_time || ev.start_time)
     const params = new URLSearchParams({
@@ -104,12 +209,11 @@ export function Events() {
       text: ev.title || 'Event',
       dates: `${start}/${end}`,
       details: ev.description || '',
-      location: ev.location || '',
     })
     return `https://calendar.google.com/calendar/render?${params.toString()}`
   }
 
-  const outlookCalendarLink = (ev: EventItem) => {
+  const outlookCalendarLink = (ev: CalendarEvent) => {
     const start = new Date(ev.start_time).toISOString()
     const end = new Date(ev.end_time || ev.start_time).toISOString()
     const params = new URLSearchParams({
@@ -119,12 +223,11 @@ export function Events() {
       enddt: end,
       subject: ev.title || 'Event',
       body: ev.description || '',
-      location: ev.location || '',
     })
     return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
   }
 
-  const downloadIcs = (ev: EventItem) => {
+  const downloadIcs = (ev: CalendarEvent) => {
     const dtstamp = toDateTimeStamp(new Date().toISOString())
     const dtstart = toDateTimeStamp(ev.start_time)
     const dtend = toDateTimeStamp(ev.end_time || ev.start_time)
@@ -142,7 +245,6 @@ export function Events() {
       `DTEND:${dtend}`,
       `SUMMARY:${(ev.title || 'Event').replace(/\n/g, ' ')}`,
       `DESCRIPTION:${(ev.description || '').replace(/\n/g, ' ')}`,
-      `LOCATION:${(ev.location || '').replace(/\n/g, ' ')}`,
       'END:VEVENT',
       'END:VCALENDAR',
     ].join('\r\n')
@@ -159,20 +261,29 @@ export function Events() {
   }
 
   const load = async () => {
+    if (!isAuthenticated) return
+    
     setLoading(true)
     setError(null)
     try {
-      const params: any = { page, limit }
-      if (search) params.search = search
+      const params: any = {}
       if (typeFilter) params.event_type = typeFilter
-      if (fromDate) params.from = fromDate
-      if (toDate) params.to = toDate
-      const data = await eventsApi.getEvents(params)
-      // API root appears to return a DRF list (likely array) – normalize
-      const list = Array.isArray((data as any)) ? (data as any) : (data as any)?.results || []
-      const next = (data as any)?.next
-      setHasNext(Boolean(next))
-      setItems(list as EventItem[])
+      if (fromDate) params.start_time__gte = fromDate
+      if (toDate) params.end_time__lte = toDate
+      
+      const events = await calendarService.getEvents(params)
+      
+      // Filter by search term on the frontend since backend doesn't support search
+      let filteredEvents = events
+      if (search) {
+        filteredEvents = events.filter(event => 
+          event.title.toLowerCase().includes(search.toLowerCase()) ||
+          (event.description && event.description.toLowerCase().includes(search.toLowerCase()))
+        )
+      }
+      
+      setItems(filteredEvents)
+      setHasNext(false) // Calendar service doesn't support pagination yet
     } catch (e: any) {
       setError(e?.message || 'Failed to load events')
     } finally {
@@ -181,28 +292,95 @@ export function Events() {
   }
 
   useEffect(() => {
+    fetchTeams()
     load()
-  }, [])
+  }, [fetchTeams])
+
+  // Pre-select user's team when creating events
+  useEffect(() => {
+    if (user && teams.length > 0 && !form.team) {
+      // If user is a coach or staff, pre-select their first team
+      if ((user.role === 'COACH' || user.role === 'STAFF') && teams.length > 0) {
+        setForm(prev => ({ ...prev, team: teams[0].id }))
+      }
+    }
+  }, [user, teams, form.team])
+
+  // Handle creating event from game
+  useEffect(() => {
+    const gameId = searchParams.get('createFromGame')
+    if (gameId) {
+      // Fetch game data and pre-populate form
+      const fetchGameData = async () => {
+        try {
+          const games = await calendarService.getGames()
+          const game = games.find(g => g.id === parseInt(gameId))
+          if (game) {
+            setForm(prev => ({
+              ...prev,
+              title: `${game.home_team.name} vs ${game.away_team.name}`,
+              start_time: new Date(game.game_date).toISOString().slice(0, 16),
+              end_time: new Date(new Date(game.game_date).getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16), // 2 hours later
+              event_type: 'GAME',
+              description: `Game: ${game.home_team.name} vs ${game.away_team.name}`,
+              team: game.home_team.id
+            }))
+          }
+        } catch (error) {
+          console.error('Error fetching game data:', error)
+        }
+      }
+      fetchGameData()
+    }
+  }, [searchParams])
+
+  // Check for conflicts when form changes
+  useEffect(() => {
+    if (form.start_time) {
+      const conflicts = checkConflicts(form.start_time, form.end_time || form.start_time)
+      setConflicts(conflicts)
+    } else {
+      setConflicts([])
+    }
+  }, [form.start_time, form.end_time, items])
+
+  // Check for conflicts when editing
+  useEffect(() => {
+    if (editingId && editForm.start_time) {
+      const conflicts = checkConflicts(editForm.start_time, editForm.end_time || editForm.start_time, editingId)
+      setConflicts(conflicts)
+    } else if (!editingId) {
+      setConflicts([])
+    }
+  }, [editForm.start_time, editForm.end_time, editingId, items])
 
   const submit = async () => {
     if (!form.title || !form.start_time) return
     setCreating(true)
     setError(null)
     try {
-      const payload: any = {
+      const payload: CalendarEventCreate = {
         title: form.title,
         start_time: form.start_time,
+        end_time: form.end_time || form.start_time, // Use start_time as end_time if not provided
+        event_type: form.event_type,
+        description: form.description,
+        team: form.team,
+        attendees: form.attendees
       }
-      if (form.end_time) payload.end_time = form.end_time
-      if (form.location) payload.location = form.location
-      if (form.event_type) payload.event_type = form.event_type
-      if (form.description) payload.description = form.description
-      // Optional enhancements
-      if (form.recurrence_rule) payload.recurrence_rule = form.recurrence_rule
-      if (form.send_notifications) payload.send_notifications = true
-      await eventsApi.createEvent(payload)
-      setForm({ title: '', start_time: '', end_time: '', location: '', event_type: 'meeting', description: '', recurrence_rule: '', send_notifications: false })
+      
+      await calendarService.createEvent(payload)
+      setForm({ 
+        title: '', 
+        start_time: '', 
+        end_time: '', 
+        event_type: 'PRACTICE_TEAM', 
+        description: '', 
+        team: undefined,
+        attendees: []
+      })
       await load()
+      notify.success('Event Created', `"${payload.title}" has been successfully created.`)
     } catch (e: any) {
       setError(e?.message || 'Failed to create event')
     } finally {
@@ -210,15 +388,16 @@ export function Events() {
     }
   }
 
-  const startEdit = (ev: EventItem) => {
+  const startEdit = (ev: CalendarEvent) => {
     setEditingId(ev.id)
     setEditForm({
       title: ev.title || '',
       start_time: ev.start_time ? ev.start_time.slice(0, 16) : '',
       end_time: ev.end_time ? ev.end_time.slice(0, 16) : '',
-      location: ev.location || '',
-      event_type: ev.event_type || 'meeting',
-      description: ev.description || ''
+      event_type: ev.event_type || 'PRACTICE_TEAM',
+      description: ev.description || '',
+      team: typeof ev.team === 'object' ? ev.team?.id : ev.team,
+      attendees: Array.isArray(ev.attendees) ? ev.attendees.map((a: any) => typeof a === 'object' ? a.id : a) : []
     })
   }
 
@@ -227,17 +406,19 @@ export function Events() {
   const saveEdit = async (id: number) => {
     setError(null)
     try {
-      const payload: any = {
+      const payload: Partial<CalendarEventCreate> = {
         title: editForm.title,
         start_time: editForm.start_time,
+        end_time: editForm.end_time,
+        event_type: editForm.event_type,
+        description: editForm.description,
+        team: editForm.team,
+        attendees: editForm.attendees
       }
-      if (editForm.end_time) payload.end_time = editForm.end_time
-      if (editForm.location) payload.location = editForm.location
-      if (editForm.event_type) payload.event_type = editForm.event_type
-      if (editForm.description) payload.description = editForm.description
-      await eventsApi.updateEvent(String(id), payload)
+      await calendarService.updateEvent(id, payload)
       setEditingId(null)
       await load()
+      notify.success('Event Updated', `"${payload.title}" has been successfully updated.`)
     } catch (e: any) {
       setError(e?.message || 'Failed to update event')
     }
@@ -246,8 +427,10 @@ export function Events() {
   const remove = async (id: number) => {
     setError(null)
     try {
-      await eventsApi.deleteEvent(String(id))
+      const event = items.find(e => e.id === id)
+      await calendarService.deleteEvent(id)
       await load()
+      notify.success('Event Deleted', `"${event?.title || 'Event'}" has been successfully deleted.`)
     } catch (e: any) {
       setError(e?.message || 'Failed to delete event')
     }
@@ -260,11 +443,12 @@ export function Events() {
         <p className="text-gray-600 dark:text-gray-400">Schedule practices, games, meetings and more.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Event</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {canCreateEvent(user) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Event</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
@@ -276,17 +460,28 @@ export function Events() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
               <select className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                       value={form.event_type}
-                      onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}>
-                <option>Team Practice</option>
-                <option>Individual Practice</option>
-                <option>Scouting Meeting</option>
-                <option>Strength & Conditioning</option>
-                <option>Game</option>
-                <option>Team Meeting</option>
-                <option>Travel (Bus)</option>
-                <option>Travel (Plane)</option>
-                <option>Team Building</option>
-                <option>Other</option>
+                      onChange={e => setForm(f => ({ ...f, event_type: e.target.value as any }))}>
+                <option value="PRACTICE_TEAM">Team Practice</option>
+                <option value="PRACTICE_INDIVIDUAL">Individual Practice</option>
+                <option value="SCOUTING_MEETING">Scouting Meeting</option>
+                <option value="STRENGTH_CONDITIONING">Strength & Conditioning</option>
+                <option value="GAME">Game</option>
+                <option value="TEAM_MEETING">Team Meeting</option>
+                <option value="TRAVEL_BUS">Travel (Bus)</option>
+                <option value="TRAVEL_PLANE">Travel (Plane)</option>
+                <option value="TEAM_BUILDING">Team Building</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Team</label>
+              <select className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
+                      value={form.team || ''}
+                      onChange={e => setForm(f => ({ ...f, team: e.target.value ? Number(e.target.value) : undefined }))}>
+                <option value="">No Team</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -301,32 +496,35 @@ export function Events() {
                      value={form.end_time}
                      onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-              <input className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
-                     value={form.location}
-                     onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
               <textarea rows={3} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                         value={form.description}
                         onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recurrence Rule (RFC5545)</label>
-              <input className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
-                     placeholder="e.g., FREQ=WEEKLY;BYDAY=MO,WE;COUNT=8"
-                     value={form.recurrence_rule}
-                     onChange={e => setForm(f => ({ ...f, recurrence_rule: e.target.value }))} />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional — backend must support recurrence expansion.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input id="notify" type="checkbox" className="h-4 w-4" checked={form.send_notifications}
-                     onChange={e => setForm(f => ({ ...f, send_notifications: e.target.checked }))} />
-              <label htmlFor="notify" className="text-sm text-gray-700 dark:text-gray-300">Send email notifications</label>
-            </div>
           </div>
+          {conflicts.length > 0 && (
+            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <div className="text-yellow-600 dark:text-yellow-400">⚠️</div>
+                <div>
+                  <div className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                    Scheduling Conflict Detected
+                  </div>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                    This event conflicts with {conflicts.length} existing event{conflicts.length > 1 ? 's' : ''}:
+                  </div>
+                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-1 ml-4 list-disc">
+                    {conflicts.map(conflict => (
+                      <li key={conflict.id}>
+                        {conflict.title} ({new Date(conflict.start_time).toLocaleString()})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="mt-4 flex items-center gap-3">
             <Button onClick={submit} loading={creating} disabled={!form.title || !form.start_time}>
               Create Event
@@ -334,7 +532,8 @@ export function Events() {
             {error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -349,16 +548,16 @@ export function Events() {
                     value={typeFilter}
                     onChange={e => setTypeFilter(e.target.value)}>
               <option value="">All Types</option>
-              <option>Team Practice</option>
-              <option>Individual Practice</option>
-              <option>Scouting Meeting</option>
-              <option>Strength & Conditioning</option>
-              <option>Game</option>
-              <option>Team Meeting</option>
-              <option>Travel (Bus)</option>
-              <option>Travel (Plane)</option>
-              <option>Team Building</option>
-              <option>Other</option>
+              <option value="PRACTICE_TEAM">Team Practice</option>
+              <option value="PRACTICE_INDIVIDUAL">Individual Practice</option>
+              <option value="SCOUTING_MEETING">Scouting Meeting</option>
+              <option value="STRENGTH_CONDITIONING">Strength & Conditioning</option>
+              <option value="GAME">Game</option>
+              <option value="TEAM_MEETING">Team Meeting</option>
+              <option value="TRAVEL_BUS">Travel (Bus)</option>
+              <option value="TRAVEL_PLANE">Travel (Plane)</option>
+              <option value="TEAM_BUILDING">Team Building</option>
+              <option value="OTHER">Other</option>
             </select>
             <input type="date" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                    value={fromDate}
@@ -394,12 +593,17 @@ export function Events() {
                              onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
                       <select className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                               value={editForm.event_type}
-                              onChange={e => setEditForm(f => ({ ...f, event_type: e.target.value }))}>
-                        <option value="meeting">Meeting</option>
-                        <option value="practice">Practice</option>
-                        <option value="game">Game</option>
-                        <option value="travel">Travel</option>
-                        <option value="other">Other</option>
+                              onChange={e => setEditForm(f => ({ ...f, event_type: e.target.value as any }))}>
+                        <option value="PRACTICE_TEAM">Team Practice</option>
+                        <option value="PRACTICE_INDIVIDUAL">Individual Practice</option>
+                        <option value="SCOUTING_MEETING">Scouting Meeting</option>
+                        <option value="STRENGTH_CONDITIONING">Strength & Conditioning</option>
+                        <option value="GAME">Game</option>
+                        <option value="TEAM_MEETING">Team Meeting</option>
+                        <option value="TRAVEL_BUS">Travel (Bus)</option>
+                        <option value="TRAVEL_PLANE">Travel (Plane)</option>
+                        <option value="TEAM_BUILDING">Team Building</option>
+                        <option value="OTHER">Other</option>
                       </select>
                       <input type="datetime-local" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                              value={editForm.start_time}
@@ -407,14 +611,32 @@ export function Events() {
                       <input type="datetime-local" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                              value={editForm.end_time}
                              onChange={e => setEditForm(f => ({ ...f, end_time: e.target.value }))} />
-                      <input className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
-                             placeholder="Location"
-                             value={editForm.location}
-                             onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} />
                       <input className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 md:col-span-2"
                              placeholder="Description"
                              value={editForm.description}
                              onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                      {conflicts.length > 0 && (
+                        <div className="md:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <div className="text-yellow-600 dark:text-yellow-400">⚠️</div>
+                            <div>
+                              <div className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                Scheduling Conflict Detected
+                              </div>
+                              <div className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                This change conflicts with {conflicts.length} existing event{conflicts.length > 1 ? 's' : ''}:
+                              </div>
+                              <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-1 ml-4 list-disc">
+                                {conflicts.map(conflict => (
+                                  <li key={conflict.id}>
+                                    {conflict.title} ({new Date(conflict.start_time).toLocaleString()})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="md:col-span-2 flex gap-2">
                         <Button onClick={() => saveEdit(ev.id)}>Save</Button>
                         <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
@@ -425,7 +647,7 @@ export function Events() {
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">{ev.title}</div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(ev.start_time).toLocaleString()} {ev.location ? `• ${ev.location}` : ''} {ev.event_type ? `• ${ev.event_type}` : ''}
+                          {new Date(ev.start_time).toLocaleString()} • {ev.event_type?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                         </div>
                         {ev.description && (
                           <div className="text-sm text-gray-600 dark:text-gray-400">{ev.description}</div>
@@ -433,8 +655,12 @@ export function Events() {
                         <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">Availability: <span className="font-medium">{rsvp[ev.id] || '—'}</span></div>
                       </div>
                       <div className="flex-shrink-0 flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => startEdit(ev)}>Edit</Button>
-                        <Button variant="danger" onClick={() => remove(ev.id)}>Delete</Button>
+                        {canEditEvent(user, ev) && (
+                          <Button variant="outline" onClick={() => startEdit(ev)}>Edit</Button>
+                        )}
+                        {canDeleteEvent(user, ev) && (
+                          <Button variant="danger" onClick={() => remove(ev.id)}>Delete</Button>
+                        )}
                         <Button variant="outline" onClick={() => updateRsvp(ev.id, 'going')}>Going</Button>
                         <Button variant="outline" onClick={() => updateRsvp(ev.id, 'maybe')}>Maybe</Button>
                         <Button variant="outline" onClick={() => updateRsvp(ev.id, 'declined')}>Decline</Button>
@@ -443,7 +669,12 @@ export function Events() {
                         <a className="px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-white/50"
                            href={outlookCalendarLink(ev)} target="_blank" rel="noreferrer">Outlook</a>
                         <Button variant="outline" onClick={() => downloadIcs(ev)}>ICS</Button>
-                        <Button onClick={() => scheduleReminder(ev, 30)}>Remind 30m</Button>
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => scheduleReminder(ev, 15)}>15m</Button>
+                          <Button size="sm" onClick={() => scheduleReminder(ev, 30)}>30m</Button>
+                          <Button size="sm" onClick={() => scheduleReminder(ev, 60)}>1h</Button>
+                          <Button size="sm" onClick={() => scheduleReminder(ev, 1440)}>1d</Button>
+                        </div>
                       </div>
                     </div>
                   )}

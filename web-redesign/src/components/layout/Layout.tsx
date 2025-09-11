@@ -15,7 +15,7 @@ export function Layout({ children }: LayoutProps) {
       
       <Header onMenuClick={() => {}} />
       <div className="pt-16 relative z-10 min-h-screen">
-        <main className="pb-16">
+        <main className="pb-20">
           <div className="p-4 sm:p-6 lg:p-8 xl:p-10">
             <div className="max-w-none">
               {children}

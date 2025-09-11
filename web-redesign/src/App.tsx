@@ -6,6 +6,7 @@ import { PageLoader } from './components/ui/PageLoader'
 import { BackendStatus } from './components/BackendStatus'
 import { ToastContainer } from './components/ui/NotificationSystem'
 import { registerServiceWorker, setupOfflineDetection, showInstallPrompt } from './utils/serviceWorker'
+import { useThemeStore } from './store/themeStore'
 import { Login } from './pages/Login'
 
 // Lazy load pages for better performance
@@ -18,7 +19,7 @@ const Scouting = lazy(() => import('./pages/Scouting').then(module => ({ default
 const UserManagement = lazy(() => import('./pages/UserManagement').then(module => ({ default: module.UserManagement })))
 
 // New route placeholders mapped from Flutter app
-const GameDetails = lazy(() => import('./pages/games/GameDetails').then(m => ({ default: m.GameDetails })))
+const GameDetails = lazy(() => import('./pages/GameDetails'))
 const GameStats = lazy(() => import('./pages/games/GameStats').then(m => ({ default: m.GameStats })))
 const GamePlayerStats = lazy(() => import('./pages/games/GamePlayerStats').then(m => ({ default: m.GamePlayerStats })))
 const GameTrack = lazy(() => import('./pages/games/GameTrack').then(m => ({ default: m.GameTrack })))
@@ -32,7 +33,7 @@ const TeamPlayCategories = lazy(() => import('./pages/teams/TeamPlayCategories')
 const ManageRoster = lazy(() => import('./pages/teams/ManageRoster').then(m => ({ default: m.ManageRoster })))
 
 const Playbook = lazy(() => import('./pages/Playbook').then(m => ({ default: m.Playbook })))
-const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.Calendar })))
+const Calendar = lazy(() => import('./pages/Calendar'))
 const Events = lazy(() => import('./pages/Events').then(m => ({ default: m.Events })))
 const EventAdd = lazy(() => import('./pages/EventAdd').then(m => ({ default: m.EventAdd })))
 const ScoutingReports = lazy(() => import('./pages/ScoutingReports').then(m => ({ default: m.ScoutingReports })))
@@ -49,7 +50,12 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ 
 const Debug = lazy(() => import('./pages/Debug').then(m => ({ default: m.Debug })))
 
 function App() {
+  const { initialize } = useThemeStore()
+
   useEffect(() => {
+    // Initialize theme store
+    initialize()
+    
     if (import.meta.env.PROD) {
       // Register SW only in production
       registerServiceWorker()
@@ -65,7 +71,7 @@ function App() {
         })
       }
     }
-  }, [])
+  }, [initialize])
 
   return (
     <Router>

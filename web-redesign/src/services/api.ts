@@ -440,40 +440,40 @@ export const usersApi = {
 // Playbook API - Using existing backend endpoints
 export const playbookApi = {
   getPlays: (params?: { category?: string; difficulty?: string; search?: string; tags?: string; is_favorite?: boolean }) =>
-    adminApi.get<{ data: unknown[]; count: number }>('/admin/plays/playdefinition/', { params }),
+    api.get<{ results: unknown[]; count: number }>('/plays/', { params }),
     
   getPlay: (id: string) =>
-    adminApi.get<unknown>(`/admin/plays/playdefinition/${id}/`),
+    api.get<unknown>(`/plays/${id}/`),
     
   createPlay: (playData: unknown) =>
-    adminApi.post<unknown>('/admin/plays/playdefinition/', playData),
+    api.post<unknown>('/plays/', playData),
     
   updatePlay: (id: string, playData: unknown) =>
-    adminApi.put<unknown>(`/admin/plays/playdefinition/${id}/`, playData),
+    api.put<unknown>(`/plays/${id}/`, playData),
     
   deletePlay: (id: string) =>
-    adminApi.delete(`/admin/plays/playdefinition/${id}/`),
+    api.delete(`/plays/${id}/`),
     
   duplicatePlay: (id: string, newName?: string) =>
-    adminApi.post<unknown>(`/admin/plays/playdefinition/${id}/duplicate/`, { name: newName }),
+    api.post<unknown>(`/plays/${id}/duplicate/`, { name: newName }),
     
   toggleFavorite: (id: string) =>
-    adminApi.patch<unknown>(`/admin/plays/playdefinition/${id}/favorite/`),
+    api.patch<unknown>(`/plays/${id}/favorite/`),
     
   updatePlayOrder: (playIds: string[]) =>
-    adminApi.patch('/admin/plays/playdefinition/order/', { play_ids: playIds }),
+    api.patch('/plays/order/', { play_ids: playIds }),
     
   getCategories: () =>
-    adminApi.get<{ categories: string[] }>('/admin/plays/playcategory/'),
+    api.get<{ results: string[] }>('/play-categories/'),
     
   getDifficulties: () =>
-    adminApi.get<{ difficulties: string[] }>('/admin/plays/playdefinition/difficulties/'),
+    api.get<{ difficulties: string[] }>('/plays/difficulties/'),
     
   getTags: () =>
-    adminApi.get<{ tags: string[] }>('/admin/plays/playdefinition/tags/'),
+    api.get<{ tags: string[] }>('/plays/tags/'),
     
   getPlayStats: () =>
-    adminApi.get<unknown>('/admin/plays/playdefinition/stats/')
+    api.get<unknown>('/plays/stats/')
 }
 
 // Analytics API

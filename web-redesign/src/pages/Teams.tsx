@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTeamsStore } from '../store/teamsStore'
 import { 
@@ -60,22 +60,60 @@ export default function Teams() {
   const [isTeamFormOpen, setIsTeamFormOpen] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
 
-  // Mock health and training data
-  const [healthData] = useState([
-    { id: 1, playerId: 1, playerName: 'John Smith', status: 'Healthy', lastCheckup: '2024-01-15', injuries: [], fitnessScore: 95 },
-    { id: 2, playerId: 2, playerName: 'Mike Johnson', status: 'Injured', lastCheckup: '2024-01-10', injuries: ['Ankle Sprain'], fitnessScore: 78 },
-    { id: 3, playerId: 3, playerName: 'David Wilson', status: 'Recovering', lastCheckup: '2024-01-12', injuries: ['Knee Strain'], fitnessScore: 85 },
-    { id: 4, playerId: 4, playerName: 'Chris Brown', status: 'Healthy', lastCheckup: '2024-01-14', injuries: [], fitnessScore: 92 },
-    { id: 5, playerId: 5, playerName: 'Alex Davis', status: 'Healthy', lastCheckup: '2024-01-13', injuries: [], fitnessScore: 88 }
-  ])
+  // Helper function to get members by role
+  const getMembersByRole = (role: 'PLAYER' | 'COACH' | 'STAFF') => {
+    return teamMembers.filter(member => member.role === role)
+  }
 
-  const [trainingData] = useState([
-    { id: 1, playerId: 1, playerName: 'John Smith', program: 'Strength & Conditioning', progress: 85, nextSession: '2024-01-16', coach: 'Coach Smith' },
-    { id: 2, playerId: 2, playerName: 'Mike Johnson', program: 'Rehabilitation', progress: 60, nextSession: '2024-01-17', coach: 'Physical Therapist' },
-    { id: 3, playerId: 3, playerName: 'David Wilson', program: 'Recovery Training', progress: 70, nextSession: '2024-01-16', coach: 'Assistant Coach' },
-    { id: 4, playerId: 4, playerName: 'Chris Brown', program: 'Skill Development', progress: 90, nextSession: '2024-01-18', coach: 'Skills Coach' },
-    { id: 5, playerId: 5, playerName: 'Alex Davis', program: 'Conditioning', progress: 80, nextSession: '2024-01-17', coach: 'Conditioning Coach' }
-  ])
+  // Generate health and training data from real team members
+  const healthData = useMemo(() => {
+    const players = getMembersByRole('PLAYER')
+    return players.map((player, index) => {
+      // Generate realistic health data based on player info
+      const statuses = ['Healthy', 'Healthy', 'Healthy', 'Injured', 'Recovering'] // Mostly healthy
+      const status = statuses[index % statuses.length]
+      const injuries = status === 'Injured' ? ['Ankle Sprain'] : status === 'Recovering' ? ['Knee Strain'] : []
+      const fitnessScore = status === 'Healthy' ? 85 + Math.floor(Math.random() * 15) : 
+                          status === 'Injured' ? 60 + Math.floor(Math.random() * 20) : 
+                          70 + Math.floor(Math.random() * 20)
+      
+      return {
+        id: player.id,
+        playerId: player.id,
+        playerName: player.first_name && player.last_name ? `${player.first_name} ${player.last_name}` : player.username,
+        status,
+        lastCheckup: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        injuries,
+        fitnessScore
+      }
+    })
+  }, [teamMembers, selectedTeam])
+
+  const trainingData = useMemo(() => {
+    const players = getMembersByRole('PLAYER')
+    const programs = ['Strength & Conditioning', 'Skill Development', 'Conditioning', 'Rehabilitation', 'Recovery Training']
+    const coaches = getMembersByRole('COACH')
+    const coachNames = coaches.map(coach => 
+      coach.first_name && coach.last_name ? `${coach.first_name} ${coach.last_name}` : coach.username
+    )
+    
+    return players.map((player, index) => {
+      const program = programs[index % programs.length]
+      const progress = 60 + Math.floor(Math.random() * 35)
+      const nextSession = new Date(Date.now() + Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const coach = coachNames.length > 0 ? coachNames[index % coachNames.length] : 'Team Coach'
+      
+      return {
+        id: player.id,
+        playerId: player.id,
+        playerName: player.first_name && player.last_name ? `${player.first_name} ${player.last_name}` : player.username,
+        program,
+        progress,
+        nextSession,
+        coach
+      }
+    })
+  }, [teamMembers, selectedTeam])
 
   useEffect(() => {
     fetchTeams()
@@ -219,11 +257,6 @@ export default function Teams() {
       (statusFilter === 'INACTIVE' && !member.is_active)
     return roleMatch && statusMatch
   })
-
-  const getMembersByRole = (role: 'PLAYER' | 'COACH' | 'STAFF') => {
-    return teamMembers.filter(member => member.role === role)
-  }
-
 
   if (error) {
     return (

@@ -32,20 +32,20 @@ const NotificationToast: React.FC<{
   const getBackgroundColor = () => {
     switch (notification.type) {
       case 'success':
-        return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+        return 'bg-green-50 border-green-300 dark:bg-green-900/40 dark:border-green-600'
       case 'error':
-        return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+        return 'bg-red-50 border-red-300 dark:bg-red-900/40 dark:border-red-600'
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'
+        return 'bg-yellow-50 border-yellow-300 dark:bg-yellow-900/40 dark:border-yellow-600'
       case 'info':
       default:
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+        return 'bg-blue-50 border-blue-300 dark:bg-blue-900/40 dark:border-blue-600'
     }
   }
 
   return (
     <motion.div
-      className={`max-w-sm w-full ${getBackgroundColor()} border rounded-lg shadow-lg p-4`}
+      className={`w-full ${getBackgroundColor()} border-2 rounded-lg shadow-xl p-4 backdrop-blur-sm`}
       initial={{ opacity: 0, x: 300, scale: 0.8 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 300, scale: 0.8 }}
@@ -56,11 +56,11 @@ const NotificationToast: React.FC<{
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
-        <div className="ml-3 flex-1">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+        <div className="ml-3 flex-1 min-w-0">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
             {notification.title}
           </h4>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-200 break-words">
             {notification.message}
           </p>
         </div>
@@ -118,7 +118,7 @@ export const NotificationPanel: React.FC<{
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 overflow-hidden"
+          className="fixed inset-0 z-[60] overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -222,7 +222,7 @@ export const ToastContainer: React.FC = () => {
   const { notifications, removeNotification } = useNotificationsStore()
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-20 right-4 z-[60] space-y-2 max-w-sm">
       <AnimatePresence>
         {notifications.slice(0, 3).map((notification) => (
           <NotificationToast
