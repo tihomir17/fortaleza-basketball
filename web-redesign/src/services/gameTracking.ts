@@ -93,10 +93,26 @@ export interface Game {
   home_team: {
     id: number
     name: string
+    players?: Array<{
+      id: number
+      first_name: string
+      last_name: string
+      jersey_number: number
+      position: string
+      role: string
+    }>
   }
   away_team: {
     id: number
     name: string
+    players?: Array<{
+      id: number
+      first_name: string
+      last_name: string
+      jersey_number: number
+      position: string
+      role: string
+    }>
   }
   competition: {
     id: number

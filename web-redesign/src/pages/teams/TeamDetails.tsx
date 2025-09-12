@@ -36,7 +36,7 @@ function TeamDetails() {
   const formatCoachType = (coachType?: string) => {
     if (!coachType || coachType === 'NONE') return 'Coach'
     return coachType
-      .replaceAll('_', ' ')
+      .replace(/_/g, ' ')
       .toLowerCase()
       .split(' ')
       .map(word => word[0].toUpperCase() + word.substring(1))
@@ -46,7 +46,7 @@ function TeamDetails() {
   const formatStaffType = (staffType?: string) => {
     if (!staffType || staffType === 'NONE') return 'Staff'
     return staffType
-      .replaceAll('_', ' ')
+      .replace(/_/g, ' ')
       .toLowerCase()
       .split(' ')
       .map(word => word[0].toUpperCase() + word.substring(1))

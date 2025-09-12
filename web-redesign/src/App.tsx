@@ -28,7 +28,7 @@ const GameAdvancedReport = lazy(() => import('./pages/games/GameAdvancedReport')
 const GameAddPossession = lazy(() => import('./pages/games/GameAddPossession').then(m => ({ default: m.GameAddPossession })))
 const GameSchedule = lazy(() => import('./pages/games/GameSchedule').then(m => ({ default: m.GameSchedule })))
 
-const TeamDetails = lazy(() => import('./pages/teams/TeamDetails'))
+const TeamDetails = lazy(() => import('./pages/teams/TeamDetails').then(m => ({ default: m.default })))
 const TeamPlayCategories = lazy(() => import('./pages/teams/TeamPlayCategories').then(m => ({ default: m.TeamPlayCategories })))
 const ManageRoster = lazy(() => import('./pages/teams/ManageRoster').then(m => ({ default: m.ManageRoster })))
 

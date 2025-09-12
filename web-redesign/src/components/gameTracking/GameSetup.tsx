@@ -23,6 +23,10 @@ interface SetupFormData {
   location: string
   competition: string
   notes: string
+  gameRoster: {
+    home: number[]
+    away: number[]
+  }
   startingFive: {
     home: number[]
     away: number[]
@@ -38,7 +42,7 @@ interface SetupStep {
 }
 
 export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
-  const { teams, teamMembers } = useTeamsStore()
+  const { teams, teamMembers, fetchTeamMembers } = useTeamsStore()
   const { selectGame, currentGame } = useGameTrackingStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -59,6 +63,10 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
       location: '',
       competition: '',
       notes: '',
+      gameRoster: {
+        home: [],
+        away: []
+      },
       startingFive: {
         home: [],
         away: []
@@ -84,12 +92,36 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
   }, [teams, currentGame])
 
   // Get team players for starting five selection
-  const homeTeamPlayers = teamMembers.filter((member: any) => 
-    member.role === 'PLAYER' && member.team === watchedHomeTeamId
-  )
-  const awayTeamPlayers = teamMembers.filter((member: any) => 
-    member.role === 'PLAYER' && member.team === watchedAwayTeamId
-  )
+  // Try to get players from current game data first, then fall back to team members
+  const homeTeamPlayers = React.useMemo(() => {
+    if (currentGame?.home_team?.players) {
+      return currentGame.home_team.players.filter((player: any) => player.role === 'PLAYER')
+    }
+    return teamMembers.filter((member: any) => 
+      member.role === 'PLAYER' && member.team === watchedHomeTeamId
+    )
+  }, [currentGame, teamMembers, watchedHomeTeamId])
+
+  const awayTeamPlayers = React.useMemo(() => {
+    if (currentGame?.away_team?.players) {
+      return currentGame.away_team.players.filter((player: any) => player.role === 'PLAYER')
+    }
+    return teamMembers.filter((member: any) => 
+      member.role === 'PLAYER' && member.team === watchedAwayTeamId
+    )
+  }, [currentGame, teamMembers, watchedAwayTeamId])
+
+  // Debug logging (memoized to reduce console spam)
+  const debugInfo = React.useMemo(() => ({
+    teamMembers: teamMembers.length,
+    watchedHomeTeamId,
+    watchedAwayTeamId,
+    homeTeamPlayers: homeTeamPlayers.length,
+    awayTeamPlayers: awayTeamPlayers.length,
+    availableTeams: availableTeams.length
+  }), [teamMembers.length, watchedHomeTeamId, watchedAwayTeamId, homeTeamPlayers.length, awayTeamPlayers.length, availableTeams.length])
+  
+  console.log('🔍 GameSetup Debug:', debugInfo)
 
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>([
     {
@@ -100,9 +132,16 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
       required: true
     },
     {
+      id: 'game-roster',
+      title: 'Game Roster',
+      description: 'Select 12 players for each team from the full roster',
+      completed: false,
+      required: true
+    },
+    {
       id: 'starting-five',
       title: 'Starting Lineups',
-      description: 'Select the starting five players for each team',
+      description: 'Select the starting five players from the game roster',
       completed: false,
       required: true
     },
@@ -115,30 +154,110 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     }
   ])
 
-  // Update step completion status
+  // Pre-populate form with current game data when available
   useEffect(() => {
+    if (currentGame) {
+      setValue('homeTeamId', currentGame.home_team.id)
+      setValue('awayTeamId', currentGame.away_team.id)
+      setValue('gameDate', new Date(currentGame.game_date).toISOString().split('T')[0])
+      setValue('gameTime', new Date(currentGame.game_date).toTimeString().slice(0, 5))
+      setValue('competition', currentGame.competition?.name || '')
+    }
+  }, [currentGame, setValue])
+
+  // Load team members when teams are selected (memoized to prevent unnecessary calls)
+  const teamIds = React.useMemo(() => [watchedHomeTeamId, watchedAwayTeamId], [watchedHomeTeamId, watchedAwayTeamId])
+  
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      if (watchedHomeTeamId && watchedHomeTeamId > 0) {
+        console.log('🔄 Loading team members for home team:', watchedHomeTeamId)
+        await fetchTeamMembers(watchedHomeTeamId)
+      }
+      if (watchedAwayTeamId && watchedAwayTeamId > 0) {
+        console.log('🔄 Loading team members for away team:', watchedAwayTeamId)
+        await fetchTeamMembers(watchedAwayTeamId)
+      }
+    }
+    
+    loadTeamMembers()
+  }, [teamIds, fetchTeamMembers])
+
+  // Memoize step completion status to reduce re-renders
+  const stepCompletionStatus = React.useMemo(() => {
     const homeTeamSelected = watchedHomeTeamId > 0
     const awayTeamSelected = watchedAwayTeamId > 0
     const basicInfoComplete = homeTeamSelected && awayTeamSelected
+
+    const homeGameRoster = watch('gameRoster.home')
+    const awayGameRoster = watch('gameRoster.away')
+    const gameRosterComplete = homeGameRoster.length === 12 && awayGameRoster.length === 12
 
     const homeStartingFive = watch('startingFive.home')
     const awayStartingFive = watch('startingFive.away')
     const startingFiveComplete = homeStartingFive.length === 5 && awayStartingFive.length === 5
 
+    return {
+      basicInfoComplete,
+      gameRosterComplete,
+      startingFiveComplete,
+      homeGameRoster: homeGameRoster.length,
+      awayGameRoster: awayGameRoster.length,
+      homeStartingFive: homeStartingFive.length,
+      awayStartingFive: awayStartingFive.length
+    }
+  }, [watchedHomeTeamId, watchedAwayTeamId, watch])
+
+  // Update step completion status
+  useEffect(() => {
     setSetupSteps((prev: SetupStep[]) => prev.map((step: SetupStep) => {
       if (step.id === 'basic-info') {
-        return { ...step, completed: basicInfoComplete }
+        return { ...step, completed: stepCompletionStatus.basicInfoComplete }
+      }
+      if (step.id === 'game-roster') {
+        return { ...step, completed: stepCompletionStatus.gameRosterComplete }
       }
       if (step.id === 'starting-five') {
-        return { ...step, completed: startingFiveComplete }
+        return { ...step, completed: stepCompletionStatus.startingFiveComplete }
       }
       return step
     }))
-  }, [watchedHomeTeamId, watchedAwayTeamId, watch])
+
+    // Debug logging for step completion (only when values change)
+    console.log('🔍 Step Completion Debug:', stepCompletionStatus)
+  }, [stepCompletionStatus])
+
+  const handleGameRosterChange = (team: 'home' | 'away', playerId: number, checked: boolean) => {
+    const currentGameRoster = watch('gameRoster')
+    const teamGameRoster = currentGameRoster[team]
+
+    if (checked) {
+      if (teamGameRoster.length < 12) {
+        setValue(`gameRoster.${team}`, [...teamGameRoster, playerId])
+      }
+    } else {
+      const newGameRoster = teamGameRoster.filter(id => id !== playerId)
+      setValue(`gameRoster.${team}`, newGameRoster)
+      
+      // Remove from starting five if they were selected
+      const currentStartingFive = watch('startingFive')
+      const teamStartingFive = currentStartingFive[team]
+      if (teamStartingFive.includes(playerId)) {
+        setValue(`startingFive.${team}`, teamStartingFive.filter(id => id !== playerId))
+      }
+    }
+  }
 
   const handleStartingFiveChange = (team: 'home' | 'away', playerId: number, checked: boolean) => {
     const currentStartingFive = watch('startingFive')
     const teamStartingFive = currentStartingFive[team]
+    const currentGameRoster = watch('gameRoster')
+    const teamGameRoster = currentGameRoster[team]
+
+    // Only allow selection if player is in game roster
+    if (!teamGameRoster.includes(playerId)) {
+      return
+    }
 
     if (checked) {
       if (teamStartingFive.length < 5) {
@@ -181,10 +300,18 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     }
   }
 
-  const canProceedToNext = () => {
+  const canProceedToNext = React.useMemo(() => {
     const currentStepData = setupSteps[currentStep]
-    return currentStepData.completed || !currentStepData.required
-  }
+    const canProceed = currentStepData.completed || !currentStepData.required
+    console.log('🔍 canProceedToNext Debug:', {
+      currentStep,
+      stepId: currentStepData.id,
+      completed: currentStepData.completed,
+      required: currentStepData.required,
+      canProceed
+    })
+    return canProceed
+  }, [setupSteps, currentStep])
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -340,8 +467,81 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <UserGroupIcon className="h-5 w-5 mr-2" />
+              Game Roster Selection
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Select 12 players for each team from the full roster. These players will be available for the game.
+            </p>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Home Team Game Roster */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Home Team Game Roster ({watch('gameRoster.home').length}/12)
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {homeTeamPlayers.map((player: any) => (
+                    <label key={player.id} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={watch('gameRoster.home').includes(player.id)}
+                        onChange={(e) => handleGameRosterChange('home', player.id, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!watch('gameRoster.home').includes(player.id) && watch('gameRoster.home').length >= 12}
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            #{player.jersey_number} {player.first_name} {player.last_name}
+                          </span>
+                          <span className="text-xs text-gray-500">{player.position}</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Away Team Game Roster */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Away Team Game Roster ({watch('gameRoster.away').length}/12)
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {awayTeamPlayers.map((player: any) => (
+                    <label key={player.id} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={watch('gameRoster.away').includes(player.id)}
+                        onChange={(e) => handleGameRosterChange('away', player.id, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!watch('gameRoster.away').includes(player.id) && watch('gameRoster.away').length >= 12}
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            #{player.jersey_number} {player.first_name} {player.last_name}
+                          </span>
+                          <span className="text-xs text-gray-500">{player.position}</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <UserGroupIcon className="h-5 w-5 mr-2" />
               Starting Lineups
             </h2>
+            <p className="text-gray-600 mb-6">
+              Select the starting five players for each team from the game roster.
+            </p>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Home Team Starting Five */}
@@ -350,7 +550,9 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                   Home Team Starting Five ({watch('startingFive.home').length}/5)
                 </h3>
                 <div className="space-y-2">
-                  {homeTeamPlayers.map((player: any) => (
+                  {homeTeamPlayers
+                    .filter((player: any) => watch('gameRoster.home').includes(player.id))
+                    .map((player: any) => (
                     <label key={player.id} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input
                         type="checkbox"
@@ -378,7 +580,9 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                   Away Team Starting Five ({watch('startingFive.away').length}/5)
                 </h3>
                 <div className="space-y-2">
-                  {awayTeamPlayers.map((player: any) => (
+                  {awayTeamPlayers
+                    .filter((player: any) => watch('gameRoster.away').includes(player.id))
+                    .map((player: any) => (
                     <label key={player.id} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input
                         type="checkbox"
@@ -403,8 +607,8 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
           </div>
         )}
 
-        {/* Step 3: Review & Start */}
-        {currentStep === 2 && (
+        {/* Step 4: Review & Start */}
+        {currentStep === 3 && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
@@ -426,8 +630,26 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-medium text-gray-900 mb-2">Teams</h3>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p><strong>Home:</strong> {teams.find(t => t.id === watch('homeTeamId'))?.name}</p>
-                    <p><strong>Away:</strong> {teams.find(t => t.id === watch('awayTeamId'))?.name}</p>
+                    <p><strong>Home:</strong> {availableTeams.find(t => t.id === watch('homeTeamId'))?.name}</p>
+                    <p><strong>Away:</strong> {availableTeams.find(t => t.id === watch('awayTeamId'))?.name}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">Game Roster</h3>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p><strong>Home Team:</strong> {watch('gameRoster.home').length}/12 players selected</p>
+                    <p><strong>Away Team:</strong> {watch('gameRoster.away').length}/12 players selected</p>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">Starting Lineups</h3>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p><strong>Home Team:</strong> {watch('startingFive.home').length}/5 players selected</p>
+                    <p><strong>Away Team:</strong> {watch('startingFive.away').length}/5 players selected</p>
                   </div>
                 </div>
               </div>
@@ -465,7 +687,7 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
               <button
                 type="button"
                 onClick={nextStep}
-                disabled={!canProceedToNext()}
+                disabled={!canProceedToNext}
                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Next
@@ -473,7 +695,7 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
             ) : (
               <button
                 type="submit"
-                disabled={isSubmitting || !canProceedToNext()}
+                disabled={isSubmitting || !canProceedToNext}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
               >
                 {isSubmitting ? (

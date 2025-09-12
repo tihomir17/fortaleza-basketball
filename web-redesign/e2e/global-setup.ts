@@ -1,5 +1,5 @@
 import { chromium, FullConfig } from '@playwright/test'
-import path from 'path'
+import * as path from 'path'
 import { fileURLToPath } from 'url'
 
 async function globalSetup(config: FullConfig) {

@@ -84,7 +84,8 @@ test.describe('Accessibility Tests', () => {
       const type = await button.getAttribute('type')
       
       // Button should have proper role or type
-      expect(role === 'button' || type === 'button' || button.tagName.toLowerCase() === 'button').toBeTruthy()
+      const tagName = await button.evaluate(el => el.tagName.toLowerCase())
+      expect(role === 'button' || type === 'button' || tagName === 'button').toBeTruthy()
     }
   })
 
