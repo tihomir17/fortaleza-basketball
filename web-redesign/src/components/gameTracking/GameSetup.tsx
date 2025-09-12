@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   UserGroupIcon,
   TrophyIcon,
-  PlayIcon
+  PlayIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import { useGameTrackingStore } from '../../store/gameTrackingStore'
 import { useTeamsStore } from '../../store/teamsStore'
@@ -47,12 +48,14 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isGameCompleted, setIsGameCompleted] = useState(false)
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm<SetupFormData>({
     defaultValues: {
@@ -74,69 +77,152 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     }
   })
 
-  const watchedHomeTeamId = watch('homeTeamId')
-  const watchedAwayTeamId = watch('awayTeamId')
+  // Check if game is completed (has final scores)
+  useEffect(() => {
+    if (currentGame) {
+      const completed = currentGame.home_team_score !== undefined && currentGame.away_team_score !== undefined
+      setIsGameCompleted(completed)
+      console.log('🎮 Game completion status:', { completed, scores: { home: currentGame.home_team_score, away: currentGame.away_team_score } })
+    }
+  }, [currentGame])
 
-  // Auto-populate roster for user's own team
-  const autoPopulateRoster = React.useCallback((teamId: number, teamType: 'home' | 'away') => {
-    console.log('🔍 Auto-populate attempt:', {
-      teamId,
-      teamType,
-      currentTeamId: currentTeam?.id,
-      currentTeamName: currentTeam?.name,
-      teamMembersCount: teamMembers.length,
-      teamMembers: teamMembers.map(m => ({ id: m.id, name: m.first_name + ' ' + m.last_name, role: m.role, team: m.team }))
-    })
-    
-    if (!currentTeam || currentTeam.id !== teamId) {
-      console.log('🔍 Auto-populate skipped: Not user\'s team')
-      return
+  // Pre-populate form with current game data when available
+  useEffect(() => {
+    if (currentGame) {
+      console.log('🎮 Pre-populating form with game data:', currentGame)
+      setValue('homeTeamId', currentGame.home_team.id)
+      setValue('awayTeamId', currentGame.away_team.id)
+      setValue('gameDate', new Date(currentGame.game_date).toISOString().split('T')[0])
+      setValue('gameTime', new Date(currentGame.game_date).toTimeString().slice(0, 5))
+      setValue('competition', currentGame.competition?.name || '')
+      
+      // For completed games, try to auto-populate rosters
+      if (isGameCompleted) {
+        console.log('🎮 Game is completed, attempting auto-population')
+        setTimeout(() => {
+          autoPopulateForCompletedGame()
+        }, 500)
+      }
     }
+  }, [currentGame, isGameCompleted, setValue])
+
+  // Auto-populate a specific team
+  const autoPopulateTeam = useCallback((teamType: 'home' | 'away', teamId: number) => {
+    console.log('🎮 Auto-populating team:', { teamType, teamId })
+
+    // Get players from the current game data first, then fall back to team members
+    let teamPlayers: any[] = []
     
-    // Get players from the current team
-    const teamPlayers = teamMembers.filter(member => 
-      member.role === 'PLAYER' && member.team === teamId
-    )
-    
-    console.log('🔍 Team players found:', {
-      teamPlayersCount: teamPlayers.length,
-      teamPlayers: teamPlayers.map(p => ({ id: p.id, name: p.first_name + ' ' + p.last_name, jersey: p.jersey_number }))
-    })
-    
+    if (teamType === 'home' && currentGame?.home_team?.players) {
+      teamPlayers = currentGame.home_team.players.filter((player: any) => player.role === 'PLAYER')
+    } else if (teamType === 'away' && currentGame?.away_team?.players) {
+      teamPlayers = currentGame.away_team.players.filter((player: any) => player.role === 'PLAYER')
+    } else {
+      // Fallback to team members from store
+      teamPlayers = teamMembers.filter((member: any) => 
+        member.role === 'PLAYER' && member.team === teamId
+      )
+    }
+
+    console.log('🎮 Team players found:', { teamType, count: teamPlayers.length, players: teamPlayers })
+
     if (teamPlayers.length === 0) {
-      console.log('🔍 Auto-populate skipped: No players found')
+      console.log('🎮 No players found for team:', teamType)
       return
     }
+
+    // Try to load saved default roster from localStorage
+    const savedGameRoster = localStorage.getItem(`defaultGameRoster_${teamId}`)
+    const savedStartingFive = localStorage.getItem(`defaultStartingFive_${teamId}`)
     
-    // Auto-select first 12 players for game roster
-    const gameRoster = teamPlayers.slice(0, 12).map(player => player.id)
-    setValue(`gameRoster.${teamType}`, gameRoster)
+    let gameRoster: number[] = []
+    let startingFive: number[] = []
     
-    // Auto-select first 5 players for starting five
-    const startingFive = teamPlayers.slice(0, 5).map(player => player.id)
-    setValue(`startingFive.${teamType}`, startingFive)
-    
-    console.log(`🔍 Auto-populated ${teamType} team roster:`, {
-      gameRoster: gameRoster.length,
-      startingFive: startingFive.length,
-      teamName: currentTeam.name,
-      gameRosterIds: gameRoster,
-      startingFiveIds: startingFive
-    })
-    
-    // Verify the values were set
-    setTimeout(() => {
-      const currentGameRoster = watch(`gameRoster.${teamType}`)
-      const currentStartingFive = watch(`startingFive.${teamType}`)
-      console.log(`🔍 Verification - ${teamType} form values after auto-population:`, {
-        gameRoster: currentGameRoster,
-        startingFive: currentStartingFive
+    if (savedGameRoster && savedStartingFive) {
+      // Use saved default roster
+      const defaultGameRoster = JSON.parse(savedGameRoster)
+      const defaultStartingFive = JSON.parse(savedStartingFive)
+      
+      // Filter to only include players that are available in the current game
+      gameRoster = defaultGameRoster.filter((playerId: number) => 
+        teamPlayers.some(player => player.id === playerId)
+      )
+      startingFive = defaultStartingFive.filter((playerId: number) => 
+        teamPlayers.some(player => player.id === playerId) && gameRoster.includes(playerId)
+      )
+      
+      console.log('🎮 Using saved default roster:', { 
+        teamType, 
+        savedGameRoster: defaultGameRoster.length, 
+        savedStartingFive: defaultStartingFive.length,
+        filteredGameRoster: gameRoster.length,
+        filteredStartingFive: startingFive.length
       })
+    } else {
+      // Fallback to auto-selecting first 12 players for game roster
+      gameRoster = teamPlayers.slice(0, 12).map(player => player.id)
+      startingFive = teamPlayers.slice(0, 5).map(player => player.id)
+      
+      console.log('🎮 Using fallback auto-selection:', { teamType, gameRoster: gameRoster.length, startingFive: startingFive.length })
+    }
+
+    setValue(`gameRoster.${teamType}`, gameRoster)
+    setValue(`startingFive.${teamType}`, startingFive)
+
+    console.log('🎮 Auto-populated:', { teamType, gameRoster: gameRoster.length, startingFive: startingFive.length })
+
+    // Force form re-render
+    setTimeout(() => {
+      const currentValues = getValues()
+      console.log('🎮 Form values after auto-population:', {
+        teamType,
+        gameRoster: currentValues.gameRoster[teamType].length,
+        startingFive: currentValues.startingFive[teamType].length
+      })
+    }, 100)
+  }, [currentGame, teamMembers, setValue, getValues])
+
+  // Auto-populate for completed games
+  const autoPopulateForCompletedGame = useCallback(() => {
+    if (!currentGame || !currentTeam) return
+
+    console.log('🎮 Auto-populating for completed game:', {
+      currentTeamId: currentTeam.id,
+      homeTeamId: currentGame.home_team.id,
+      awayTeamId: currentGame.away_team.id
+    })
+
+    // Auto-populate home team if it's the user's team
+    if (currentGame.home_team.id === currentTeam.id) {
+      autoPopulateTeam('home', currentGame.home_team.id)
+    }
+
+    // Auto-populate away team if it's the user's team
+    if (currentGame.away_team.id === currentTeam.id) {
+      autoPopulateTeam('away', currentGame.away_team.id)
+    }
+
+    // Force step completion update after auto-population
+    setTimeout(() => {
+      const currentValues = getValues()
+      console.log('🎮 Forcing step completion update after auto-population:', {
+        gameRoster: {
+          home: currentValues.gameRoster.home.length,
+          away: currentValues.gameRoster.away.length
+        },
+        startingFive: {
+          home: currentValues.startingFive.home.length,
+          away: currentValues.startingFive.away.length
+        }
+      })
+      
+      // Trigger a re-render by updating the setup steps
+      setSetupSteps(prev => [...prev])
     }, 200)
-  }, [currentTeam, teamMembers, setValue])
+  }, [currentGame, currentTeam, autoPopulateTeam, getValues])
 
   // Create a combined list of teams that includes both user's teams and game participants
-  const availableTeams = React.useMemo(() => {
+  const availableTeams = useMemo(() => {
     const userTeams = teams || []
     const gameTeams = currentGame ? [currentGame.home_team, currentGame.away_team] : []
     
@@ -149,37 +235,24 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     return uniqueTeams
   }, [teams, currentGame])
 
-  // Get team players for starting five selection
-  // Try to get players from current game data first, then fall back to team members
-  const homeTeamPlayers = React.useMemo(() => {
+  // Get team players for roster selection
+  const homeTeamPlayers = useMemo(() => {
     if (currentGame?.home_team?.players) {
       return currentGame.home_team.players.filter((player: any) => player.role === 'PLAYER')
     }
     return teamMembers.filter((member: any) => 
-      member.role === 'PLAYER' && member.team === watchedHomeTeamId
+      member.role === 'PLAYER' && member.team === watch('homeTeamId')
     )
-  }, [currentGame, teamMembers, watchedHomeTeamId])
+  }, [currentGame, teamMembers, watch('homeTeamId')])
 
-  const awayTeamPlayers = React.useMemo(() => {
+  const awayTeamPlayers = useMemo(() => {
     if (currentGame?.away_team?.players) {
       return currentGame.away_team.players.filter((player: any) => player.role === 'PLAYER')
     }
     return teamMembers.filter((member: any) => 
-      member.role === 'PLAYER' && member.team === watchedAwayTeamId
+      member.role === 'PLAYER' && member.team === watch('awayTeamId')
     )
-  }, [currentGame, teamMembers, watchedAwayTeamId])
-
-  // Debug logging (memoized to reduce console spam)
-  const debugInfo = React.useMemo(() => ({
-    teamMembers: teamMembers.length,
-    watchedHomeTeamId,
-    watchedAwayTeamId,
-    homeTeamPlayers: homeTeamPlayers.length,
-    awayTeamPlayers: awayTeamPlayers.length,
-    availableTeams: availableTeams.length
-  }), [teamMembers.length, watchedHomeTeamId, watchedAwayTeamId, homeTeamPlayers.length, awayTeamPlayers.length, availableTeams.length])
-  
-  console.log('🔍 GameSetup Debug:', debugInfo)
+  }, [currentGame, teamMembers, watch('awayTeamId')])
 
   const [setupSteps, setSetupSteps] = useState<SetupStep[]>([
     {
@@ -212,74 +285,33 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     }
   ])
 
-  // Pre-populate form with current game data when available
-  useEffect(() => {
-    if (currentGame) {
-      setValue('homeTeamId', currentGame.home_team.id)
-      setValue('awayTeamId', currentGame.away_team.id)
-      setValue('gameDate', new Date(currentGame.game_date).toISOString().split('T')[0])
-      setValue('gameTime', new Date(currentGame.game_date).toTimeString().slice(0, 5))
-      setValue('competition', currentGame.competition?.name || '')
-    }
-  }, [currentGame, setValue])
-
-  // Load team members when teams are selected (memoized to prevent unnecessary calls)
-  const teamIds = React.useMemo(() => [watchedHomeTeamId, watchedAwayTeamId], [watchedHomeTeamId, watchedAwayTeamId])
-  
+  // Load team members when teams are selected
   useEffect(() => {
     const loadTeamMembers = async () => {
-      if (watchedHomeTeamId && watchedHomeTeamId > 0) {
-        console.log('🔄 Loading team members for home team:', watchedHomeTeamId)
-        await fetchTeamMembers(watchedHomeTeamId)
+      const homeTeamId = watch('homeTeamId')
+      const awayTeamId = watch('awayTeamId')
+      
+      if (homeTeamId && homeTeamId > 0) {
+        await fetchTeamMembers(homeTeamId)
       }
-      if (watchedAwayTeamId && watchedAwayTeamId > 0) {
-        console.log('🔄 Loading team members for away team:', watchedAwayTeamId)
-        await fetchTeamMembers(watchedAwayTeamId)
+      if (awayTeamId && awayTeamId > 0) {
+        await fetchTeamMembers(awayTeamId)
       }
     }
     
     loadTeamMembers()
-  }, [teamIds, fetchTeamMembers])
+  }, [watch('homeTeamId'), watch('awayTeamId'), fetchTeamMembers])
 
-  // Auto-populate roster when user's team is selected
-  useEffect(() => {
-    console.log('🔍 Home team auto-populate effect triggered:', {
-      watchedHomeTeamId,
-      teamMembersLength: teamMembers.length,
-      currentTeamId: currentTeam?.id
-    })
-    
-    if (watchedHomeTeamId && teamMembers.length > 0) {
-      // Add a small delay to ensure the form is ready
-      setTimeout(() => {
-        autoPopulateRoster(watchedHomeTeamId, 'home')
-      }, 100)
-    }
-  }, [watchedHomeTeamId, teamMembers, autoPopulateRoster, currentTeam])
-
-  useEffect(() => {
-    console.log('🔍 Away team auto-populate effect triggered:', {
-      watchedAwayTeamId,
-      teamMembersLength: teamMembers.length,
-      currentTeamId: currentTeam?.id
-    })
-    
-    if (watchedAwayTeamId && teamMembers.length > 0) {
-      // Add a small delay to ensure the form is ready
-      setTimeout(() => {
-        autoPopulateRoster(watchedAwayTeamId, 'away')
-      }, 100)
-    }
-  }, [watchedAwayTeamId, teamMembers, autoPopulateRoster, currentTeam])
-
-  // Watch form values for roster changes
+  // Watch form values for step completion
+  const watchedHomeTeamId = watch('homeTeamId')
+  const watchedAwayTeamId = watch('awayTeamId')
   const watchedHomeGameRoster = watch('gameRoster.home')
   const watchedAwayGameRoster = watch('gameRoster.away')
   const watchedHomeStartingFive = watch('startingFive.home')
   const watchedAwayStartingFive = watch('startingFive.away')
 
-  // Memoize step completion status to reduce re-renders
-  const stepCompletionStatus = React.useMemo(() => {
+  // Update step completion status
+  useEffect(() => {
     const homeTeamSelected = watchedHomeTeamId > 0
     const awayTeamSelected = watchedAwayTeamId > 0
     const basicInfoComplete = homeTeamSelected && awayTeamSelected
@@ -287,7 +319,7 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     const gameRosterComplete = watchedHomeGameRoster.length === 12 && watchedAwayGameRoster.length === 12
     const startingFiveComplete = watchedHomeStartingFive.length === 5 && watchedAwayStartingFive.length === 5
 
-    return {
+    console.log('🎮 Step completion check:', {
       basicInfoComplete,
       gameRosterComplete,
       startingFiveComplete,
@@ -295,53 +327,41 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
       awayGameRoster: watchedAwayGameRoster.length,
       homeStartingFive: watchedHomeStartingFive.length,
       awayStartingFive: watchedAwayStartingFive.length
-    }
-  }, [watchedHomeTeamId, watchedAwayTeamId, watchedHomeGameRoster, watchedAwayGameRoster, watchedHomeStartingFive, watchedAwayStartingFive])
+    })
 
-  // Update step completion status
-  useEffect(() => {
     setSetupSteps((prev: SetupStep[]) => prev.map((step: SetupStep) => {
       if (step.id === 'basic-info') {
-        return { ...step, completed: stepCompletionStatus.basicInfoComplete }
+        return { ...step, completed: basicInfoComplete }
       }
       if (step.id === 'game-roster') {
-        return { ...step, completed: stepCompletionStatus.gameRosterComplete }
+        return { ...step, completed: gameRosterComplete }
       }
       if (step.id === 'starting-five') {
-        return { ...step, completed: stepCompletionStatus.startingFiveComplete }
+        return { ...step, completed: startingFiveComplete }
+      }
+      if (step.id === 'review') {
+        // Review step is complete when all other required steps are complete
+        return { ...step, completed: basicInfoComplete && gameRosterComplete && startingFiveComplete }
       }
       return step
     }))
-
-    // Debug logging for step completion (only when values change)
-    console.log('🔍 Step Completion Debug:', stepCompletionStatus)
-  }, [stepCompletionStatus])
+  }, [watchedHomeTeamId, watchedAwayTeamId, watchedHomeGameRoster, watchedAwayGameRoster, watchedHomeStartingFive, watchedAwayStartingFive])
 
   const handleGameRosterChange = (team: 'home' | 'away', playerId: number, checked: boolean) => {
-    const currentGameRoster = watch('gameRoster')
+    const currentGameRoster = getValues('gameRoster')
     const teamGameRoster = currentGameRoster[team]
-
-    console.log('🔍 handleGameRosterChange Debug:', {
-      team,
-      playerId,
-      checked,
-      currentTeamRoster: teamGameRoster.length,
-      teamGameRoster
-    })
 
     if (checked) {
       if (teamGameRoster.length < 12) {
         const newRoster = [...teamGameRoster, playerId]
         setValue(`gameRoster.${team}`, newRoster)
-        console.log('🔍 Added player to roster:', { team, newRosterLength: newRoster.length })
       }
     } else {
       const newGameRoster = teamGameRoster.filter(id => id !== playerId)
       setValue(`gameRoster.${team}`, newGameRoster)
-      console.log('🔍 Removed player from roster:', { team, newRosterLength: newGameRoster.length })
       
       // Remove from starting five if they were selected
-      const currentStartingFive = watch('startingFive')
+      const currentStartingFive = getValues('startingFive')
       const teamStartingFive = currentStartingFive[team]
       if (teamStartingFive.includes(playerId)) {
         setValue(`startingFive.${team}`, teamStartingFive.filter(id => id !== playerId))
@@ -350,9 +370,9 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
   }
 
   const handleStartingFiveChange = (team: 'home' | 'away', playerId: number, checked: boolean) => {
-    const currentStartingFive = watch('startingFive')
+    const currentStartingFive = getValues('startingFive')
     const teamStartingFive = currentStartingFive[team]
-    const currentGameRoster = watch('gameRoster')
+    const currentGameRoster = getValues('gameRoster')
     const teamGameRoster = currentGameRoster[team]
 
     // Only allow selection if player is in game roster
@@ -401,16 +421,19 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     }
   }
 
-  const canProceedToNext = React.useMemo(() => {
+  const canProceedToNext = useMemo(() => {
     const currentStepData = setupSteps[currentStep]
     const canProceed = currentStepData.completed || !currentStepData.required
-    console.log('🔍 canProceedToNext Debug:', {
+    
+    console.log('🎮 canProceedToNext check:', {
       currentStep,
       stepId: currentStepData.id,
       completed: currentStepData.completed,
       required: currentStepData.required,
-      canProceed
+      canProceed,
+      allSteps: setupSteps.map(step => ({ id: step.id, completed: step.completed }))
     })
+    
     return canProceed
   }, [setupSteps, currentStep])
 
@@ -423,7 +446,14 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
           Game Setup
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Configure your game settings before starting possession tracking
+          {isGameCompleted ? (
+            <span className="flex items-center">
+              <ClockIcon className="h-5 w-5 mr-2 text-green-600" />
+              This game is completed. Setting up for analysis and tracking.
+            </span>
+          ) : (
+            'Configure your game settings before starting possession tracking'
+          )}
         </p>
       </div>
 
@@ -574,19 +604,19 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
               Select 12 players for each team from the full roster. These players will be available for the game.
             </p>
             
-            {/* Auto-population notification */}
-            {currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+            {/* Auto-population notification for completed games */}
+            {isGameCompleted && currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <CheckCircleIcon className="h-5 w-5 text-blue-400" />
+                    <CheckCircleIcon className="h-5 w-5 text-green-400" />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-800">
+                    <h3 className="text-sm font-medium text-green-800">
                       Auto-populated for {currentTeam.name}
                     </h3>
-                    <div className="mt-2 text-sm text-blue-700">
-                      <p>Your team's default roster and starting lineup have been automatically selected. You can modify the selections below if needed.</p>
+                    <div className="mt-2 text-sm text-green-700">
+                      <p>Your team's default roster has been automatically selected for this completed game. You can modify the selections below if needed.</p>
                     </div>
                   </div>
                 </div>
@@ -663,8 +693,8 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
               Select the starting five players for each team from the game roster.
             </p>
             
-            {/* Auto-population notification */}
-            {currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
+            {/* Auto-population notification for completed games */}
+            {isGameCompleted && currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
               <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -675,7 +705,7 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                       Starting lineup auto-selected
                     </h3>
                     <div className="mt-2 text-sm text-green-700">
-                      <p>Your team's default starting five has been automatically selected. You can modify the selections below if needed.</p>
+                      <p>Your team's default starting five has been automatically selected for this completed game. You can modify the selections below if needed.</p>
                     </div>
                   </div>
                 </div>
@@ -763,6 +793,9 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                     <p><strong>Time:</strong> {watch('gameTime')}</p>
                     <p><strong>Location:</strong> {watch('location') || 'Not specified'}</p>
                     <p><strong>Competition:</strong> {watch('competition') || 'Not specified'}</p>
+                    {isGameCompleted && currentGame && (
+                      <p><strong>Final Score:</strong> {currentGame.home_team_score} - {currentGame.away_team_score}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -800,10 +833,15 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
                 </div>
               )}
 
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">Ready to Start</h3>
-                <p className="text-sm text-blue-700">
-                  All setup steps are complete. Click "Start Game Tracking" to begin recording possessions and statistics.
+              <div className={`p-4 rounded-lg ${isGameCompleted ? 'bg-green-50' : 'bg-blue-50'}`}>
+                <h3 className={`font-medium mb-2 ${isGameCompleted ? 'text-green-900' : 'text-blue-900'}`}>
+                  {isGameCompleted ? 'Ready for Analysis' : 'Ready to Start'}
+                </h3>
+                <p className={`text-sm ${isGameCompleted ? 'text-green-700' : 'text-blue-700'}`}>
+                  {isGameCompleted 
+                    ? 'All setup steps are complete. Click "Start Game Tracking" to begin analyzing this completed game and its possessions.'
+                    : 'All setup steps are complete. Click "Start Game Tracking" to begin recording possessions and statistics.'
+                  }
                 </p>
               </div>
             </div>

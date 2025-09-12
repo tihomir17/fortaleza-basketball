@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTeamsStore } from '../../store/teamsStore'
+import { 
+  UserGroupIcon, 
+  PencilIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline'
 
 type Role = 'PLAYER' | 'COACH' | 'STAFF'
 
@@ -33,13 +38,59 @@ export function ManageRoster() {
   const [role, setRole] = useState<Role>('PLAYER')
   const [form, setForm] = useState<{ [k: string]: string }>({})
   const [selectedExistingId, setSelectedExistingId] = useState<number | null>(null)
+  
+  // Default roster management
+  const [defaultGameRoster, setDefaultGameRoster] = useState<number[]>([])
+  const [defaultStartingFive, setDefaultStartingFive] = useState<number[]>([])
+  const [isEditingRoster, setIsEditingRoster] = useState(false)
 
   useEffect(() => {
     if (!teamId) return
     fetchTeam(teamId)
     fetchTeamMembers(teamId)
     fetchAvailableJerseyNumbers(teamId)
+    
+    // Load default roster from localStorage
+    const savedGameRoster = localStorage.getItem(`defaultGameRoster_${teamId}`)
+    const savedStartingFive = localStorage.getItem(`defaultStartingFive_${teamId}`)
+    
+    if (savedGameRoster) {
+      setDefaultGameRoster(JSON.parse(savedGameRoster))
+    }
+    if (savedStartingFive) {
+      setDefaultStartingFive(JSON.parse(savedStartingFive))
+    }
   }, [teamId, fetchTeam, fetchTeamMembers, fetchAvailableJerseyNumbers])
+
+  // Save default roster to localStorage
+  const saveDefaultRoster = () => {
+    localStorage.setItem(`defaultGameRoster_${teamId}`, JSON.stringify(defaultGameRoster))
+    localStorage.setItem(`defaultStartingFive_${teamId}`, JSON.stringify(defaultStartingFive))
+    setIsEditingRoster(false)
+  }
+
+  // Handle roster selection
+  const handleRosterSelection = (playerId: number, type: 'gameRoster' | 'startingFive', checked: boolean) => {
+    if (type === 'gameRoster') {
+      if (checked) {
+        if (defaultGameRoster.length < 12) {
+          setDefaultGameRoster(prev => [...prev, playerId])
+        }
+      } else {
+        setDefaultGameRoster(prev => prev.filter(id => id !== playerId))
+        // Remove from starting five if present
+        setDefaultStartingFive(prev => prev.filter(id => id !== playerId))
+      }
+    } else if (type === 'startingFive') {
+      if (checked) {
+        if (defaultStartingFive.length < 5 && defaultGameRoster.includes(playerId)) {
+          setDefaultStartingFive(prev => [...prev, playerId])
+        }
+      } else {
+        setDefaultStartingFive(prev => prev.filter(id => id !== playerId))
+      }
+    }
+  }
 
   const players = useMemo(() => (currentTeam?.players ?? []).slice().sort((a, b) => {
     const na = a.jersey_number ?? 1000
@@ -194,6 +245,170 @@ export function ManageRoster() {
             </ul>
           )}
         </section>
+      </div>
+
+      {/* Default Roster Management */}
+      <div className="mt-8 bg-white dark:bg-gray-800 rounded shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+              <UserGroupIcon className="h-6 w-6 mr-2" />
+              Default Game Roster
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+              Set your default 12-player game roster and starting five. This will be auto-populated in game setup.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {isEditingRoster ? (
+              <>
+                <button
+                  onClick={() => setIsEditingRoster(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveDefaultRoster}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-2" />
+                  Save Roster
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsEditingRoster(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+              >
+                <PencilIcon className="h-4 w-4 mr-2" />
+                Edit Roster
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditingRoster ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Game Roster Selection */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                Game Roster ({defaultGameRoster.length}/12)
+              </h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-3">
+                {players.map((player) => (
+                  <label key={player.id} className="flex items-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={defaultGameRoster.includes(player.id)}
+                      onChange={(e) => handleRosterSelection(player.id, 'gameRoster', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      disabled={!defaultGameRoster.includes(player.id) && defaultGameRoster.length >= 12}
+                    />
+                    <div className="ml-3 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900">
+                          #{player.jersey_number} {player.first_name} {player.last_name}
+                        </span>
+                        <span className="text-xs text-gray-500">Player</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Starting Five Selection */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                Starting Five ({defaultStartingFive.length}/5)
+              </h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto border rounded-lg p-3">
+                {players
+                  .filter(player => defaultGameRoster.includes(player.id))
+                  .map((player) => (
+                    <label key={player.id} className="flex items-center p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={defaultStartingFive.includes(player.id)}
+                        onChange={(e) => handleRosterSelection(player.id, 'startingFive', e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!defaultStartingFive.includes(player.id) && defaultStartingFive.length >= 5}
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">
+                            #{player.jersey_number} {player.first_name} {player.last_name}
+                          </span>
+                          <span className="text-xs text-gray-500">Player</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Current Game Roster Display */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                Current Game Roster ({defaultGameRoster.length}/12)
+              </h3>
+              <div className="space-y-2">
+                {defaultGameRoster.length > 0 ? (
+                  players
+                    .filter(player => defaultGameRoster.includes(player.id))
+                    .map((player) => (
+                      <div key={player.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            #{player.jersey_number} {player.first_name} {player.last_name}
+                          </span>
+                          <span className="ml-2 text-xs text-gray-500">Player</span>
+                        </div>
+                        {defaultStartingFive.includes(player.id) && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            Starting
+                          </span>
+                        )}
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No default roster set</p>
+                )}
+              </div>
+            </div>
+
+            {/* Current Starting Five Display */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                Current Starting Five ({defaultStartingFive.length}/5)
+              </h3>
+              <div className="space-y-2">
+                {defaultStartingFive.length > 0 ? (
+                  players
+                    .filter(player => defaultStartingFive.includes(player.id))
+                    .map((player) => (
+                      <div key={player.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            #{player.jersey_number} {player.first_name} {player.last_name}
+                          </span>
+                          <span className="ml-2 text-xs text-gray-500">Player</span>
+                        </div>
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          Starting
+                        </span>
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No default starting five set</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {isAddOpen && (
