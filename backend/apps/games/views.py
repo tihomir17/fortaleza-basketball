@@ -281,7 +281,6 @@ class GameViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=False, methods=["get"])
-    @cache_analytics_data(timeout=1800)  # Cache for 30 minutes
     def comprehensive_analytics(self, request):
         """
         Get comprehensive analytics with extensive filtering options.
@@ -289,48 +288,53 @@ class GameViewSet(viewsets.ModelViewSet):
         Cached for 30 minutes to improve performance
         """
         try:
-            # Get filter parameters
-            team_id = request.query_params.get("team_id")
-            quarter_filter = request.query_params.get("quarter")
-            last_games = request.query_params.get("last_games")
-            outcome_filter = request.query_params.get("outcome")
-            home_away_filter = request.query_params.get("home_away")
-            opponent_filter = request.query_params.get("opponent")
-            min_possessions = int(request.query_params.get("min_possessions", 10))
-
-            # Convert team_id to int if provided
-            if team_id:
-                team_id = int(team_id)
-
-            # Convert quarter_filter to int if provided
-            if quarter_filter:
-                quarter_filter = int(quarter_filter)
-
-            # Convert last_games to int if provided
-            if last_games:
-                last_games = int(last_games)
-
-            # Convert opponent_filter to int if provided
-            if opponent_filter:
-                opponent_filter = int(opponent_filter)
-
-            # Get comprehensive analytics
-            analytics_data = GameAnalyticsService.get_comprehensive_analytics(
-                team_id=team_id,
-                quarter_filter=quarter_filter,
-                last_games=last_games,
-                outcome_filter=outcome_filter,
-                home_away_filter=home_away_filter,
-                opponent_filter=opponent_filter,
-                min_possessions=min_possessions,
-            )
-
+            # Get comprehensive analytics data (cached)
+            analytics_data = self._get_comprehensive_analytics_cached(request)
             return Response(analytics_data)
 
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @cache_analytics_data(timeout=1800)  # Cache for 30 minutes
+    def _get_comprehensive_analytics_cached(self, request):
+        """Cached version of comprehensive analytics data"""
+        # Get filter parameters
+        team_id = request.query_params.get("team_id")
+        quarter_filter = request.query_params.get("quarter")
+        last_games = request.query_params.get("last_games")
+        outcome_filter = request.query_params.get("outcome")
+        home_away_filter = request.query_params.get("home_away")
+        opponent_filter = request.query_params.get("opponent")
+        min_possessions = int(request.query_params.get("min_possessions", 10))
+
+        # Convert team_id to int if provided
+        if team_id:
+            team_id = int(team_id)
+
+        # Convert quarter_filter to int if provided
+        if quarter_filter:
+            quarter_filter = int(quarter_filter)
+
+        # Convert last_games to int if provided
+        if last_games:
+            last_games = int(last_games)
+
+        # Convert opponent_filter to int if provided
+        if opponent_filter:
+            opponent_filter = int(opponent_filter)
+
+        # Get comprehensive analytics
+        return GameAnalyticsService.get_comprehensive_analytics(
+            team_id=team_id,
+            quarter_filter=quarter_filter,
+            last_games=last_games,
+            outcome_filter=outcome_filter,
+            home_away_filter=home_away_filter,
+            opponent_filter=opponent_filter,
+            min_possessions=min_possessions,
+        )
 
     @action(detail=False, methods=["get"])
     def export_analytics_pdf(self, request):
@@ -758,13 +762,13 @@ class GameViewSet(viewsets.ModelViewSet):
             return self._get_dashboard_data(request)
         else:
             # Use cached data
-            return self._get_dashboard_data_cached(request)
+            data = self._get_dashboard_data_cached(request)
+            return Response(data)
     
     @cache_dashboard_data(timeout=60)  # Cache for 1 minute for more real-time updates
     def _get_dashboard_data_cached(self, request):
         """Cached version of dashboard data"""
-        data = self._generate_dashboard_data(request)
-        return Response(data)
+        return self._generate_dashboard_data(request)
     
     def _get_dashboard_data(self, request):
         """Get fresh dashboard data without cache"""
@@ -1418,8 +1422,8 @@ class GameViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="calendar-data")
     def get_calendar_data(self, request):
         """
-        Get all games for calendar display (no team scoping restrictions)
-        This endpoint allows authenticated users to see all games for calendar purposes
+        Get games for calendar display with date filtering and pagination
+        This endpoint allows authenticated users to see games for calendar purposes
         """
         try:
             user = request.user
@@ -1429,14 +1433,34 @@ class GameViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
 
-            # Get all games without team scoping for calendar display
-            games = Game.objects.all().select_related(
+            # Get date range parameters
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            team_id = request.query_params.get('team_id')
+            
+            # Build queryset with date filtering
+            games_queryset = Game.objects.select_related(
                 "home_team", "away_team", "competition"
             ).order_by("game_date")
-
+            
+            # Apply date filtering if provided
+            if start_date:
+                games_queryset = games_queryset.filter(game_date__gte=start_date)
+            if end_date:
+                games_queryset = games_queryset.filter(game_date__lte=end_date)
+            
+            # Apply team filtering if provided
+            if team_id:
+                games_queryset = games_queryset.filter(
+                    Q(home_team_id=team_id) | Q(away_team_id=team_id)
+                )
+            
+            # Limit to reasonable number of games (e.g., 100 per request)
+            games_queryset = games_queryset[:100]
+            
             # Serialize games for calendar
             games_data = []
-            for game in games:
+            for game in games_queryset:
                 games_data.append({
                     "id": game.id,
                     "home_team": {
@@ -1463,6 +1487,9 @@ class GameViewSet(viewsets.ModelViewSet):
             return Response({
                 "games": games_data,
                 "count": len(games_data),
+                "has_more": Game.objects.filter(
+                    game_date__gte=end_date if end_date else timezone.now()
+                ).exists() if end_date else False,
             })
             
         except Exception as e:

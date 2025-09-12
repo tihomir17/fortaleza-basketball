@@ -30,33 +30,117 @@ class Command(BaseCommand):
             default=2,
             help="Number of seasons to generate (default: 2 for 2024-2025 and 2025-2026)",
         )
+        parser.add_argument(
+            "--games-per-season",
+            type=int,
+            default=None,
+            help="Number of games per season (default: auto-calculated based on teams)",
+        )
+        parser.add_argument(
+            "--teams",
+            type=int,
+            default=None,
+            help="Number of teams to create (default: 12)",
+        )
+        parser.add_argument(
+            "--possessions-per-game",
+            type=int,
+            default=None,
+            help="Average number of possessions per game (default: 150-200)",
+        )
+        parser.add_argument(
+            "--quick",
+            action="store_true",
+            help="Quick mode: fewer games and possessions for faster generation",
+        )
+        parser.add_argument(
+            "--full",
+            action="store_true",
+            help="Full mode: maximum games and possessions for complete dataset",
+        )
+        parser.add_argument(
+            "--skip-clear",
+            action="store_true",
+            help="Skip clearing existing data (add to existing data instead)",
+        )
 
     def handle(self, *args, **options):
-        if options["clear_existing"]:
+        # Process command line options
+        self.process_options(options)
+        
+        if options["clear_existing"] and not options["skip_clear"]:
             self.stdout.write("Clearing existing data...")
 
-            # Clear in proper order to avoid foreign key constraints
-            Possession.objects.all().delete()
-            self.stdout.write("✓ Possessions cleared")
+            # Use Django's CASCADE deletion to handle foreign key constraints properly
+            from django.db import transaction, connection
+            
+            with transaction.atomic():
+                # Use raw SQL for much faster bulk deletion
+                with connection.cursor() as cursor:
+                    # Get counts before deletion
+                    cursor.execute("SELECT COUNT(*) FROM possessions_possession")
+                    possession_count = cursor.fetchone()[0]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM games_gameroster")
+                    roster_count = cursor.fetchone()[0]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM games_game")
+                    game_count = cursor.fetchone()[0]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM teams_team")
+                    team_count = cursor.fetchone()[0]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM users_user WHERE is_superuser = false")
+                    user_count = cursor.fetchone()[0]
+                
+                # Fast bulk deletion using raw SQL - order matters for foreign keys
+                with connection.cursor() as cursor:
+                    # Clear ManyToMany relationship tables first
+                    cursor.execute("DELETE FROM possessions_possession_players_on_court")
+                    cursor.execute("DELETE FROM possessions_possession_defensive_players_on_court")
+                    cursor.execute("DELETE FROM possessions_possession_offensive_rebound_players")
+                    cursor.execute("DELETE FROM games_gameroster_players")
+                    cursor.execute("DELETE FROM games_gameroster_starting_five")
+                    self.stdout.write("✓ Cleared possession and roster ManyToMany relationships")
+                    
+                    # Clear possessions (has foreign keys to games and rosters)
+                    if possession_count > 0:
+                        cursor.execute("DELETE FROM possessions_possession")
+                        self.stdout.write(f"✓ Cleared {possession_count} possessions")
 
-            GameRoster.objects.all().delete()
-            self.stdout.write("✓ Game rosters cleared")
+                    # Clear game rosters (has foreign keys to games and teams)
+                    if roster_count > 0:
+                        cursor.execute("DELETE FROM games_gameroster")
+                        self.stdout.write(f"✓ Cleared {roster_count} game rosters")
 
-            Game.objects.all().delete()
-            self.stdout.write("✓ Games cleared")
+                    # Clear games (has foreign keys to teams)
+                    if game_count > 0:
+                        cursor.execute("DELETE FROM games_game")
+                        self.stdout.write(f"✓ Cleared {game_count} games")
 
-            # Clear team players first
-            for team in Team.objects.all():
-                team.players.clear()
-            self.stdout.write("✓ Team players cleared")
+                    # Clear team ManyToMany relationships
+                    cursor.execute("DELETE FROM teams_team_players")
+                    cursor.execute("DELETE FROM teams_team_coaches")
+                    cursor.execute("DELETE FROM teams_team_staff")
+                    self.stdout.write("✓ Team relationships cleared")
 
-            Team.objects.all().delete()
-            self.stdout.write("✓ Teams cleared")
+                    # Clear play definitions (has foreign key to teams)
+                    cursor.execute("DELETE FROM plays_playdefinition")
+                    self.stdout.write("✓ Cleared play definitions")
 
-            User.objects.filter(is_superuser=False).delete()
-            self.stdout.write("✓ Non-admin users cleared")
+                    # Clear teams
+                    if team_count > 0:
+                        cursor.execute("DELETE FROM teams_team")
+                        self.stdout.write(f"✓ Cleared {team_count} teams")
+
+                    # Clear non-admin users
+                    if user_count > 0:
+                        cursor.execute("DELETE FROM users_user WHERE is_superuser = false")
+                        self.stdout.write(f"✓ Cleared {user_count} non-admin users")
 
             self.stdout.write("All existing data cleared successfully")
+        elif options["skip_clear"]:
+            self.stdout.write("Skipping data clearing - will add to existing data")
         else:
             self.stdout.write("Checking for existing data...")
             existing_teams = Team.objects.count()
@@ -65,13 +149,14 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.WARNING(
                         f"Found existing data: {existing_teams} teams, {existing_games} games. "
-                        "Use --clear-existing to remove all data first."
+                        "Use --clear-existing to remove all data first, or --skip-clear to add to existing data."
                     )
                 )
                 return
 
-        # Verify database is empty BEFORE creating any data
-        self.verify_database_empty()
+        # Verify database is empty BEFORE creating any data (unless skip-clear is used)
+        if not options["skip_clear"]:
+            self.verify_database_empty()
 
         self.stdout.write("Creating admin user...")
         admin_user = self.create_admin_user()
@@ -114,6 +199,41 @@ class Command(BaseCommand):
                 "Ultra-realistic basketball database populated successfully!"
             )
         )
+
+    def process_options(self, options):
+        """Process and validate command line options"""
+        # Set default values based on mode
+        if options["quick"]:
+            self.num_teams = options.get("teams", 6)
+            self.games_per_season = options.get("games_per_season", 15)  # 6 teams = 15 games each
+            self.possessions_per_game = options.get("possessions_per_game", 100)
+            self.stdout.write(self.style.WARNING("Quick mode: Generating minimal dataset for fast testing"))
+        elif options["full"]:
+            self.num_teams = options.get("teams", 16)
+            self.games_per_season = options.get("games_per_season", 240)  # 16 teams = 240 games each
+            self.possessions_per_game = options.get("possessions_per_game", 200)
+            self.stdout.write(self.style.WARNING("Full mode: Generating complete dataset (this will take a while)"))
+        else:
+            # Normal mode
+            self.num_teams = options.get("teams", 12)
+            self.games_per_season = options.get("games_per_season", None)  # Auto-calculate
+            self.possessions_per_game = options.get("possessions_per_game", None)  # Auto-calculate
+        
+        # Store other options
+        self.seasons = options.get("seasons", 2)
+        
+        # Display configuration
+        self.stdout.write(f"Configuration:")
+        self.stdout.write(f"  - Teams: {self.num_teams}")
+        self.stdout.write(f"  - Seasons: {self.seasons}")
+        if self.games_per_season:
+            self.stdout.write(f"  - Games per season: {self.games_per_season}")
+        else:
+            self.stdout.write(f"  - Games per season: Auto-calculated (each team plays every other team twice)")
+        if self.possessions_per_game:
+            self.stdout.write(f"  - Possessions per game: {self.possessions_per_game}")
+        else:
+            self.stdout.write(f"  - Possessions per game: Auto-calculated (150-200 range)")
 
     def create_admin_user(self):
         """Create an admin user for creating teams and games"""
@@ -269,7 +389,10 @@ class Command(BaseCommand):
             },
         ]
 
-        for team_info in team_data:
+        # Limit teams based on configuration
+        teams_to_create = team_data[:self.num_teams]
+        
+        for team_info in teams_to_create:
             team, created = Team.objects.get_or_create(
                 name=team_info["name"], defaults={"created_by": admin_user}
             )
@@ -788,11 +911,23 @@ class Command(BaseCommand):
     def generate_regular_season(self, teams, competition, admin_user, season_year):
         """Generate regular season with realistic scheduling"""
         games = []
+        
+        # Calculate how many games to generate
+        if self.games_per_season:
+            # Use configured number of games
+            total_games_needed = self.games_per_season
+            self.stdout.write(f"Generating {total_games_needed} games for regular season...")
+        else:
+            # Auto-calculate: each team plays every other team twice (home and away)
+            total_games_needed = len(teams) * (len(teams) - 1)
+            self.stdout.write(f"Auto-calculating: {len(teams)} teams = {total_games_needed} games (each team plays every other team twice)")
 
+        games_generated = 0
+        
         # Each team plays every other team twice (home and away)
         for i, home_team in enumerate(teams):
             for j, away_team in enumerate(teams):
-                if i != j:  # Don't play against yourself
+                if i != j and games_generated < total_games_needed:  # Don't play against yourself
                     # Home game
                     home_game = self.create_realistic_game(
                         home_team,
@@ -803,6 +938,10 @@ class Command(BaseCommand):
                         "regular",
                     )
                     games.append(home_game)
+                    games_generated += 1
+                    
+                    if games_generated >= total_games_needed:
+                        break
 
                     # Away game (later in season)
                     away_game = self.create_realistic_game(
@@ -1230,8 +1369,17 @@ class Command(BaseCommand):
         """Generate realistic possessions for a single game"""
         possessions = []
 
-        # Realistic possession count: 85-110 per team, so 170-220 total
-        total_possessions = random.randint(170, 220)
+        # Realistic possession count: use configured value or default range
+        if self.possessions_per_game:
+            # Use configured number with some variation
+            variation = int(self.possessions_per_game * 0.1)  # 10% variation
+            total_possessions = random.randint(
+                self.possessions_per_game - variation,
+                self.possessions_per_game + variation
+            )
+        else:
+            # Default range: 85-110 per team, so 170-220 total
+            total_possessions = random.randint(170, 220)
 
         # Game quarters (4 quarters + potential overtime)
         quarters = [1, 2, 3, 4]
@@ -1428,17 +1576,13 @@ class Command(BaseCommand):
                 if offensive_plays.exists():
                     return random.choice(list(offensive_plays))
 
-            # Fallback to common offensive plays from the JSON
+            # Fallback to common offensive plays from the JSON (excluding Control)
             fallback_plays = [
-                "Set 1",
-                "Set 2",
-                "FastBreak",
-                "PnR",
-                "ISO",
-                "HighPost",
-                "LowPost",
-                "BoB 1",
-                "SoB 1",
+                "Set 1", "Set 2", "Set 3", "Set 4", "Set 5", "Set 6", "Set 7", "Set 8", "Set 9", "Set 10",
+                "Set 11", "Set 12", "Set 13", "Set 14", "Set 15", "Set 16", "Set 17", "Set 18", "Set 19", "Set 20",
+                "FastBreak", "Transit", "<14s", "BoB 1", "BoB 2", "SoB 1", "SoB 2", "Special 1", "Special 2", "ATO Spec",
+                "PnR", "Score", "Big Guy", "3rd Guy", "ISO", "HighPost", "LowPost", "Attack CloseOut", 
+                "After Kick Out", "After Ext Pass", "Cuts", "After Off Reb", "After HandOff", "After OffScreen"
             ]
             return random.choice(fallback_plays)
         except Exception:
@@ -1457,16 +1601,11 @@ class Command(BaseCommand):
                 if defensive_plays.exists():
                     return random.choice(list(defensive_plays))
 
-            # Fallback to common defensive plays from the JSON
+            # Fallback to common defensive plays from the JSON (excluding Control)
             fallback_plays = [
-                "2-3",
-                "3-2",
-                "1-3-1",
-                "1-2-2",
-                "zone",
-                "SWITCH",
-                "DROP",
-                "HEDGE",
+                "SWITCH", "DROP", "HEDGE", "TRAP", "ICE", "FLAT", "WEAK",
+                "2-3", "3-2", "1-3-1", "1-2-2", "zone",
+                "Full court press", "3/4 court press", "Half court press", "ISO"
             ]
             return random.choice(fallback_plays)
         except Exception:
@@ -1493,8 +1632,8 @@ class Command(BaseCommand):
         )
 
     def load_play_definitions(self, admin_user):
-        """Load generic play definitions from JSON fixture"""
-        self.stdout.write("Loading generic play definitions...")
+        """Load play definitions from JSON file, excluding Control category"""
+        self.stdout.write("Loading play definitions from JSON file...")
 
         # Create a default team for generic play templates
         default_team, _ = Team.objects.get_or_create(
@@ -1563,25 +1702,40 @@ class Command(BaseCommand):
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
+            total_plays_created = 0
+            skipped_control_plays = 0
+
             for category_data in data:
-                category, _ = PlayCategory.objects.get_or_create(
-                    name=category_data["category"]
-                )
+                category_name = category_data["category"]
+                
+                # Skip Control category as requested
+                if category_name == "Control":
+                    skipped_control_plays = len(category_data["plays"])
+                    self.stdout.write(f"  - Skipping Control category ({skipped_control_plays} plays)")
+                    continue
+
+                category, _ = PlayCategory.objects.get_or_create(name=category_name)
 
                 for play_data in category_data["plays"]:
                     # Determine play type based on category
                     play_type = "NEUTRAL"  # Default
-                    if "Defense" in category_data["category"]:
+                    if "Defense" in category_name:
                         play_type = "DEFENSIVE"
-                    elif "Offense" in category_data["category"]:
+                    elif "Offense" in category_name:
                         play_type = "OFFENSIVE"
-                    elif category_data["category"] in ["Transition", "Set"]:
+                    elif category_name in ["Transition", "Set"]:
                         play_type = "OFFENSIVE"
-                    elif category_data["category"] in ["Zone", "Press"]:
+                    elif category_name in ["Zone", "Press"]:
                         play_type = "DEFENSIVE"
-                    elif category_data["category"] == "Control":
+                    elif category_name == "Players":
                         play_type = "NEUTRAL"
-                    elif category_data["category"] == "Players":
+                    elif category_name == "Outcome":
+                        play_type = "NEUTRAL"
+                    elif category_name == "Shoot":
+                        play_type = "NEUTRAL"
+                    elif category_name == "Tag Offensive Rebound":
+                        play_type = "NEUTRAL"
+                    elif category_name == "Advanced":
                         play_type = "NEUTRAL"
 
                     # Create play definition
@@ -1593,15 +1747,16 @@ class Command(BaseCommand):
                             "subcategory": play_data.get("subcategory"),
                             "action_type": play_data.get("action_type", "NORMAL"),
                             "play_type": play_type,
-                            "description": f"Generic {play_data['name']} play",
+                            "description": f"Generic {play_data['name']} play from {category_name}",
                         },
                     )
 
                     if created:
-                        self.stdout.write(f"  - Created play: {play_data['name']}")
+                        total_plays_created += 1
+                        self.stdout.write(f"  - Created play: {play_data['name']} ({play_type})")
 
             self.stdout.write(
-                f"✓ Loaded {PlayDefinition.objects.count()} play definitions"
+                f"✓ Loaded {total_plays_created} play definitions (skipped {skipped_control_plays} Control plays)"
             )
 
         except FileNotFoundError:
@@ -1643,53 +1798,52 @@ class Command(BaseCommand):
             self.stdout.write("✓ Created basic play categories")
 
     def generate_offensive_sequence(self, offensive_play, outcome):
-        """Generate a realistic offensive sequence based on the play and outcome"""
-        sequences = {
-            "PICK_AND_ROLL": [
-                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Drive to basket",
-                "Ball handler calls for screen → Big sets screen → Ball handler rejects screen → Pull-up jumper",
-                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Kick out to shooter",
-                "Ball handler calls for screen → Big sets screen → Ball handler uses screen → Pass to rolling big",
-            ],
-            "ISOLATION": [
-                "Ball handler isolates → Dribble moves → Drive to basket",
-                "Ball handler isolates → Dribble moves → Step-back jumper",
-                "Ball handler isolates → Dribble moves → Crossover → Pull-up",
-                "Ball handler isolates → Dribble moves → Spin move → Layup",
-            ],
-            "POST_UP": [
-                "Entry pass to post → Post player backs down → Turnaround jumper",
-                "Entry pass to post → Post player backs down → Drop step → Layup",
-                "Entry pass to post → Post player backs down → Kick out to perimeter",
-                "Entry pass to post → Post player backs down → Hook shot",
-            ],
-            "TRANSITION": [
-                "Rebound → Outlet pass → Fast break → Layup",
-                "Rebound → Outlet pass → Fast break → Pull-up three",
-                "Steal → Fast break → Alley-oop",
-                "Rebound → Outlet pass → Fast break → Kick ahead → Three-pointer",
-            ],
-            "HANDOFF": [
-                "Guard hands off to cutter → Cutter drives to basket",
-                "Guard hands off to cutter → Cutter pulls up for jumper",
-                "Guard hands off to cutter → Cutter passes to open shooter",
-                "Guard hands off to cutter → Cutter drives and kicks out",
-            ],
-        }
-
-        # Get sequences for the play, or use generic ones
-        play_sequences = sequences.get(
-            offensive_play,
-            [
-                "Ball movement → Screen action → Shot attempt",
-                "Entry pass → Off-ball movement → Shot attempt",
-                "Dribble penetration → Kick out → Shot attempt",
-                "Post entry → Kick out → Shot attempt",
-            ],
-        )
-
-        # Select a random sequence
-        base_sequence = random.choice(play_sequences)
+        """Generate a realistic offensive sequence based on the play from JSON data"""
+        # Get the play definition from the database to access subcategory
+        try:
+            from apps.teams.models import Team
+            from apps.plays.models import PlayDefinition
+            
+            default_team = Team.objects.filter(name="Default Play Templates").first()
+            if default_team:
+                play_def = PlayDefinition.objects.filter(
+                    team=default_team, 
+                    name=offensive_play,
+                    play_type="OFFENSIVE"
+                ).first()
+                
+                if play_def and play_def.subcategory:
+                    # Generate sequence based on subcategory from JSON
+                    subcategory = play_def.subcategory.lower()
+                    
+                    if subcategory == "set":
+                        return f"Set play {offensive_play} → Screen action → Shot attempt"
+                    elif subcategory == "transition":
+                        return f"Transition play {offensive_play} → Fast break → Shot attempt"
+                    elif subcategory == "left":
+                        return f"Left side play {offensive_play} → Ball movement → Shot attempt"
+                    elif subcategory == "right":
+                        return f"Right side play {offensive_play} → Ball movement → Shot attempt"
+                    else:
+                        return f"Offensive play {offensive_play} → Ball movement → Shot attempt"
+        except Exception:
+            pass
+        
+        # Fallback: generate sequence based on play name
+        if "Set" in offensive_play:
+            return f"Set play {offensive_play} → Screen action → Shot attempt"
+        elif "FastBreak" in offensive_play or "Transit" in offensive_play:
+            return f"Transition play {offensive_play} → Fast break → Shot attempt"
+        elif "BoB" in offensive_play or "SoB" in offensive_play:
+            return f"Out of bounds play {offensive_play} → Entry pass → Shot attempt"
+        elif "Special" in offensive_play or "ATO" in offensive_play:
+            return f"Special play {offensive_play} → Screen action → Shot attempt"
+        elif offensive_play in ["PnR", "ISO", "HighPost", "LowPost"]:
+            return f"Half court play {offensive_play} → Ball movement → Shot attempt"
+        elif offensive_play.startswith("After"):
+            return f"Follow-up play {offensive_play} → Ball movement → Shot attempt"
+        else:
+            base_sequence = f"Offensive play {offensive_play} → Ball movement → Shot attempt"
 
         # Add outcome-specific details
         if "MADE" in outcome:
@@ -1710,53 +1864,48 @@ class Command(BaseCommand):
             return base_sequence
 
     def generate_defensive_sequence(self, defensive_play, outcome):
-        """Generate a realistic defensive sequence based on the play and outcome"""
-        sequences = {
-            "MAN_TO_MAN": [
-                "Man-to-man pressure → Contest shot → Box out",
-                "Man-to-man pressure → Force turnover → Fast break",
-                "Man-to-man pressure → Help defense → Recover",
-                "Man-to-man pressure → Switch on screen → Contest",
-            ],
-            "ZONE": [
-                "Zone defense → Collapse on penetration → Contest shot",
-                "Zone defense → Trap ball handler → Force turnover",
-                "Zone defense → Close out on shooter → Contest three",
-                "Zone defense → Help and recover → Box out",
-            ],
-            "SWITCH": [
-                "Switch on screen → Contest shot → Box out",
-                "Switch on screen → Help defense → Recover",
-                "Switch on screen → Force tough shot → Rebound",
-                "Switch on screen → Trap ball handler → Steal",
-            ],
-            "ICE": [
-                "Ice the pick and roll → Force baseline → Contest shot",
-                "Ice the pick and roll → Trap ball handler → Turnover",
-                "Ice the pick and roll → Help defense → Recover",
-                "Ice the pick and roll → Force tough shot → Rebound",
-            ],
-            "TRAP": [
-                "Trap ball handler → Force turnover → Fast break",
-                "Trap ball handler → Force bad pass → Steal",
-                "Trap ball handler → Help defense → Recover",
-                "Trap ball handler → Force tough shot → Contest",
-            ],
-        }
-
-        # Get sequences for the play, or use generic ones
-        play_sequences = sequences.get(
-            defensive_play,
-            [
-                "Defensive pressure → Contest shot → Box out",
-                "Defensive pressure → Help defense → Recover",
-                "Defensive pressure → Force turnover → Fast break",
-                "Defensive pressure → Trap ball handler → Steal",
-            ],
-        )
-
-        # Select a random sequence
-        base_sequence = random.choice(play_sequences)
+        """Generate a realistic defensive sequence based on the play from JSON data"""
+        # Get the play definition from the database to access subcategory
+        try:
+            from apps.teams.models import Team
+            from apps.plays.models import PlayDefinition
+            
+            default_team = Team.objects.filter(name="Default Play Templates").first()
+            if default_team:
+                play_def = PlayDefinition.objects.filter(
+                    team=default_team, 
+                    name=defensive_play,
+                    play_type="DEFENSIVE"
+                ).first()
+                
+                if play_def and play_def.subcategory:
+                    # Generate sequence based on subcategory from JSON
+                    subcategory = play_def.subcategory.lower()
+                    
+                    if subcategory == "pnr":
+                        return f"Pick and roll defense {defensive_play} → Contest shot → Box out"
+                    elif subcategory == "zone":
+                        return f"Zone defense {defensive_play} → Collapse on penetration → Contest shot"
+                    elif subcategory == "zone press":
+                        return f"Press defense {defensive_play} → Trap ball handler → Force turnover"
+                    elif subcategory == "other":
+                        return f"Defensive play {defensive_play} → Contest shot → Box out"
+                    else:
+                        return f"Defensive play {defensive_play} → Contest shot → Box out"
+        except Exception:
+            pass
+        
+        # Fallback: generate sequence based on play name
+        if defensive_play in ["SWITCH", "DROP", "HEDGE", "TRAP", "ICE", "FLAT", "WEAK"]:
+            return f"Pick and roll defense {defensive_play} → Contest shot → Box out"
+        elif defensive_play in ["2-3", "3-2", "1-3-1", "1-2-2", "zone"]:
+            return f"Zone defense {defensive_play} → Collapse on penetration → Contest shot"
+        elif "press" in defensive_play.lower():
+            return f"Press defense {defensive_play} → Trap ball handler → Force turnover"
+        elif defensive_play == "ISO":
+            return f"Isolation defense {defensive_play} → Contest shot → Box out"
+        else:
+            base_sequence = f"Defensive play {defensive_play} → Contest shot → Box out"
 
         # Add outcome-specific details
         if "MADE" in outcome:

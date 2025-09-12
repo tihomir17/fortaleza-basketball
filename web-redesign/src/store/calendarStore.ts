@@ -33,10 +33,9 @@ interface CalendarState {
   }) => Promise<void>
   
   fetchGames: (params?: {
-    home_team?: number
-    away_team?: number
-    game_date__gte?: string
-    game_date__lte?: string
+    team_id?: number
+    start_date?: string
+    end_date?: string
   }) => Promise<void>
   fetchCalendarData: (params?: {
     team?: number
@@ -185,15 +184,14 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const startDate = new Date(year, month, 1)
       const endDate = new Date(year, month + 1, 0)
       
-      // Prepare game filters
+      // Prepare game filters with new parameter names
       const gameParams = teamId ? {
-        home_team: teamId,
-        away_team: teamId,
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        team_id: teamId,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       } : {
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       }
 
       const [events, games] = await Promise.all([
@@ -216,15 +214,14 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + 6)
       
-      // Prepare game filters
+      // Prepare game filters with new parameter names
       const gameParams = teamId ? {
-        home_team: teamId,
-        away_team: teamId,
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        team_id: teamId,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       } : {
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       }
 
       const [events, games] = await Promise.all([
@@ -249,15 +246,14 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const endDate = new Date(date)
       endDate.setHours(23, 59, 59, 999)
       
-      // Prepare game filters
+      // Prepare game filters with new parameter names
       const gameParams = teamId ? {
-        home_team: teamId,
-        away_team: teamId,
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        team_id: teamId,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       } : {
-        game_date__gte: startDate.toISOString(),
-        game_date__lte: endDate.toISOString()
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       }
 
       const [events, games] = await Promise.all([

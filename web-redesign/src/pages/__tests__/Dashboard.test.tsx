@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { BrowserRouter } from 'react-router-dom'
-import Dashboard from '../Dashboard'
+import { Dashboard } from '../Dashboard'
 import { useDashboardStore } from '../../store/dashboardStore'
 import { useAuthStore } from '../../store/authStore'
 

@@ -430,7 +430,7 @@ export default function Calendar() {
                 games={games}
                 onDateClick={(date) => setCurrentDate(date)}
                 onEventClick={() => navigate(`/events`)}
-                onGameClick={(game) => navigate(`/games/${game.id}`)}
+                onGameClick={(game) => navigate(`/game-tracking/${game.id}`)}
               />
             </div>
           )}
@@ -445,7 +445,7 @@ export default function Calendar() {
                 events={events}
                 games={games}
                 onEventClick={() => navigate(`/events`)}
-                onGameClick={(game) => navigate(`/games/${game.id}`)}
+                onGameClick={(game) => navigate(`/game-tracking/${game.id}`)}
               />
             </div>
           )}
@@ -460,7 +460,7 @@ export default function Calendar() {
                 events={events}
                 games={games}
                 onEventClick={() => navigate(`/events`)}
-                onGameClick={(game) => navigate(`/games/${game.id}`)}
+                onGameClick={(game) => navigate(`/game-tracking/${game.id}`)}
               />
             </div>
           )}

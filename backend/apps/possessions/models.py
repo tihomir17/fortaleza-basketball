@@ -358,7 +358,13 @@ def update_game_score_on_possession_save(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=Possession)
 def update_game_score_on_possession_delete(sender, instance, **kwargs):
     """Update game score when a possession is deleted"""
-    update_game_score(instance.game)
+    try:
+        # Check if the game still exists before trying to update it
+        if hasattr(instance, 'game') and instance.game:
+            update_game_score(instance.game)
+    except Exception:
+        # If game is already deleted or doesn't exist, skip the update
+        pass
 
 
 def update_game_score(game):

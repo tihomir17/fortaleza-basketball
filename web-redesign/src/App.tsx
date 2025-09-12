@@ -13,7 +13,7 @@ import { Login } from './pages/Login'
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
 const Games = lazy(() => import('./pages/Games').then(module => ({ default: module.Games })))
 const Teams = lazy(() => import('./pages/Teams'))
-const LiveTracking = lazy(() => import('./pages/LiveTracking').then(module => ({ default: module.LiveTracking })))
+const GameTracking = lazy(() => import('./pages/GameTracking').then(module => ({ default: module.GameTracking })))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const Scouting = lazy(() => import('./pages/Scouting').then(module => ({ default: module.Scouting })))
 const UserManagement = lazy(() => import('./pages/UserManagement').then(module => ({ default: module.UserManagement })))
@@ -103,7 +103,8 @@ function App() {
                     <Route path="/teams/:teamId" element={<TeamDetails />} />
                     <Route path="/teams/:teamId/roster" element={<ManageRoster />} />
                     <Route path="/teams/:teamId/play-categories" element={<TeamPlayCategories />} />
-                    <Route path="/live" element={<LiveTracking />} />
+                    <Route path="/game-tracking" element={<GameTracking />} />
+                    <Route path="/game-tracking/:gameId" element={<GameTracking />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/scouting" element={<Scouting />} />
                     <Route path="/playbook" element={<Playbook />} />

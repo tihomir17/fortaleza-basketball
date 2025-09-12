@@ -106,7 +106,7 @@ export function TeamsLoading() {
   )
 }
 
-export function LiveTrackingLoading() {
+export function GameTrackingLoading() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Page Header Skeleton */}

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { BrowserRouter } from 'react-router-dom'
-import Sidebar from '../Sidebar'
+import { Sidebar } from '../Sidebar'
 import { useAuthStore } from '../../../store/authStore'
 
 // Mock the auth store
@@ -18,7 +18,7 @@ jest.mock('../../../store/densityStore', () => ({
 const renderSidebar = () => {
   return render(
     <BrowserRouter>
-      <Sidebar />
+      <Sidebar isOpen={true} onClose={() => {}} />
     </BrowserRouter>
   )
 }

@@ -115,22 +115,32 @@ export const calendarService = {
 
   // Get games for calendar
   async getGames(params?: {
-    home_team?: number
-    away_team?: number
-    game_date__gte?: string
-    game_date__lte?: string
+    team_id?: number
+    start_date?: string
+    end_date?: string
   }): Promise<GameEvent[]> {
     try {
-      // Use the regular games endpoint with filtering instead of calendar-data
-      const data = await api.get<any>('/games/', { params })
+      // Use the optimized calendar-data endpoint with date filtering
+      const response = await api.get('/games/calendar-data/', {
+        params: {
+          ...params,
+        }
+      })
       
-      // Handle paginated response (DRF PageNumberPagination)
-      if (data && data.results) {
-        return data.results
+      console.log('📅 Calendar Service: API response:', response)
+      
+      // Check if response exists and has games property
+      if (!response) {
+        console.error('📅 Calendar Service: No response from API')
+        return []
       }
       
-      // Handle non-paginated response
-      return Array.isArray(data) ? data : []
+      if (!(response as any).games) {
+        console.error('📅 Calendar Service: No games property in response:', response)
+        return []
+      }
+      
+      return (response as any).games || []
     } catch (error: any) {
       console.error('Error fetching games:', error)
       // If it's an authentication error, return empty array
@@ -153,13 +163,12 @@ export const calendarService = {
   }): Promise<CalendarData> {
     // Prepare game filters from event params
     const gameParams = params?.team ? {
-      home_team: params.team,
-      away_team: params.team,
-      game_date__gte: params.start_time__gte,
-      game_date__lte: params.start_time__lte
+      team_id: params.team,
+      start_date: params.start_time__gte,
+      end_date: params.start_time__lte
     } : {
-      game_date__gte: params?.start_time__gte,
-      game_date__lte: params?.start_time__lte
+      start_date: params?.start_time__gte,
+      end_date: params?.start_time__lte
     }
 
     const [events, games] = await Promise.all([

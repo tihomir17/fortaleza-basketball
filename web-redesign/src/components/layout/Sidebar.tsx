@@ -19,7 +19,7 @@ interface SidebarProps {
 const navigation = [
     { name: 'Dashboard', href: '/', icon: HomeIcon },
     { name: 'Calendar', href: '/calendar', icon: CalendarDaysIcon },
-    { name: 'Live Tracking', href: '/live', icon: PlayIcon },
+    { name: 'Game Tracking', href: '/game-tracking', icon: PlayIcon },
     { name: 'Team Management', href: '/teams', icon: UserGroupIcon },
     { name: 'Playbook', href: '/playbook', icon: BookOpenIcon },
     { name: 'Game Analysis', href: '/games', icon: ChartBarIcon },

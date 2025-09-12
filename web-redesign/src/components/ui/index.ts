@@ -35,7 +35,7 @@ export {
   DashboardLoading, 
   GamesLoading, 
   TeamsLoading, 
-  LiveTrackingLoading, 
+  GameTrackingLoading, 
   AnalyticsLoading, 
   ScoutingLoading 
 } from './LoadingStates'

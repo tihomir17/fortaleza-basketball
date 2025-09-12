@@ -109,7 +109,7 @@ export default function GameDetails() {
       // Fetch game basic info
       const gameResponse = await fetch(`/api/games/${gameId}/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json'
         }
       })
@@ -125,13 +125,13 @@ export default function GameDetails() {
       const [homeStatsResponse, awayStatsResponse] = await Promise.all([
         fetch(`/api/games/${gameId}/post-game-report/?team_id=${gameData.home_team.id}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
           }
         }),
         fetch(`/api/games/${gameId}/post-game-report/?team_id=${gameData.away_team.id}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
           }
         })
@@ -151,13 +151,13 @@ export default function GameDetails() {
       const [homePlayerResponse, awayPlayerResponse] = await Promise.all([
         fetch(`/api/games/${gameId}/player-stats/?team_id=${gameData.home_team.id}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
           }
         }),
         fetch(`/api/games/${gameId}/player-stats/?team_id=${gameData.away_team.id}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
           }
         })
