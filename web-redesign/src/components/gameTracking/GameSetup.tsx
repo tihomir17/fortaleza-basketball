@@ -42,7 +42,7 @@ interface SetupStep {
 }
 
 export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
-  const { teams, teamMembers, fetchTeamMembers } = useTeamsStore()
+  const { teams, teamMembers, fetchTeamMembers, currentTeam } = useTeamsStore()
   const { selectGame, currentGame } = useGameTrackingStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -76,6 +76,64 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
 
   const watchedHomeTeamId = watch('homeTeamId')
   const watchedAwayTeamId = watch('awayTeamId')
+
+  // Auto-populate roster for user's own team
+  const autoPopulateRoster = React.useCallback((teamId: number, teamType: 'home' | 'away') => {
+    console.log('🔍 Auto-populate attempt:', {
+      teamId,
+      teamType,
+      currentTeamId: currentTeam?.id,
+      currentTeamName: currentTeam?.name,
+      teamMembersCount: teamMembers.length,
+      teamMembers: teamMembers.map(m => ({ id: m.id, name: m.first_name + ' ' + m.last_name, role: m.role, team: m.team }))
+    })
+    
+    if (!currentTeam || currentTeam.id !== teamId) {
+      console.log('🔍 Auto-populate skipped: Not user\'s team')
+      return
+    }
+    
+    // Get players from the current team
+    const teamPlayers = teamMembers.filter(member => 
+      member.role === 'PLAYER' && member.team === teamId
+    )
+    
+    console.log('🔍 Team players found:', {
+      teamPlayersCount: teamPlayers.length,
+      teamPlayers: teamPlayers.map(p => ({ id: p.id, name: p.first_name + ' ' + p.last_name, jersey: p.jersey_number }))
+    })
+    
+    if (teamPlayers.length === 0) {
+      console.log('🔍 Auto-populate skipped: No players found')
+      return
+    }
+    
+    // Auto-select first 12 players for game roster
+    const gameRoster = teamPlayers.slice(0, 12).map(player => player.id)
+    setValue(`gameRoster.${teamType}`, gameRoster)
+    
+    // Auto-select first 5 players for starting five
+    const startingFive = teamPlayers.slice(0, 5).map(player => player.id)
+    setValue(`startingFive.${teamType}`, startingFive)
+    
+    console.log(`🔍 Auto-populated ${teamType} team roster:`, {
+      gameRoster: gameRoster.length,
+      startingFive: startingFive.length,
+      teamName: currentTeam.name,
+      gameRosterIds: gameRoster,
+      startingFiveIds: startingFive
+    })
+    
+    // Verify the values were set
+    setTimeout(() => {
+      const currentGameRoster = watch(`gameRoster.${teamType}`)
+      const currentStartingFive = watch(`startingFive.${teamType}`)
+      console.log(`🔍 Verification - ${teamType} form values after auto-population:`, {
+        gameRoster: currentGameRoster,
+        startingFive: currentStartingFive
+      })
+    }, 200)
+  }, [currentTeam, teamMembers, setValue])
 
   // Create a combined list of teams that includes both user's teams and game participants
   const availableTeams = React.useMemo(() => {
@@ -183,30 +241,62 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     loadTeamMembers()
   }, [teamIds, fetchTeamMembers])
 
+  // Auto-populate roster when user's team is selected
+  useEffect(() => {
+    console.log('🔍 Home team auto-populate effect triggered:', {
+      watchedHomeTeamId,
+      teamMembersLength: teamMembers.length,
+      currentTeamId: currentTeam?.id
+    })
+    
+    if (watchedHomeTeamId && teamMembers.length > 0) {
+      // Add a small delay to ensure the form is ready
+      setTimeout(() => {
+        autoPopulateRoster(watchedHomeTeamId, 'home')
+      }, 100)
+    }
+  }, [watchedHomeTeamId, teamMembers, autoPopulateRoster, currentTeam])
+
+  useEffect(() => {
+    console.log('🔍 Away team auto-populate effect triggered:', {
+      watchedAwayTeamId,
+      teamMembersLength: teamMembers.length,
+      currentTeamId: currentTeam?.id
+    })
+    
+    if (watchedAwayTeamId && teamMembers.length > 0) {
+      // Add a small delay to ensure the form is ready
+      setTimeout(() => {
+        autoPopulateRoster(watchedAwayTeamId, 'away')
+      }, 100)
+    }
+  }, [watchedAwayTeamId, teamMembers, autoPopulateRoster, currentTeam])
+
+  // Watch form values for roster changes
+  const watchedHomeGameRoster = watch('gameRoster.home')
+  const watchedAwayGameRoster = watch('gameRoster.away')
+  const watchedHomeStartingFive = watch('startingFive.home')
+  const watchedAwayStartingFive = watch('startingFive.away')
+
   // Memoize step completion status to reduce re-renders
   const stepCompletionStatus = React.useMemo(() => {
     const homeTeamSelected = watchedHomeTeamId > 0
     const awayTeamSelected = watchedAwayTeamId > 0
     const basicInfoComplete = homeTeamSelected && awayTeamSelected
 
-    const homeGameRoster = watch('gameRoster.home')
-    const awayGameRoster = watch('gameRoster.away')
-    const gameRosterComplete = homeGameRoster.length === 12 && awayGameRoster.length === 12
-
-    const homeStartingFive = watch('startingFive.home')
-    const awayStartingFive = watch('startingFive.away')
-    const startingFiveComplete = homeStartingFive.length === 5 && awayStartingFive.length === 5
+    const gameRosterComplete = watchedHomeGameRoster.length === 12 && watchedAwayGameRoster.length === 12
+    const startingFiveComplete = watchedHomeStartingFive.length === 5 && watchedAwayStartingFive.length === 5
 
     return {
       basicInfoComplete,
       gameRosterComplete,
       startingFiveComplete,
-      homeGameRoster: homeGameRoster.length,
-      awayGameRoster: awayGameRoster.length,
-      homeStartingFive: homeStartingFive.length,
-      awayStartingFive: awayStartingFive.length
+      homeGameRoster: watchedHomeGameRoster.length,
+      awayGameRoster: watchedAwayGameRoster.length,
+      homeStartingFive: watchedHomeStartingFive.length,
+      awayStartingFive: watchedAwayStartingFive.length
     }
-  }, [watchedHomeTeamId, watchedAwayTeamId, watch])
+  }, [watchedHomeTeamId, watchedAwayTeamId, watchedHomeGameRoster, watchedAwayGameRoster, watchedHomeStartingFive, watchedAwayStartingFive])
 
   // Update step completion status
   useEffect(() => {
@@ -231,13 +321,24 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
     const currentGameRoster = watch('gameRoster')
     const teamGameRoster = currentGameRoster[team]
 
+    console.log('🔍 handleGameRosterChange Debug:', {
+      team,
+      playerId,
+      checked,
+      currentTeamRoster: teamGameRoster.length,
+      teamGameRoster
+    })
+
     if (checked) {
       if (teamGameRoster.length < 12) {
-        setValue(`gameRoster.${team}`, [...teamGameRoster, playerId])
+        const newRoster = [...teamGameRoster, playerId]
+        setValue(`gameRoster.${team}`, newRoster)
+        console.log('🔍 Added player to roster:', { team, newRosterLength: newRoster.length })
       }
     } else {
       const newGameRoster = teamGameRoster.filter(id => id !== playerId)
       setValue(`gameRoster.${team}`, newGameRoster)
+      console.log('🔍 Removed player from roster:', { team, newRosterLength: newGameRoster.length })
       
       // Remove from starting five if they were selected
       const currentStartingFive = watch('startingFive')
@@ -473,6 +574,25 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
               Select 12 players for each team from the full roster. These players will be available for the game.
             </p>
             
+            {/* Auto-population notification */}
+            {currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <CheckCircleIcon className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      Auto-populated for {currentTeam.name}
+                    </h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>Your team's default roster and starting lineup have been automatically selected. You can modify the selections below if needed.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Home Team Game Roster */}
               <div>
@@ -542,6 +662,25 @@ export function GameSetup({ gameId, onSetupComplete }: GameSetupProps) {
             <p className="text-gray-600 mb-6">
               Select the starting five players for each team from the game roster.
             </p>
+            
+            {/* Auto-population notification */}
+            {currentTeam && (watchedHomeTeamId === currentTeam.id || watchedAwayTeamId === currentTeam.id) && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <CheckCircleIcon className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800">
+                      Starting lineup auto-selected
+                    </h3>
+                    <div className="mt-2 text-sm text-green-700">
+                      <p>Your team's default starting five has been automatically selected. You can modify the selections below if needed.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Home Team Starting Five */}

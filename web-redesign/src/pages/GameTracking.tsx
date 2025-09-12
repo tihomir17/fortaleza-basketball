@@ -185,7 +185,11 @@ export function GameTracking() {
     return (
       <GameSetup
         gameId={currentGame.id}
-        onSetupComplete={() => setShowGameSetup(false)}
+        onSetupComplete={() => {
+          setShowGameSetup(false)
+          // Start tracking automatically after setup is complete
+          setGameState(prev => ({ ...prev, isTracking: true }))
+        }}
       />
     )
   }

@@ -9,7 +9,7 @@ import {
   TrophyIcon,
   SignalIcon
 } from '@heroicons/react/24/outline'
-import { LiveTrackingLoading } from '../components/ui/LoadingStates'
+import { GameTrackingLoading } from '../components/ui/LoadingStates'
 
 interface GameState {
   isLive: boolean
@@ -223,7 +223,7 @@ export function LiveTracking() {
   }, [gameState.isLive, gameState.isPaused])
 
   if (isLoading) {
-    return <LiveTrackingLoading />
+    return <GameTrackingLoading />
   }
 
   const startGame = () => {
