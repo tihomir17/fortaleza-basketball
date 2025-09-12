@@ -27,33 +27,72 @@ class EventRepository {
         List<dynamic> items;
         if (decoded is List) {
           items = decoded;
-          logger.d('EventRepository: Parsed top-level List with ${items.length} items.');
         } else if (decoded is Map<String, dynamic>) {
           if (decoded['results'] is List) {
             items = decoded['results'] as List<dynamic>;
-            logger.d('EventRepository: Parsed List from "results" with ${items.length} items.');
           } else if (decoded['events'] is List) {
             items = decoded['events'] as List<dynamic>;
-            logger.d('EventRepository: Parsed List from "events" with ${items.length} items.');
           } else {
-            logger.e('EventRepository: Unexpected JSON shape. Keys=${decoded.keys.toList()}');
             throw Exception('Unexpected events payload shape. Expected List or keys [results|events].');
           }
         } else {
-          logger.e('EventRepository: Unexpected JSON root type: ${decoded.runtimeType}');
           throw Exception('Unexpected events payload type: ${decoded.runtimeType}');
         }
-        logger.i('EventRepository: Loaded ${items.length} events.');
-        return items.map((json) => CalendarEvent.fromJson(json)).toList();
+        if (items.isNotEmpty) {
+        }
+
+        // Initial parse
+        List<CalendarEvent> events = items.map((json) => CalendarEvent.fromJson(json)).toList();
+
+        // Enrich events missing attendeeIds by fetching detail endpoint
+        final List<CalendarEvent> enriched = List.from(events);
+        final List<Future<void>> enrichFutures = [];
+        for (int i = 0; i < enriched.length; i++) {
+          final e = enriched[i];
+          final bool needsAttendees = e.attendeeIds.isEmpty && e.eventType == 'PRACTICE_INDIVIDUAL';
+          if (!needsAttendees) continue;
+          enrichFutures.add(_fetchEventDetail(token, e.id).then((detail) {
+            if (detail != null && detail.attendeeIds.isNotEmpty) {
+              enriched[i] = detail;
+            } else {
+            }
+          }).catchError((err) {
+          }));
+        }
+
+        if (enrichFutures.isNotEmpty) {
+          await Future.wait(enrichFutures);
+        }
+
+        return enriched;
       } else {
-        logger.e('EventRepository: Failed to load events. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception(
           'Failed to load calendar events. Status: ${response.statusCode}',
         );
       }
     } catch (e) {
-      logger.e('EventRepository: Error fetching events: $e');
       throw Exception('Error fetching calendar events: $e');
+    }
+  }
+
+  Future<CalendarEvent?> _fetchEventDetail(String token, int eventId) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/events/$eventId/');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> detail = json.decode(response.body) as Map<String, dynamic>;
+        return CalendarEvent.fromJson(detail);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
     }
   }
 

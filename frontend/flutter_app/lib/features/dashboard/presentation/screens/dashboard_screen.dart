@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fortaleza_basketball_analytics/core/navigation/refresh_signal.dart';
+import 'package:fortaleza_basketball_analytics/features/calendar/presentation/cubit/calendar_cubit.dart';
 import 'package:fortaleza_basketball_analytics/features/dashboard/data/models/dashboard_data.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fortaleza_basketball_analytics/core/widgets/user_profile_app_bar.dart';
@@ -172,9 +173,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 12),
             ],
             
-            // For players: Show upcoming events for today
+            // For players: Show upcoming events for today (filtered with attendeeIds like calendar)
             if (isPlayer) ...[
-              UpcomingEventsList(events: dashboardData.upcomingEvents ?? []),
+              Builder(
+                builder: (context) {
+                  final authUser = context.read<AuthCubit>().state.user;
+                  final calendarState = context.read<CalendarCubit>().state;
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+
+                  // Source of truth: calendar events (have attendeeIds)
+                  final filteredCalendarEvents = calendarState.events.where((e) {
+                    // Only upcoming from today forward
+                    final eDate = DateTime(e.startTime.year, e.startTime.month, e.startTime.day);
+                    if (eDate.isBefore(today)) return false;
+
+                    if (e.eventType == 'PRACTICE_INDIVIDUAL') {
+                      if (authUser == null) return false;
+                      if (authUser.role == 'COACH') return true;
+                      // PLAYER: must be assigned
+                      return e.attendeeIds.contains(authUser.id);
+                    }
+                    // All other event types visible
+                    return true;
+                  }).toList()
+                    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+                  // Map to UpcomingEvent model used by the widget
+                  final List<UpcomingEvent> upcoming = filteredCalendarEvents.map((e) => UpcomingEvent(
+                    id: e.id,
+                    title: e.title,
+                    eventType: e.eventType,
+                    startTime: e.startTime,
+                    endTime: e.endTime,
+                    location: null,
+                    description: e.description,
+                  )).toList();
+
+                  return UpcomingEventsList(events: upcoming);
+                },
+              ),
               const SizedBox(height: 12),
             ],
             
@@ -689,4 +727,5 @@ class _ReportCard extends StatelessWidget {
       return 'Just now';
     }
   }
+
 }

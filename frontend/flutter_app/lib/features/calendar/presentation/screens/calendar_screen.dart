@@ -67,9 +67,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final gamesOnDay = state.games.where(
       (game) => isSameDay(game.gameDate, day),
     );
-    final eventsOnDay = state.events.where(
-      (event) => isSameDay(event.startTime, day),
-    );
+    // Visibility rules: coaches see all; players see only individual practices assigned to them
+    final user = context.read<AuthCubit>().state.user;
+    final eventsOnDay = state.events.where((event) {
+      if (!isSameDay(event.startTime, day)) return false;
+      if (event.eventType == 'PRACTICE_INDIVIDUAL' && user?.role == 'PLAYER') {
+        return event.attendeeIds.contains(user!.id);
+      }
+      return true;
+    });
     return [...gamesOnDay, ...eventsOnDay]..sort((a, b) {
       final timeA = a is Game ? a.gameDate : (a as CalendarEvent).startTime;
       final timeB = b is Game ? b.gameDate : (b as CalendarEvent).startTime;

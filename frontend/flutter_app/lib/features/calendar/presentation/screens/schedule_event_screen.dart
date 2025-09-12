@@ -314,6 +314,7 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
                         .firstWhere((t) => t.id == teamId)
                         .players;
                     // Reset attendees when team changes
+                    _selectedAttendeeIds.clear();
                   });
                 },
                 decoration: const InputDecoration(labelText: 'Team'),
@@ -327,7 +328,12 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
                       .toList(),
                   title: const Text("Select Players"),
                   buttonText: const Text("Attendees *"),
-                  onConfirm: (values) {},
+                  onConfirm: (values) {
+                    setState(() {
+                      _selectedAttendeeIds.clear();
+                      _selectedAttendeeIds.addAll(values.cast<int>());
+                    });
+                  },
                   validator: (values) => (values == null || values.isEmpty)
                       ? 'At least one attendee is required'
                       : null,
